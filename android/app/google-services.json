@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "354277290620",
+    "project_id": "rumo-quiz",
+    "storage_bucket": "rumo-quiz.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:354277290620:android:2be2be767e75f581d44ff9",
+        "android_client_info": {
+          "package_name": "com.example.rumo_quiz"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBdJGx2hhEgdCYpmA-gSuTyHPE_qneN3FU"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
