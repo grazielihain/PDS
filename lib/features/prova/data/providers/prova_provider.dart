@@ -1,6 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../domain/models/prova_model.dart';
+import '../../domain/models/questao_model.dart';
 
 // Provider busca as provas filtradas pela instituição em tempo real
 final listaProvasProvider = StreamProvider.family<List<ProvaModel>, String>((
@@ -24,4 +25,19 @@ final listaProvasProvider = StreamProvider.family<List<ProvaModel>, String>((
             .map((doc) => ProvaModel.fromFirestore(doc.data(), doc.id))
             .toList();
       });
+});
+
+// Provider que busca as questões da subcoleção de uma prova específica
+final listaQuestoesProvider = FutureProvider.family<List<QuestaoModel>, String>((ref, provaId) async {
+  final firestore = FirebaseFirestore.instance;
+  
+  final snapshot = await firestore
+      .collection('provas')
+      .doc(provaId)
+      .collection('questoes')
+      .get();
+
+  return snapshot.docs
+      .map((doc) => QuestaoModel.fromFirestore(doc.data(), doc.id))
+      .toList();
 });

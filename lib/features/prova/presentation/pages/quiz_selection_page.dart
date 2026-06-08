@@ -4,6 +4,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../../domain/models/prova_model.dart';
 import '../../data/providers/prova_provider.dart';
+import '../pages/quiz_run_page.dart';
 
 class QuizSelectionPage extends ConsumerWidget {
   const QuizSelectionPage({super.key});
@@ -73,7 +74,7 @@ class QuizSelectionPage extends ConsumerWidget {
                   ),
                 ),
                 const SizedBox(height: 4),
-                // ESSE TEXTO VAI MOSTRAR O ID DIRETO NA TELA PARA NÓS:
+                // TEXTO VAI MOSTRAR O ID DIRETO NA TELA:
                 Text(
                   'Sua instituição cadastrada é: $instituicaoId',
                   style: const TextStyle(
@@ -141,7 +142,14 @@ class QuizSelectionPage extends ConsumerWidget {
                                 Icons.arrow_forward_ios,
                                 color: Colors.blue,
                               ),
-                              onTap: () {},
+                              onTap: () {
+                                Navigator.of(context).push(
+                                  MaterialPageRoute(
+                                    builder: (context) =>
+                                        QuizRunPage(prova: prova),
+                                  ),
+                                );
+                              },
                             ),
                           );
                         },
