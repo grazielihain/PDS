@@ -2,6 +2,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../domain/models/prova_model.dart';
+import '../../domain/models/questao_model.dart';
 import '../../data/providers/prova_provider.dart';
 
 class QuizRunPage extends ConsumerStatefulWidget {
@@ -15,8 +16,10 @@ class QuizRunPage extends ConsumerStatefulWidget {
 
 class _QuizRunPageState extends ConsumerState<QuizRunPage> {
   int _perguntaAtualIndex = 0;
-  int _respostasCorretas = 0;
-  int? _opcaoSelecionadaIndex;
+
+  // REGRA DE NEGÓCIO: Armazena o gabarito escolhido pelo aluno para cada questão.
+  // A chave (key) é o índice da pergunta, o valor (value) é a alternativa que ele escolheu.
+  final Map<int, int> _gabaritoAluno = {};
 
   // Variáveis do Cronômetro
   late int _tempoRestanteSegundos;
@@ -25,34 +28,27 @@ class _QuizRunPageState extends ConsumerState<QuizRunPage> {
   @override
   void initState() {
     super.initState();
-    // Pega o tempo em minutos. Se por acaso for 0 ou nulo, garante pelo menos 20 minutos por segurança
     final minutos = widget.prova.tempoEmMinutos > 0
         ? widget.prova.tempoEmMinutos
         : 20;
-
-    // Converte para segundos
     _tempoRestanteSegundos = minutos * 60;
-
-    // Só inicia o cronômetro se tivermos tempo configurado
     if (_tempoRestanteSegundos > 0) {
       _iniciarCronometro();
     }
   }
 
   void _iniciarCronometro() {
-    _timer?.cancel(); // Cancela qualquer timer antigo antes de começar um novo
-
+    _timer?.cancel();
     _timer = Timer.periodic(const Duration(seconds: 1), (timer) {
-      if (!mounted)
-        return; // Garante que a tela ainda está aberta antes de atualizar o estado
-
+      if (!mounted) return;
       if (_tempoRestanteSegundos > 0) {
         setState(() {
           _tempoRestanteSegundos--;
         });
       } else {
         _timer?.cancel();
-        _finalizarQuiz(tempoEsgotado: true);
+        // Se o tempo esgotar, passamos uma lista vazia ou buscamos as questões para computar o que deu tempo
+        _finalizarQuizComCalculo(questoes: [], tempoEsgotado: true);
       }
     });
   }
@@ -63,43 +59,54 @@ class _QuizRunPageState extends ConsumerState<QuizRunPage> {
     return '${minutos.toString().padLeft(2, '0')}:${segundos.toString().padLeft(2, '0')}';
   }
 
-  void _responder(int indexSelecionado, int indexCorreto) {
-    if (_opcaoSelecionadaIndex != null)
-      return; // Impede responder duas vezes a mesma pergunta
-
+  // Aluno escolhe ou troca a resposta da questão atual livremente
+  void _selecionarOpcao(int indexSelecionado) {
     setState(() {
-      _opcaoSelecionadaIndex = indexSelecionado;
-      if (indexSelecionado == indexCorreto) {
-        _respostasCorretas++;
-      }
+      _gabaritoAluno[_perguntaAtualIndex] = indexSelecionado;
     });
   }
 
-  void _proximaPergunta(int totalQuestoes) {
-    if (_perguntaAtualIndex < totalQuestoes - 1) {
-      setState(() {
-        _perguntaAtualIndex++;
-        _opcaoSelecionadaIndex = null; // Reseta a seleção para a próxima tela
-      });
-    } else {
-      _finalizarQuiz(tempoEsgotado: false);
-    }
+  // Avança para a próxima tela sem somar pontos ainda
+  void _avancarQuestao() {
+    setState(() {
+      _perguntaAtualIndex++;
+    });
   }
 
-  void _finalizarQuiz({required bool tempoEsgotado}) {
+  // REGRA DE NEGÓCIO ENFORCADA: O cálculo da pontuação acontece UNICAMENTE aqui
+  void _finalizarQuizComCalculo({
+    required List<QuestaoModel> questoes,
+    required bool tempoEsgotado,
+  }) {
     _timer?.cancel();
+    int respostasCorretas = 0;
 
+    // Se o tempo não esgotou e temos a lista de questões, varremos o gabarito calculando os acertos
+    if (questoes.isNotEmpty) {
+      for (int i = 0; i < questoes.length; i++) {
+        final escolhaDoAluno = _gabaritoAluno[i];
+        final respostaCertaDoBanco = questoes[i].respostaCorretaIndex;
+
+        if (escolhaDoAluno == respostaCertaDoBanco) {
+          respostasCorretas++;
+        }
+      }
+    }
+
+    // Exibe o resultado final calculado na hora da entrega
     showDialog(
       context: context,
       barrierDismissible: false,
       builder: (context) => AlertDialog(
         title: Text(tempoEsgotado ? 'Tempo Esgotado!' : 'Quiz Concluído!'),
-        content: Text('Você acertou $_respostasCorretas questões.'),
+        content: Text(
+          'Você acertou $respostasCorretas de ${questoes.length} questões.',
+        ),
         actions: [
           TextButton(
             onPressed: () {
               Navigator.of(context).pop(); // Fecha o modal
-              Navigator.of(context).pop(); // Volta para a tela de listagem
+              Navigator.of(context).pop(); // Volta para a lista de provas
             },
             child: const Text('OK'),
           ),
@@ -116,7 +123,6 @@ class _QuizRunPageState extends ConsumerState<QuizRunPage> {
 
   @override
   Widget build(BuildContext context) {
-    // Busca as questões da subcoleção usando o provider que criamos no Passo 3
     final questoesAsyncValue = ref.watch(
       listaQuestoesProvider(widget.prova.id),
     );
@@ -159,13 +165,15 @@ class _QuizRunPageState extends ConsumerState<QuizRunPage> {
           }
 
           final questaoAtual = questoes[_perguntaAtualIndex];
+          // Verifica qual opção está gravada no gabarito para a página atual (pode ser nulo se não clicou)
+          final opcaoSelecionadaIndex = _gabaritoAluno[_perguntaAtualIndex];
+          final ehUltimaQuestao = _perguntaAtualIndex == questoes.length - 1;
 
           return Padding(
             padding: const EdgeInsets.all(16.0),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                // Indicador de progresso (Ex: Pergunta 1 de 5)
                 Text(
                   'Questão ${_perguntaAtualIndex + 1} de ${questoes.length}',
                   style: TextStyle(
@@ -175,7 +183,6 @@ class _QuizRunPageState extends ConsumerState<QuizRunPage> {
                 ),
                 const SizedBox(height: 12),
 
-                // Enunciado da Questão
                 Text(
                   questaoAtual.pergunta,
                   style: const TextStyle(
@@ -185,28 +192,20 @@ class _QuizRunPageState extends ConsumerState<QuizRunPage> {
                 ),
                 const SizedBox(height: 24),
 
-                // Lista de Opções (Alternativas)
+                // Lista de Opções
                 Expanded(
                   child: ListView.builder(
                     itemCount: questaoAtual.opcoes.length,
                     itemBuilder: (context, index) {
                       final opcao = questaoAtual.opcoes[index];
-                      final foiRespondido = _opcaoSelecionadaIndex != null;
-                      final ehEstaOpcao = _opcaoSelecionadaIndex == index;
-                      final ehCorreta =
-                          questaoAtual.respostaCorretaIndex == index;
+                      final ehEstaOpcao = opcaoSelecionadaIndex == index;
 
-                      // Lógica de cores após o clique
                       Color corBotao = Colors.white;
-                      if (foiRespondido) {
-                        if (ehCorreta) {
-                          corBotao =
-                              Colors.green.shade100; // Mostra a certa em verde
-                        } else if (ehEstaOpcao) {
-                          corBotao = Colors
-                              .red
-                              .shade100; // Se errou, mostra em vermelho
-                        }
+                      Color corBorda = Colors.grey.shade300;
+
+                      if (ehEstaOpcao) {
+                        corBotao = Colors.blue.shade50;
+                        corBorda = Colors.blue.shade700;
                       }
 
                       return Padding(
@@ -219,21 +218,22 @@ class _QuizRunPageState extends ConsumerState<QuizRunPage> {
                             shape: RoundedRectangleBorder(
                               borderRadius: BorderRadius.circular(8),
                               side: BorderSide(
-                                color: foiRespondido && ehCorreta
-                                    ? Colors.green
-                                    : Colors.grey.shade300,
+                                color: corBorda,
+                                width: ehEstaOpcao ? 2 : 1,
                               ),
                             ),
                           ),
-                          onPressed: () => _responder(
-                            index,
-                            questaoAtual.respostaCorretaIndex,
-                          ),
+                          onPressed: () => _selecionarOpcao(index),
                           child: Align(
                             alignment: Alignment.centerLeft,
                             child: Text(
                               opcao,
-                              style: const TextStyle(fontSize: 16),
+                              style: TextStyle(
+                                fontSize: 16,
+                                fontWeight: ehEstaOpcao
+                                    ? FontWeight.bold
+                                    : FontWeight.normal,
+                              ),
                             ),
                           ),
                         ),
@@ -242,20 +242,28 @@ class _QuizRunPageState extends ConsumerState<QuizRunPage> {
                   ),
                 ),
 
-                // Botão Avançar
+                // Botão Avançar / Finalizar Prova
                 ElevatedButton(
                   style: ElevatedButton.styleFrom(
                     backgroundColor: Colors.blue.shade700,
                     foregroundColor: Colors.white,
                     padding: const EdgeInsets.symmetric(vertical: 16),
                   ),
-                  onPressed: _opcaoSelecionadaIndex == null
-                      ? null // Fica desabilitado até o aluno escolher uma opção
-                      : () => _proximaPergunta(questoes.length),
+                  // Bloqueia avanço se o aluno não escolheu nada na tela atual
+                  onPressed: opcaoSelecionadaIndex == null
+                      ? null
+                      : () {
+                          if (ehUltimaQuestao) {
+                            _finalizarQuizComCalculo(
+                              questoes: questoes,
+                              tempoEsgotado: false,
+                            );
+                          } else {
+                            _avancarQuestao();
+                          }
+                        },
                   child: Text(
-                    _perguntaAtualIndex == questoes.length - 1
-                        ? 'Finalizar'
-                        : 'Próxima Questão',
+                    ehUltimaQuestao ? 'Finalizar Prova' : 'Próxima Questão',
                     style: const TextStyle(
                       fontSize: 18,
                       fontWeight: FontWeight.bold,
