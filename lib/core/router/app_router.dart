@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import '../../features/auth/presentation/pages/login_page.dart';
+import '../../features/prova/presentation/pages/quiz_selection_page.dart';
 
 // Importações temporárias das telas para o roteador não dar erro de código.
 class AppRouter {
@@ -21,8 +22,7 @@ class AppRouter {
       // 3. Rota da Seleção do Quiz (Estudante - Acess3)
       GoRoute(
         path: '/quiz-selection',
-        builder: (context, state) =>
-            const Scaffold(body: Center(child: Text('Seleção de Simulados'))),
+        builder: (context, state) => const QuizSelectionPage(),
       ),
 
       // 4. Rota do Motor do Quiz (A Prova em execução)
