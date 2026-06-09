@@ -2,6 +2,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../domain/models/prova_model.dart';
 import '../../domain/models/questao_model.dart';
+import '../../domain/models/historico_model.dart';
 
 // Provider busca as provas filtradas pela instituição em tempo real
 final listaProvasProvider = StreamProvider.family<List<ProvaModel>, String>((
@@ -28,16 +29,28 @@ final listaProvasProvider = StreamProvider.family<List<ProvaModel>, String>((
 });
 
 // Provider que busca as questões da subcoleção de uma prova específica
-final listaQuestoesProvider = FutureProvider.family<List<QuestaoModel>, String>((ref, provaId) async {
-  final firestore = FirebaseFirestore.instance;
-  
-  final snapshot = await firestore
-      .collection('provas')
-      .doc(provaId)
-      .collection('questoes')
-      .get();
+final listaQuestoesProvider = FutureProvider.family<List<QuestaoModel>, String>(
+  (ref, provaId) async {
+    final firestore = FirebaseFirestore.instance;
 
-  return snapshot.docs
-      .map((doc) => QuestaoModel.fromFirestore(doc.data(), doc.id))
-      .toList();
+    final snapshot = await firestore
+        .collection('provas')
+        .doc(provaId)
+        .collection('questoes')
+        .get();
+
+    return snapshot.docs
+        .map((doc) => QuestaoModel.fromFirestore(doc.data(), doc.id))
+        .toList();
+  },
+);
+
+// Provider que expõe a função de salvar o histórico no banco
+final salvarHistoricoProvider = Provider((ref) {
+  return (HistoricoModel historico) async {
+    final firestore = FirebaseFirestore.instance;
+
+    // Cria uma nova coleção chamada 'historicos' e adiciona o documento
+    await firestore.collection('historicos').add(historico.toFirestore());
+  };
 });

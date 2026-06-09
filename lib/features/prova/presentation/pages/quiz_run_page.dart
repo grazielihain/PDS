@@ -4,6 +4,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../domain/models/prova_model.dart';
 import '../../domain/models/questao_model.dart';
 import '../../data/providers/prova_provider.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import '../../domain/models/historico_model.dart';
 
 class QuizRunPage extends ConsumerStatefulWidget {
   final ProvaModel prova;
@@ -73,15 +75,15 @@ class _QuizRunPageState extends ConsumerState<QuizRunPage> {
     });
   }
 
-  // REGRA DE NEGÓCIO ENFORCADA: O cálculo da pontuação acontece UNICAMENTE aqui
+  // REGRA DE NEGÓCIO ATUALIZADA: Calcula e grava o histórico no Firebase automaticamente
   void _finalizarQuizComCalculo({
     required List<QuestaoModel> questoes,
     required bool tempoEsgotado,
-  }) {
+  }) async {
     _timer?.cancel();
     int respostasCorretas = 0;
 
-    // Se o tempo não esgotou e temos a lista de questões, varremos o gabarito calculando os acertos
+    // 1. Faz o cálculo dos acertos igualzinho estava antes
     if (questoes.isNotEmpty) {
       for (int i = 0; i < questoes.length; i++) {
         final escolhaDoAluno = _gabaritoAluno[i];
@@ -93,7 +95,30 @@ class _QuizRunPageState extends ConsumerState<QuizRunPage> {
       }
     }
 
-    // Exibe o resultado final calculado na hora da entrega
+    // 2. NOVIDADE: Recupera o aluno logado e envia o histórico para o banco
+    try {
+      final user = FirebaseAuth.instance.currentUser;
+      if (user != null) {
+        final novoHistorico = HistoricoModel(
+          id: '', // O Firebase vai gerar o ID automático
+          alunoId: user.uid,
+          provaId: widget.prova.id,
+          tituloProva: widget.prova.titulo,
+          acertos: respostasCorretas,
+          totalQuestoes: questoes.length,
+          dataHora: DateTime.now(),
+        );
+
+        // Executa a função do provider para persistir o dado
+        await ref.read(salvarHistoricoProvider)(novoHistorico);
+      }
+    } catch (e) {
+      // Se houver erro de conexão, avisa o desenvolvedor no terminal sem travar a experiência do usuário
+      debugPrint('Erro ao salvar histórico: $e');
+    }
+
+    // 3. Abre o modal de feedback na tela do aluno após o salvamento seguro
+    if (!mounted) return;
     showDialog(
       context: context,
       barrierDismissible: false,
