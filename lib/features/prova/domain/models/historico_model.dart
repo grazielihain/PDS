@@ -7,6 +7,8 @@ class HistoricoModel {
   final String tituloProva;
   final int acertos;
   final int totalQuestoes;
+  final double notaObtida; // Alterado/Adicionado
+  final double notaMaxima; // Adicionado
   final DateTime dataHora;
 
   HistoricoModel({
@@ -16,10 +18,11 @@ class HistoricoModel {
     required this.tituloProva,
     required this.acertos,
     required this.totalQuestoes,
+    required this.notaObtida,
+    required this.notaMaxima,
     required this.dataHora,
   });
 
-  // Converte o modelo para um formato de mapa (JSON) que o Firestore entende para salvar
   Map<String, dynamic> toFirestore() {
     return {
       'alunoId': alunoId,
@@ -27,13 +30,12 @@ class HistoricoModel {
       'tituloProva': tituloProva,
       'acertos': acertos,
       'totalQuestoes': totalQuestoes,
-      'dataHora': Timestamp.fromDate(
-        dataHora,
-      ), // O Firestore usa Timestamp para datas
+      'notaObtida': notaObtida,
+      'notaMaxima': notaMaxima,
+      'dataHora': Timestamp.fromDate(dataHora),
     };
   }
 
-  // Caso precise ler o histórico futuramente para listar na tela de desempenho
   factory HistoricoModel.fromFirestore(Map<String, dynamic> json, String id) {
     return HistoricoModel(
       id: id,
@@ -42,6 +44,8 @@ class HistoricoModel {
       tituloProva: json['tituloProva'] ?? '',
       acertos: json['acertos'] ?? 0,
       totalQuestoes: json['totalQuestoes'] ?? 0,
+      notaObtida: (json['notaObtida'] as num?)?.toDouble() ?? 0.0,
+      notaMaxima: (json['notaMaxima'] as num?)?.toDouble() ?? 0.0,
       dataHora: (json['dataHora'] as Timestamp).toDate(),
     );
   }
