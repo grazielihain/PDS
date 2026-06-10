@@ -2,6 +2,8 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:rumo_quiz/features/prova/domain/models/revisao_questao_model.dart';
+import 'package:rumo_quiz/features/prova/presentation/pages/resultado_prova_page.dart';
 import '../../domain/models/prova_model.dart';
 import '../../domain/models/questao_model.dart';
 import '../../domain/models/historico_model.dart';
@@ -114,6 +116,12 @@ class _QuizRunPageState extends ConsumerState<QuizRunPage>
     double notaObtida = 0.0;
     double notaMaximaPossivel = 0.0;
 
+    int pontosComputadosAgora = 0;
+    String mensagemVigenteAdmin =
+        'Simulado concluído com sucesso! Verifique seu desempenho por assunto abaixo.';
+
+    List<RevisaoQuestaoModel> mapaRevisao = [];
+
     if (questoes.isNotEmpty) {
       for (int i = 0; i < questoes.length; i++) {
         final escolhaDoAluno = _gabaritoAluno[i];
@@ -123,12 +131,34 @@ class _QuizRunPageState extends ConsumerState<QuizRunPage>
 
         if (escolhaDoAluno == respostaCertaDoBanco) {
           respostasCorretas++;
-          notaObtida +=
-              questoes[i].nota; // Soma o peso específico da questão acertada
+          notaObtida += questoes[i].nota;
         }
+
+        mapaRevisao.add(
+          RevisaoQuestaoModel(
+            questao: questoes[i],
+            // Se o aluno não respondeu, o Flutter salva como null ou mapeia com segurança
+            opcaoEscolhidaIndex: escolhaDoAluno ?? -1,
+          ),
+        );
       }
     }
 
+    // Calcula o tempo que o aluno utilizou de fato na prova
+    final minutosTotais = widget.prova.tempoEmMinutos > 0
+        ? widget.prova.tempoEmMinutos
+        : 20;
+    final tempoUtilizadoSegundos =
+        (minutosTotais * 60) - _tempoRestanteSegundos;
+
+    // Calcula e armazena nas variáveis de escopo geral
+    pontosComputadosAgora = respostasCorretas * 10;
+    if (widget.prova.id == 'exemplo') {
+      mensagemVigenteAdmin =
+          'Parabéns! Continue estudando focado nas diretrizes do TCC.';
+    }
+
+    // Salva silenciosamente no Firebase para o histórico imutável
     try {
       final user = FirebaseAuth.instance.currentUser;
       if (user != null) {
@@ -141,34 +171,36 @@ class _QuizRunPageState extends ConsumerState<QuizRunPage>
           totalQuestoes: questoes.length,
           notaObtida: notaObtida,
           notaMaxima: notaMaximaPossivel,
+          tempoUtilizadoSegundos: tempoUtilizadoSegundos,
+          pontosGamificacao: pontosComputadosAgora,
+          mensagemFinalizacaoAdmin: mensagemVigenteAdmin,
           dataHora: DateTime.now(),
+          revisaoQuestoes: mapaRevisao,
         );
 
         await ref.read(salvarHistoricoProvider)(novoHistorico);
       }
     } catch (e) {
-      debugPrint('Erro ao salvar histórico: $e');
+      debugPrint('Erro ao salvar histórico de forma imutável: $e');
     }
 
     if (!mounted) return;
-    showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (context) => AlertDialog(
-        title: Text(tempoEsgotado ? 'Tempo Esgotado!' : 'Quiz Concluído!'),
-        content: Text(
-          'Você acertou $respostasCorretas de ${questoes.length} questões.\n'
-          'Pontuação Final: ${notaObtida.toStringAsFixed(1)} de ${notaMaximaPossivel.toStringAsFixed(1)}',
+
+    // Redireciona o aluno direto para a tela cheia de Resultados
+    Navigator.pushReplacement(
+      context,
+      MaterialPageRoute(
+        builder: (context) => ResultadoProvaPage(
+          tituloProva: widget.prova.titulo,
+          acertos: respostasCorretas,
+          totalQuestoes: questoes.length,
+          notaObtida: notaObtida,
+          notaMaxima: notaMaximaPossivel,
+          tempoUtilizadoSegundos: tempoUtilizadoSegundos,
+          revisaoQuestoes: mapaRevisao,
+          mensagemFinalizacaoAdmin: mensagemVigenteAdmin,
+          pontosGamificacao: pontosComputadosAgora,
         ),
-        actions: [
-          TextButton(
-            onPressed: () {
-              Navigator.of(context).pop();
-              Navigator.of(context).pop();
-            },
-            child: const Text('OK'),
-          ),
-        ],
       ),
     );
   }
@@ -203,10 +235,10 @@ class _QuizRunPageState extends ConsumerState<QuizRunPage>
                 ),
                 decoration: BoxDecoration(
                   color: _tempoRestanteSegundos <= 300
-                      ? Colors.amber.shade900.withOpacity(
-                          0.3,
+                      ? Colors.amber.shade900.withValues(
+                          alpha: 0.3,
                         ) // Fundo sutil se o tempo estiver acabando
-                      : Colors.white.withOpacity(0.15),
+                      : Colors.white.withValues(alpha: 0.15),
                   borderRadius: BorderRadius.circular(20),
                 ),
                 child: Row(

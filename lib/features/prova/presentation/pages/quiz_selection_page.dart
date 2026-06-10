@@ -5,6 +5,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import '../../domain/models/prova_model.dart';
 import '../../data/providers/prova_provider.dart';
 import '../pages/quiz_run_page.dart';
+import '../../../../shared/widgets/organisms/menu_lateral_organism.dart';
 
 class QuizSelectionPage extends ConsumerWidget {
   const QuizSelectionPage({super.key});
@@ -38,6 +39,7 @@ class QuizSelectionPage extends ConsumerWidget {
           ),
         ],
       ),
+      drawer: const MenuLateralOrganism(),
       body: FutureBuilder<Map<String, dynamic>?>(
         future: _buscarPerfilUsuario(),
         builder: (context, userSnapshot) {
