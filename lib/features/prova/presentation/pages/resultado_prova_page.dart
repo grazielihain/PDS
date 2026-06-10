@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:rumo_quiz/features/prova/domain/models/revisao_questao_model.dart';
 import '../../../../shared/widgets/organisms/menu_lateral_organism.dart';
 import 'inspecionar_prova_page.dart';
+import '../../services/certificado_service.dart';
 
 class ResultadoProvaPage extends StatelessWidget {
   final String tituloProva;
@@ -270,7 +271,7 @@ class ResultadoProvaPage extends StatelessWidget {
     );
   }
 
-  // MÉTODO MODIFICADO: Lógica de clique inserida dinamicamente baseada na label do botão
+  // Lógica de clique inserida dinamicamente baseada na label do botão
   Widget _buildBotaoAcao(
     BuildContext context,
     IconData icon,
@@ -288,12 +289,27 @@ class ResultadoProvaPage extends StatelessWidget {
           foregroundColor: Colors.white,
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
         ),
-        onPressed: () {
+        onPressed: () async {
           print(
             'DEBUG TCC: Quantidade de questões enviadas para revisão: ${revisaoQuestoes.length}',
           );
+
+          // Verifica se o botão clicado foi o de Imprimir Certificado
+          // Enviando o nome (temporariamente estático até ligar ao Meu Perfil)
+          if (label.contains('Imprimir Certificado')) {
+            await CertificadoService.gerarEImprimirCertificado(
+              tituloProva: tituloProva,
+              acertos: acertos,
+              totalQuestoes: totalQuestoes,
+              notaObtida: notaObtida,
+              notaMaxima: notaMaxima,
+              nomeAluno: 'Estudante Cadastrado',
+              nomeInstiticao:
+                  'Sua Instituição de Ensino', // Passando o nome correto da escola/faculdade
+            );
+          }
           // Verifica se o botão clicado foi o de Inspecionar Prova
-          if (label.contains('Inspecionar Prova')) {
+          else if (label.contains('Inspecionar Prova')) {
             Navigator.push(
               context,
               MaterialPageRoute(
@@ -304,7 +320,6 @@ class ResultadoProvaPage extends StatelessWidget {
               ),
             );
           } else {
-            // Outros botões (como Imprimir Certificado) mantêm o aviso temporário
             ScaffoldMessenger.of(
               context,
             ).showSnackBar(SnackBar(content: Text('Ação: $label...')));

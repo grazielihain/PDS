@@ -45,6 +45,10 @@ dependencies:
   # Gerenciador de arquivos e mídias 
   firebase_storage: ^12.0.0
 
+  # Gerenciamento de arquivos PDF e impressão
+  pdf: ^3.10.8
+  printing: ^5.11.1
+
   # The following adds the Cupertino Icons font to your application.
   # Use with the CupertinoIcons class for iOS style icons.
   cupertino_icons: ^1.0.8
