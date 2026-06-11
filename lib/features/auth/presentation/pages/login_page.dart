@@ -16,10 +16,13 @@ class LoginPage extends ConsumerStatefulWidget {
 class _LoginPageState extends ConsumerState<LoginPage> {
   // Chave global para controlar e validar o formulário
   final _formKey = GlobalKey<FormState>();
-  
+
   // Controladores para capturar o texto digitado pelo usuário
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
+
+  // 🟢 ESTADO DO OLHO MÁGICO (Inicia ocultando a senha)
+  bool _obscurePassword = true;
 
   @override
   void dispose() {
@@ -33,10 +36,9 @@ class _LoginPageState extends ConsumerState<LoginPage> {
     // Só avança se todas as validações locais passarem (poupando requisições no Firebase)
     if (_formKey.currentState!.validate()) {
       // Chama a função de login do Provider do Riverpod
-      ref.read(authProvider.notifier).login(
-            _emailController.text.trim(),
-            _passwordController.text,
-          );
+      ref
+          .read(authProvider.notifier)
+          .login(_emailController.text.trim(), _passwordController.text);
     }
   }
 
@@ -49,15 +51,14 @@ class _LoginPageState extends ConsumerState<LoginPage> {
         if (next.user.isAdminOrMaster) {
           context.go('/admin'); // Vai para a área do Admin
         } else {
-          context.go('/quiz-selection'); // Estudante vai para a seleção de simulados
+          context.go(
+            '/quiz-selection',
+          ); // Estudante vai para a seleção de simulados
         }
       } else if (next is AuthError) {
         // Se deu erro (senha errada, etc), exibe um alerta visual na tela
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(next.message),
-            backgroundColor: Colors.red,
-          ),
+          SnackBar(content: Text(next.message), backgroundColor: Colors.red),
         );
       }
     });
@@ -71,7 +72,9 @@ class _LoginPageState extends ConsumerState<LoginPage> {
         child: SingleChildScrollView(
           padding: const EdgeInsets.all(24.0),
           child: Container(
-            constraints: const BoxConstraints(maxWidth: 400), // Limita a largura para telas Web
+            constraints: const BoxConstraints(
+              maxWidth: 400,
+            ), // Limita a largura para telas Web
             child: Form(
               key: _formKey,
               child: Column(
@@ -107,13 +110,28 @@ class _LoginPageState extends ConsumerState<LoginPage> {
                   ),
                   const SizedBox(height: 16),
 
-                  // Campo de Senha
+                  // Campo de Senha (🟢 CORRIGIDO COM OLHO MÁGICO)
                   TextFormField(
                     controller: _passwordController,
-                    obscureText: true,
-                    decoration: const InputDecoration(
+                    obscureText:
+                        _obscurePassword, // Vinculado ao estado dinâmico
+                    decoration: InputDecoration(
                       labelText: 'Senha',
-                      prefixIcon: Icon(Icons.lock),
+                      prefixIcon: const Icon(Icons.lock),
+                      // 🟢 ÍCONE INTERATIVO ADICIONADO
+                      suffixIcon: IconButton(
+                        icon: Icon(
+                          _obscurePassword
+                              ? Icons.visibility_off
+                              : Icons.visibility,
+                          color: Colors.grey.shade600,
+                        ),
+                        onPressed: () {
+                          setState(() {
+                            _obscurePassword = !_obscurePassword;
+                          });
+                        },
+                      ),
                     ),
                     // Injeta a validação centralizada da Core
                     validator: Validators.validatePassword,

@@ -1,36 +1,67 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import '../../../features/prova/presentation/pages/quiz_selection_page.dart';
-import '../../../features/prova/presentation/pages/historico_pages.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:go_router/go_router.dart';
+
+// IMPORTS DAS PÁGINAS (ABAS DO MENU)
+import 'package:rumo_quiz/features/prova/presentation/pages/historico_pages.dart';
+import 'package:rumo_quiz/features/prova/presentation/pages/quiz_selection_page.dart';
+// 🟢 IMPORT DO PERFIL ADICIONADO
+import 'package:rumo_quiz/features/auth/presentation/pages/meu_perfil_page.dart';
 
 class MenuLateralOrganism extends StatelessWidget {
   const MenuLateralOrganism({super.key});
 
   @override
   Widget build(BuildContext context) {
+    final user = FirebaseAuth.instance.currentUser;
+
     return Drawer(
       child: Column(
         children: [
-          // TOPO DO MENU (Dados do Aluno)
-          const DrawerHeader(
-            decoration: BoxDecoration(color: Colors.blue),
-            child: Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Text('🐱', style: TextStyle(fontSize: 40)),
-                  SizedBox(height: 8),
-                  Text(
-                    'Rumo Quiz', 
-                    style: TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.bold),
+          // 🟢 TOPO DO MENU LATERAL DINÂMICO (Busca os dados atualizados do Perfil)
+          FutureBuilder<DocumentSnapshot>(
+            future: FirebaseFirestore.instance
+                .collection('usuarios')
+                .doc(user?.uid)
+                .get(),
+            builder: (context, snapshot) {
+              String avatar = '🐱';
+              String nomeAluno = 'Estudante';
+
+              if (snapshot.hasData && snapshot.data!.exists) {
+                final dados = snapshot.data!.data() as Map<String, dynamic>?;
+                avatar = dados?['avatarEmoji'] ?? '🐱';
+                nomeAluno = dados?['nome'] ?? 'Estudante';
+              }
+
+              return DrawerHeader(
+                decoration: BoxDecoration(color: Colors.blue.shade700),
+                child: Center(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Text(avatar, style: const TextStyle(fontSize: 40)),
+                      const SizedBox(height: 8),
+                      Text(
+                        nomeAluno,
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      const Text(
+                        'Portal do Aluno',
+                        style: TextStyle(color: Colors.white70, fontSize: 13),
+                      ),
+                    ],
                   ),
-                  Text(
-                    'Portal do Aluno', 
-                    style: TextStyle(color: Colors.white70, fontSize: 13),
-                  ),
-                ],
-              ),
-            ),
+                ),
+              );
+            },
           ),
 
           // 1. ABA: HOME / DASHBOARD
@@ -41,7 +72,9 @@ class MenuLateralOrganism extends StatelessWidget {
               Navigator.pop(context);
               Navigator.pushReplacement(
                 context,
-                MaterialPageRoute(builder: (context) => const QuizSelectionPage()),
+                MaterialPageRoute(
+                  builder: (context) => const QuizSelectionPage(),
+                ),
               );
             },
           ),
@@ -51,10 +84,12 @@ class MenuLateralOrganism extends StatelessWidget {
             leading: const Icon(Icons.play_lesson_outlined),
             title: const Text('Fazer Quiz / Simulados'),
             onTap: () {
-              Navigator.pop(context); 
+              Navigator.pop(context);
               Navigator.pushReplacement(
                 context,
-                MaterialPageRoute(builder: (context) => const QuizSelectionPage()),
+                MaterialPageRoute(
+                  builder: (context) => const QuizSelectionPage(),
+                ),
               );
             },
           ),
@@ -64,7 +99,7 @@ class MenuLateralOrganism extends StatelessWidget {
             leading: const Icon(Icons.bar_chart_outlined),
             title: const Text('Meus Resultados'),
             onTap: () {
-              Navigator.pop(context); 
+              Navigator.pop(context);
               Navigator.pushReplacement(
                 context,
                 MaterialPageRoute(builder: (context) => const HistoricoPage()),
@@ -77,7 +112,7 @@ class MenuLateralOrganism extends StatelessWidget {
             leading: const Icon(Icons.history),
             title: const Text('Histórico de Provas'),
             onTap: () {
-              Navigator.pop(context); 
+              Navigator.pop(context);
               Navigator.pushReplacement(
                 context,
                 MaterialPageRoute(builder: (context) => const HistoricoPage()),
@@ -85,29 +120,48 @@ class MenuLateralOrganism extends StatelessWidget {
             },
           ),
 
-          // 5. ABA: MEU PERFIL
+          // 5. ABA: MEU PERFIL (🟢 CORRIGIDO: Agora aponta e abre a tela real)
           ListTile(
             leading: const Icon(Icons.person_outline),
             title: const Text('Meu Perfil'),
             onTap: () {
-              Navigator.pop(context); 
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('Aba Meu Perfil em desenvolvimento...')),
+              Navigator.pop(context); // Fecha o menu lateral
+              Navigator.pushReplacement(
+                context,
+                MaterialPageRoute(builder: (context) => const MeuPerfilPage()),
               );
             },
           ),
-          
+
           const Spacer(),
           const Divider(),
-          
-          // BOTÃO SAIR
+
+          // BOTÃO SAIR DO APP
           ListTile(
             leading: const Icon(Icons.logout, color: Colors.red),
-            title: const Text('Sair do Aplicativo', style: TextStyle(color: Colors.red)),
+            title: const Text(
+              'Sair do Aplicativo',
+              style: TextStyle(color: Colors.red),
+            ),
             onTap: () async {
-              await FirebaseAuth.instance.signOut();
-              if (context.mounted) {
-                Navigator.of(context).pushNamedAndRemoveUntil('/login', (route) => false);
+              // 1. Fecha o menu lateral para evitar bugs visuais
+              Navigator.pop(context);
+
+              try {
+                // 2. Faz o logout no Firebase Auth
+                await FirebaseAuth.instance.signOut();
+
+                // 3. Se o seu authProvider tiver um método 'logout', descomente a linha abaixo:
+                // ref.read(authProvider.notifier).logout();
+
+                // 4. Redireciona para o login limpando o histórico de telas
+                if (context.mounted) {
+                  // Testamos duas abordagens do GoRouter. Se a de cima falhar, tente a de baixo:
+                  context.go('/login');
+                  // GoRouter.of(context).go('/login'); // Alternativa caso a de cima dê erro de extensão
+                }
+              } catch (e) {
+                debugPrint('Erro ao deslogar: $e');
               }
             },
           ),
