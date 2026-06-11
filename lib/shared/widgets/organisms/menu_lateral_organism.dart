@@ -1,171 +1,160 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:go_router/go_router.dart';
 
-// IMPORTS DAS PÁGINAS (ABAS DO MENU)
-import 'package:rumo_quiz/features/prova/presentation/pages/historico_pages.dart';
-import 'package:rumo_quiz/features/prova/presentation/pages/quiz_selection_page.dart';
-// 🟢 IMPORT DO PERFIL ADICIONADO
-import 'package:rumo_quiz/features/auth/presentation/pages/meu_perfil_page.dart';
-
 class MenuLateralOrganism extends StatelessWidget {
-  const MenuLateralOrganism({super.key});
+  final bool isWebMode;
+  final bool isExpanded;
+  final String avatarEmoji;
+  final String nomeAluno;
+
+  const MenuLateralOrganism({
+    super.key,
+    this.isWebMode = false,
+    this.isExpanded = true,
+    required this.avatarEmoji,
+    required this.nomeAluno,
+  });
 
   @override
   Widget build(BuildContext context) {
-    final user = FirebaseAuth.instance.currentUser;
+    final mostrarTexto = !isWebMode || isExpanded;
 
-    return Drawer(
-      child: Column(
-        children: [
-          // 🟢 TOPO DO MENU LATERAL DINÂMICO (Busca os dados atualizados do Perfil)
-          FutureBuilder<DocumentSnapshot>(
-            future: FirebaseFirestore.instance
-                .collection('usuarios')
-                .doc(user?.uid)
-                .get(),
-            builder: (context, snapshot) {
-              String avatar = '🐱';
-              String nomeAluno = 'Estudante';
-
-              if (snapshot.hasData && snapshot.data!.exists) {
-                final dados = snapshot.data!.data() as Map<String, dynamic>?;
-                avatar = dados?['avatarEmoji'] ?? '🐱';
-                nomeAluno = dados?['nome'] ?? 'Estudante';
-              }
-
-              return DrawerHeader(
-                decoration: BoxDecoration(color: Colors.blue.shade700),
-                child: Center(
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Text(avatar, style: const TextStyle(fontSize: 40)),
-                      const SizedBox(height: 8),
-                      Text(
-                        nomeAluno,
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontSize: 18,
-                          fontWeight: FontWeight.bold,
-                        ),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                      const Text(
-                        'Portal do Aluno',
-                        style: TextStyle(color: Colors.white70, fontSize: 13),
-                      ),
-                    ],
+    Widget conteudoMenu = Column(
+      children: [
+        // CABEÇALHO DO MENU: Sincronizado instantaneamente via construtor
+        if (mostrarTexto)
+          DrawerHeader(
+            decoration: BoxDecoration(color: Colors.blue.shade700),
+            child: Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Text(avatarEmoji, style: const TextStyle(fontSize: 40)),
+                  const SizedBox(height: 8),
+                  Text(
+                    nomeAluno,
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
                   ),
-                ),
-              );
-            },
-          ),
-
-          // 1. ABA: HOME / DASHBOARD
-          ListTile(
-            leading: const Icon(Icons.dashboard_outlined),
-            title: const Text('Home / Dashboard'),
-            onTap: () {
-              Navigator.pop(context);
-              Navigator.pushReplacement(
-                context,
-                MaterialPageRoute(
-                  builder: (context) => const QuizSelectionPage(),
-                ),
-              );
-            },
-          ),
-
-          // 2. ABA: FAZER QUIZ / SIMULADOS
-          ListTile(
-            leading: const Icon(Icons.play_lesson_outlined),
-            title: const Text('Fazer Quiz / Simulados'),
-            onTap: () {
-              Navigator.pop(context);
-              Navigator.pushReplacement(
-                context,
-                MaterialPageRoute(
-                  builder: (context) => const QuizSelectionPage(),
-                ),
-              );
-            },
-          ),
-
-          // 3. ABA: MEUS RESULTADOS
-          ListTile(
-            leading: const Icon(Icons.bar_chart_outlined),
-            title: const Text('Meus Resultados'),
-            onTap: () {
-              Navigator.pop(context);
-              Navigator.pushReplacement(
-                context,
-                MaterialPageRoute(builder: (context) => const HistoricoPage()),
-              );
-            },
-          ),
-
-          // 4. ABA: HISTÓRICO DE PROVAS
-          ListTile(
-            leading: const Icon(Icons.history),
-            title: const Text('Histórico de Provas'),
-            onTap: () {
-              Navigator.pop(context);
-              Navigator.pushReplacement(
-                context,
-                MaterialPageRoute(builder: (context) => const HistoricoPage()),
-              );
-            },
-          ),
-
-          // 5. ABA: MEU PERFIL (🟢 CORRIGIDO: Agora aponta e abre a tela real)
-          ListTile(
-            leading: const Icon(Icons.person_outline),
-            title: const Text('Meu Perfil'),
-            onTap: () {
-              Navigator.pop(context); // Fecha o menu lateral
-              Navigator.pushReplacement(
-                context,
-                MaterialPageRoute(builder: (context) => const MeuPerfilPage()),
-              );
-            },
-          ),
-
-          const Spacer(),
-          const Divider(),
-
-          // BOTÃO SAIR DO APP
-          ListTile(
-            leading: const Icon(Icons.logout, color: Colors.red),
-            title: const Text(
-              'Sair do Aplicativo',
-              style: TextStyle(color: Colors.red),
+                  const Text(
+                    'Portal do Aluno',
+                    style: TextStyle(color: Colors.white70, fontSize: 13),
+                  ),
+                ],
+              ),
             ),
+          )
+        else
+          const SizedBox(height: 20),
+
+        // 1. ABA: HOME / DASHBOARD
+        _buildItemMenu(
+          context: context,
+          icon: Icons.dashboard_outlined,
+          label: 'Home / Dashboard',
+          route: '/quiz-selection',
+          mostrarTexto: mostrarTexto,
+        ),
+
+        // 2. ABA: FAZER QUIZ / SIMULADOS
+        _buildItemMenu(
+          context: context,
+          icon: Icons.play_lesson_outlined,
+          label: 'Fazer Quiz / Simulados',
+          route: '/quiz-selection',
+          mostrarTexto: mostrarTexto,
+        ),
+
+        // 3. ABA: MEUS RESULTADOS
+        _buildItemMenu(
+          context: context,
+          icon: Icons.bar_chart_outlined,
+          label: 'Meus Resultados',
+          route: '/historico',
+          mostrarTexto: mostrarTexto,
+        ),
+
+        // 4. ABA: HISTÓRICO DE PROVAS
+        _buildItemMenu(
+          context: context,
+          icon: Icons.history,
+          label: 'Histórico de Provas',
+          route: '/historico',
+          mostrarTexto: mostrarTexto,
+        ),
+
+        // 5. ABA: MEU PERFIL
+        _buildItemMenu(
+          context: context,
+          icon: Icons.person_outline,
+          label: 'Meu Perfil',
+          route: '/perfil',
+          mostrarTexto: mostrarTexto,
+        ),
+
+        const Spacer(),
+        const Divider(),
+
+        // BOTÃO SAIR DO APP
+        Tooltip(
+          message: mostrarTexto ? '' : 'Sair do Aplicativo',
+          child: ListTile(
+            contentPadding: mostrarTexto
+                ? const EdgeInsets.symmetric(horizontal: 16)
+                : const EdgeInsets.symmetric(horizontal: 23),
+            leading: const Icon(Icons.logout, color: Colors.red),
+            title: mostrarTexto
+                ? const Text(
+                    'Sair do Aplicativo',
+                    style: TextStyle(color: Colors.red),
+                  )
+                : null,
             onTap: () async {
-              // 1. Fecha o menu lateral para evitar bugs visuais
-              Navigator.pop(context);
-
+              if (!isWebMode) Navigator.pop(context);
               try {
-                // 2. Faz o logout no Firebase Auth
                 await FirebaseAuth.instance.signOut();
-
-                // 3. Se o seu authProvider tiver um método 'logout', descomente a linha abaixo:
-                // ref.read(authProvider.notifier).logout();
-
-                // 4. Redireciona para o login limpando o histórico de telas
                 if (context.mounted) {
-                  // Testamos duas abordagens do GoRouter. Se a de cima falhar, tente a de baixo:
                   context.go('/login');
-                  // GoRouter.of(context).go('/login'); // Alternativa caso a de cima dê erro de extensão
                 }
               } catch (e) {
                 debugPrint('Erro ao deslogar: $e');
               }
             },
           ),
-        ],
+        ),
+      ],
+    );
+
+    return isWebMode
+        ? Container(color: Colors.white, child: conteudoMenu)
+        : Drawer(child: conteudoMenu);
+  }
+
+  Widget _buildItemMenu({
+    required BuildContext context,
+    required IconData icon,
+    required String label,
+    required String route,
+    required bool mostrarTexto,
+  }) {
+    return Tooltip(
+      message: mostrarTexto ? '' : label,
+      child: ListTile(
+        contentPadding: mostrarTexto
+            ? const EdgeInsets.symmetric(horizontal: 16)
+            : const EdgeInsets.symmetric(horizontal: 23),
+        leading: Icon(icon),
+        title: mostrarTexto ? Text(label) : null,
+        onTap: () {
+          if (!isWebMode) Navigator.pop(context);
+          context.go(route);
+        },
       ),
     );
   }

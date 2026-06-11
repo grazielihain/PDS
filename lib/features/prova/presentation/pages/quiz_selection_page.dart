@@ -26,20 +26,6 @@ class QuizSelectionPage extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Quizzes Disponíveis'),
-        backgroundColor: Colors.blue.shade700,
-        foregroundColor: Colors.white,
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.logout),
-            onPressed: () async {
-              await FirebaseAuth.instance.signOut();
-            },
-          ),
-        ],
-      ),
-      drawer: const MenuLateralOrganism(),
       body: FutureBuilder<Map<String, dynamic>?>(
         future: _buscarPerfilUsuario(),
         builder: (context, userSnapshot) {

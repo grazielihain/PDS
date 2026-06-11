@@ -194,12 +194,22 @@ class _QuizRunPageState extends ConsumerState<QuizRunPage>
           tituloProva: widget.prova.titulo,
           acertos: respostasCorretas,
           totalQuestoes: questoes.length,
-          notaObtida: notaObtida,
-          notaMaxima: notaMaximaPossivel,
+          erros: questoes.length - respostasCorretas,
+          notaObtida: notaObtida.toDouble(),
+          notaMaxima: notaMaximaPossivel.toDouble(),
           tempoUtilizadoSegundos: tempoUtilizadoSegundos,
-          revisaoQuestoes: mapaRevisao,
           mensagemFinalizacaoAdmin: mensagemVigenteAdmin,
           pontosGamificacao: pontosComputadosAgora,
+          nomeDoAluno: "Estudante",
+          instituicaoDoAluno: "Minha Instituição",
+          logoUrl: null,
+          taxaAcerto: questoes.isNotEmpty
+              ? ((respostasCorretas / questoes.length) * 100).toDouble()
+              : 0.0,
+
+          // 🟢 Como desativamos a trava de tipo lá na outra tela,
+          // basta passar a sua variável diretamente aqui sem fazer conversões complexas!
+          revisaoQuestoes: mapaRevisao,
         ),
       ),
     );
