@@ -1,3 +1,4 @@
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -33,7 +34,10 @@ class SimuladoPage extends ConsumerWidget {
     // 3. Tela de Resultado Final (Quando o aluno clica em finalizar)
     if (state.finalizado) {
       return Scaffold(
-        appBar: AppBar(title: const Text('Resultado do Simulado')),
+        appBar: AppBar(
+          title: const Text('Resultado do Simulado'),
+          automaticallyImplyLeading: false,
+        ),
         body: Center(
           child: Padding(
             padding: const EdgeInsets.all(16.0),
@@ -50,13 +54,15 @@ class SimuladoPage extends ConsumerWidget {
                   style: TextStyle(
                     fontSize: 32,
                     fontWeight: FontWeight.bold,
-                    color: state.notaFinal >= 70 ? Colors.green : Colors.red,
+                    color: state.notaFinal >= 7
+                        ? Colors.green
+                        : Colors.red, // Ajustado para notas base 10
                   ),
                 ),
                 const SizedBox(height: 40),
                 ElevatedButton(
                   onPressed: () {
-                    // 🟢 Manda o GoRouter levar o usuário de volta para a aba de seleção de Quizzes de forma limpa!
+                    // 🟢 Manda o GoRouter levar o usuário de volta para a seleção de Quizzes de forma limpa!
                     context.go('/quiz-selection');
                   },
                   child: const Text('Voltar para o Início'),
@@ -137,7 +143,37 @@ class SimuladoPage extends ConsumerWidget {
                 if (state.indiceQuestaoAtual == state.questoes.length - 1)
                   ElevatedButton(
                     onPressed: respostaSelecionada != null
-                        ? controller.finalizarSimulado
+                        ? () async {
+                            final messenger = ScaffoldMessenger.of(context);
+
+                            try {
+                              // 1. Mostra o aviso visual de carregamento
+                              messenger.showSnackBar(
+                                const SnackBar(
+                                  content: Text('Salvando resultado...'),
+                                  backgroundColor: Colors.blue,
+                                  duration: Duration(seconds: 1),
+                                ),
+                              );
+
+                              // 2. Busca o ID do Aluno
+                              final String alunoId =
+                                  FirebaseAuth.instance.currentUser?.uid ??
+                                  'aluno_anonimo';
+
+                              // 3. Executa a finalização e envia os dados ao Firebase
+                              await ref
+                                  .read(simuladoControllerProvider.notifier)
+                                  .finalizarSimulado(
+                                    userId: alunoId,
+                                    instituicaoId: 'instituicao_padrao',
+                                    provaId: 'prova_atual',
+                                    tituloProva: 'Simulado Concluído',
+                                  );
+                            } catch (erro) {
+                              debugPrint('Erro ao salvar no Firebase: $erro');
+                            }
+                          }
                         : null,
                     style: ElevatedButton.styleFrom(
                       backgroundColor: Colors.green,
