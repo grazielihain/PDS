@@ -6,8 +6,10 @@ import 'package:rumo_quiz/features/prova/presentation/pages/resultado_prova_page
 import '../../features/auth/presentation/pages/login_page.dart';
 import '../../features/prova/presentation/pages/quiz_selection_page.dart';
 import '../../features/auth/presentation/pages/meu_perfil_page.dart';
-import '../../features/prova/presentation/pages/historico_page.dart'; // 🟢 Importado
+import '../../features/prova/presentation/pages/historico_page.dart'; 
 import '../presentation/pages/main_layout_shell.dart';
+// 🟢 IMPORT DA NOSSA NOVA PÁGINA DE SIMULADOS
+import '../../features/simulados/presentation/pages/simulado_page.dart';
 
 class AppRouter {
   static final GoRouter router = GoRouter(
@@ -39,7 +41,7 @@ class AppRouter {
             path: '/perfil',
             builder: (context, state) => const MeuPerfilPage(),
           ),
-          // Aba: Meus Resultados / Histórico (🟢 INCLUÍDO NO SISTEMA FIXO)
+          // Aba: Meus Resultados / Histórico
           GoRoute(
             path: '/historico',
             builder: (context, state) => const HistoricoProvasPage(),
@@ -51,10 +53,8 @@ class AppRouter {
       GoRoute(
         path: '/resultado',
         builder: (context, state) {
-          // 1. Coleta o mapa genérico do Firestore passado pelo botão "Ver Detalhes"
           final dados = state.extra as Map<String, dynamic>? ?? {};
 
-          // 2. Extrai e converte a lista de revisão para o formato correto (Duplicidade Removida!)
           final listaCrua =
               dados['revisaoQuestoes'] ??
               dados['questoes'] ??
@@ -63,7 +63,6 @@ class AppRouter {
           final listaModelos = (listaCrua as List<dynamic>).map((q) {
             final mapaQuestao = q as Map<String, dynamic>? ?? {};
 
-            // Captura as opções/alternativas com segurança
             final opcoesCruas =
                 mapaQuestao['opcoes'] ?? mapaQuestao['alternativas'] ?? [];
             final listaOpcoes = (opcoesCruas as List<dynamic>)
@@ -86,7 +85,6 @@ class AppRouter {
                     0,
                 nota: (mapaQuestao['nota'] as num?)?.toDouble() ?? 1.0,
               ),
-              // Aceita tanto a nomenclatura da revisão direta quanto a salva no histórico
               opcaoEscolhidaIndex:
                   mapaQuestao['opcaoEscolhidaIndex'] ??
                   mapaQuestao['alternativaRespondidaIndex'] ??
@@ -95,7 +93,6 @@ class AppRouter {
             );
           }).toList();
 
-          // 3. Injeta todos os parâmetros necessários no construtor da sua página
           return ResultadoProvaPage(
             tituloProva:
                 dados['categoria'] ??
@@ -103,10 +100,7 @@ class AppRouter {
                 'Simulado Realizado',
             acertos: dados['acertos'] ?? 0,
             totalQuestoes: dados['totalQuestoes'] ?? 0,
-
-            // 🟢 1. Adicionado o parâmetro 'erros' calculando a diferença
             erros: (dados['totalQuestoes'] ?? 0) - (dados['acertos'] ?? 0),
-
             notaObtida: (dados['NotaObtida'] as num?)?.toDouble() ?? 0.0,
             notaMaxima: (dados['notaMaxima'] as num?)?.toDouble() ?? 10.0,
             tempoUtilizadoSegundos: dados['tempoUtilizadoSegundos'] ?? 0,
@@ -114,26 +108,28 @@ class AppRouter {
             mensagemFinalizacaoAdmin:
                 dados['mensagemFinalizacaoAdmin'] ?? 'Parabéns pela conclusão!',
             pontosGamificacao: dados['pontosGamificacao'] ?? 0,
-
-            // 🟢 2. CORREÇÃO DO ERRO: Buscando os dados do aluno e instituição do mapa 'dados'
-            // (Caso não existam no mapa, ele usa os valores padrões textuais)
             nomeDoAluno:
                 dados['nomeDoAluno'] ?? dados['nomeAluno'] ?? 'Estudante',
             instituicaoDoAluno:
                 dados['instituicaoDoAluno'] ??
                 dados['instituicao'] ??
                 'Minha Instituição',
-            logoUrl: dados['logoUrl'], // Aceita nulo caso não exista no mapa
-            // 🟢 3. Adicionado o cálculo da taxa de acerto caso não venha pronta do banco/mapa
+            logoUrl: dados['logoUrl'], 
             taxaAcerto: dados['taxaAcerto'] != null
                 ? (dados['taxaAcerto'] as num).toDouble()
                 : ((dados['totalQuestoes'] ?? 0) > 0
-                      ? (((dados['acertos'] ?? 0) / dados['totalQuestoes']) *
+                    ? (((dados['acertos'] ?? 0) / dados['totalQuestoes']) *
                                 100)
                             .toDouble()
-                      : 0.0),
+                    : 0.0),
           );
         },
+      ),
+
+      // 🟢 ROTA DA NOSSA SPRINT 2 (Tela Cheia para focar na prova)
+      GoRoute(
+        path: '/executar-simulado',
+        builder: (context, state) => const SimuladoPage(),
       ),
     ],
     errorBuilder: (context, state) =>

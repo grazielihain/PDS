@@ -2,10 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:go_router/go_router.dart'; // 🟢 Adicionado para usar o GoRouter
 import '../../domain/models/prova_model.dart';
 import '../../data/providers/prova_provider.dart';
-import '../pages/quiz_run_page.dart';
-import '../../../../shared/widgets/organisms/menu_lateral_organism.dart';
+import '../../../simulados/presentation/controllers/simulado_controller.dart'; // 🟢 Import do nosso novo Controller
 
 class QuizSelectionPage extends ConsumerWidget {
   const QuizSelectionPage({super.key});
@@ -62,7 +62,6 @@ class QuizSelectionPage extends ConsumerWidget {
                   ),
                 ),
                 const SizedBox(height: 4),
-                // TEXTO VAI MOSTRAR O ID DIRETO NA TELA:
                 Text(
                   'Sua instituição cadastrada é: $instituicaoId',
                   style: const TextStyle(
@@ -131,12 +130,18 @@ class QuizSelectionPage extends ConsumerWidget {
                                 color: Colors.blue,
                               ),
                               onTap: () {
-                                Navigator.of(context).push(
-                                  MaterialPageRoute(
-                                    builder: (context) =>
-                                        QuizRunPage(prova: prova),
-                                  ),
-                                );
+                                // 🟢 1. Navega DIRETO para a nossa nova página do simulado usando o GoRouter
+                                context.go('/executar-simulado');
+
+                                // 🟢 2. Manda o motor iniciar a busca em segundo plano imediatamente.
+                                // A própria SimuladoPage vai gerenciar a bolinha de carregamento de forma segura!
+                                ref
+                                    .read(simuladoControllerProvider.notifier)
+                                    .iniciarSimulado(
+                                      institutionId: instituicaoId,
+                                      categoriaId: 'direito',
+                                      assuntoId: 'constitucional',
+                                    );
                               },
                             ),
                           );

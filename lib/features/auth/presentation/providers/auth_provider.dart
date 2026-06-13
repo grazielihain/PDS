@@ -1,3 +1,5 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../data/datasources/auth_remote_data_source.dart';
 import '../../data/repositories/auth_repository_impl.dart';
@@ -6,7 +8,10 @@ import 'auth_state.dart';
 
 // 1. Instancia o DataSource de forma global na memória (Gerenciado pelo Riverpod)
 final authDataSourceProvider = Provider<AuthRemoteDataSource>((ref) {
-  return AuthRemoteDataSource();
+  return AuthRemoteDataSource(
+  FirebaseAuth.instance,
+  FirebaseFirestore.instance,
+);
 });
 
 // 2. Instancia o Repositório injetando o DataSource criado acima

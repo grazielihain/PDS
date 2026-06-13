@@ -1,20 +1,39 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import '../models/user_models.dart';
+import '../models/user_models.dart'; // Importa o modelo que herda de UserEntity
 import '../../../../core/constants/app_constants.dart';
 
 class AuthRemoteDataSource {
-  final FirebaseAuth _auth = FirebaseAuth.instance;
-  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+  final FirebaseAuth firebaseAuth;
+  final FirebaseFirestore firestore;
 
-  /// Função que faz o login na nuvem e busca os dados do perfil
-  Future<UserModel> loginWithEmailAndPassword({
-    required String email,
-    required String password,
-  }) async {
+  AuthRemoteDataSource(this.firebaseAuth, this.firestore);
+
+  // 🟢 CORRIGIDO: Retorna o UserModel buscando o usuário atual com sessão ativa
+  Future<UserModel?> getCurrentUser() async {
+    final User? firebaseUser = firebaseAuth.currentUser;
+    if (firebaseUser == null) return null;
+
+    final DocumentSnapshot userDoc = await firestore
+        .collection('usuarios')
+        .doc(firebaseUser.uid)
+        .get();
+
+    if (!userDoc.exists) return null;
+
+    return UserModel.fromFirestore(userDoc);
+  }
+
+  // Escuta alterações na sessão (Se logou ou deslogou)
+  Stream<User?> authStateChanges() {
+    return firebaseAuth.authStateChanges();
+  }
+
+  // 🟢 CORRIGIDO: Faz o Login e retorna o UserModel recheado com os dados do Firestore
+  Future<UserModel> loginWithEmailAndPassword(String email, String password) async {
     try {
-      // 1. Faz a autenticação de e-mail e senha no Firebase Auth
-      final UserCredential credential = await _auth.signInWithEmailAndPassword(
+      // 1. Autentica no Firebase Auth
+      final UserCredential credential = await firebaseAuth.signInWithEmailAndPassword(
         email: email,
         password: password,
       );
@@ -24,9 +43,9 @@ class AuthRemoteDataSource {
         throw Exception('Não foi possível realizar o login. Usuário nulo.');
       }
 
-      // 2. Com o ID do usuário em mãos, busca os dados complementares no Firestore      
-      final DocumentSnapshot userDoc = await _firestore
-          .collection(AppConstants.collectionUsers)
+      // 2. Busca os dados do usuário no Firestore
+      final DocumentSnapshot userDoc = await firestore
+          .collection('usuarios')
           .doc(firebaseUser.uid)
           .get();
 
@@ -34,10 +53,13 @@ class AuthRemoteDataSource {
         throw Exception('Perfil do usuário não encontrado no banco de dados.');
       }
 
-      // 3. Converte o documento bruto NoSQL para a UserModel
+      // 🟢 O PULO DO GATO (US 23): Grava o log aqui dentro, direto no servidor,
+      // garantindo que fique registrado antes de qualquer mudança de tela!
+      await registrarLogAcesso(firebaseUser.uid);
+
+      // 3. Transforma o documento no nosso UserModel pronto
       return UserModel.fromFirestore(userDoc);
     } on FirebaseAuthException catch (e) {
-      // Tratamento amigável de erros comuns do Firebase Auth
       if (e.code == 'user-not-found' || e.code == 'wrong-password' || e.code == 'invalid-credential') {
         throw Exception('E-mail ou senha incorretos.');
       }
@@ -47,23 +69,62 @@ class AuthRemoteDataSource {
     }
   }
 
-  /// Realiza o logout no Firebase Auth
+  // Fazer Logout
   Future<void> logout() async {
-    await _auth.signOut();
+    await firebaseAuth.signOut();
   }
 
-  /// Verifica se há um usuário com sessão ativa no aparelho e busca seus dados
-  Future<UserModel?> getCurrentUser() async {
-    final User? firebaseUser = _auth.currentUser;
-    if (firebaseUser == null) return null;
+  // Criar conta (Usada no painel administrativo do Admin/Acess2)
+  Future<UserCredential> signUpWithEmailAndPassword({
+    required String email,
+    required String password,
+    required String nome,
+    required String institutionId,
+  }) async {
+    try {
+      UserCredential userCredential = await firebaseAuth
+          .createUserWithEmailAndPassword(email: email, password: password);
 
-    final DocumentSnapshot userDoc = await _firestore
-        .collection(AppConstants.collectionUsers)
-        .doc(firebaseUser.uid)
-        .get();
+      if (userCredential.user != null) {
+        await firestore
+            .collection('usuarios')
+            .doc(userCredential.user!.uid)
+            .set({
+              'uid': userCredential.user!.uid,
+              'nome': nome,
+              'email': email,
+              'role': 'Acess3',
+              'institutionId': institutionId,
+              'avatarEmoji': '🐱',
+              'createdAt': FieldValue.serverTimestamp(),
+            });
+      }
 
-    if (!userDoc.exists) return null;
+      return userCredential;
+    } catch (e) {
+      throw Exception(e.toString());
+    }
+  }
 
-    return UserModel.fromFirestore(userDoc);
+  // Enviar e-mail de recuperação de senha (US 03)
+  Future<void> enviarEmailRecuperacaoSenha(String email) async {
+    try {
+      await firebaseAuth.sendPasswordResetEmail(email: email);
+    } catch (e) {
+      throw Exception(e.toString());
+    }
+  }
+
+  //Registra o log de acesso no Firestore toda vez que alguém logar
+  Future<void> registrarLogAcesso(String userId) async {
+    try {
+      await firestore.collection('logs_acesso').add({
+        'userId': userId,
+        'data': FieldValue.serverTimestamp(), // Pega a data e hora exata do servidor do Firebase
+      });
+    } catch (e) {
+      // Se falhar o log, imprimimos no terminal, mas não travamos o app do usuário
+      print('Erro ao salvar log de auditoria: $e');
+    }
   }
 }

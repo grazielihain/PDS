@@ -50,13 +50,13 @@ class _MainLayoutShellState extends State<MainLayoutShell> {
   }
 
   // Identifica qual o index correspondente da aba com base na rota do GoRouter
-  int _calcularIndiceAtivo() {
-    final String localizacao = GoRouterState.of(context).uri.toString();
-    if (localizacao.startsWith('/quiz-selection')) return 0;
-    if (localizacao.startsWith('/perfil')) return 1;
-    if (localizacao.startsWith('/historico')) return 2;
-    return 0;
-  }
+  //int _calcularIndiceAtivo() {
+  //  final String localizacao = GoRouterState.of(context).uri.toString();
+  //  if (localizacao.startsWith('/quiz-selection')) return 0;
+  //  if (localizacao.startsWith('/perfil')) return 1;
+  //  if (localizacao.startsWith('/historico')) return 2;
+  //  return 0;
+  //}
 
   @override
   Widget build(BuildContext context) {

@@ -1,10 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import '../../../../core/utils/validators.dart';
-import '../../../../shared/widgets/atoms/custom_button.dart';
-import '../providers/auth_provider.dart';
-import '../providers/auth_state.dart';
+import 'package:rumo_quiz/features/auth/presentation/providers/white_label_notifier.dart';
+import '../providers/auth_notifier.dart';
 
 class LoginPage extends ConsumerStatefulWidget {
   const LoginPage({super.key});
@@ -14,135 +12,202 @@ class LoginPage extends ConsumerStatefulWidget {
 }
 
 class _LoginPageState extends ConsumerState<LoginPage> {
-  // Chave global para controlar e validar o formulário
   final _formKey = GlobalKey<FormState>();
-
-  // Controladores para capturar o texto digitado pelo usuário
   final _emailController = TextEditingController();
-  final _passwordController = TextEditingController();
-
-  // 🟢 ESTADO DO OLHO MÁGICO (Inicia ocultando a senha)
-  bool _obscurePassword = true;
+  final _senhaController = TextEditingController();
+  bool _ocultarSenha = true;
 
   @override
   void dispose() {
-    // Boa prática: limpa os controladores da memória quando a tela é fechada
     _emailController.dispose();
-    _passwordController.dispose();
+    _senhaController.dispose();
     super.dispose();
   }
 
-  void _submit() {
-    // Só avança se todas as validações locais passarem (poupando requisições no Firebase)
-    if (_formKey.currentState!.validate()) {
-      // Chama a função de login do Provider do Riverpod
-      ref
-          .read(authProvider.notifier)
-          .login(_emailController.text.trim(), _passwordController.text);
-    }
+  // 🟢 FUNÇÃO ENCAIXADA AQUI: Abre a caixinha de recuperar senha
+  void _exibirModalRecuperarSenha(BuildContext context, WidgetRef ref) {
+    final emailRecuperacaoController = TextEditingController();
+    final formModalKey = GlobalKey<FormState>();
+
+    showDialog(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: const Text('Recuperar Senha'),
+          content: Form(
+            key: formModalKey,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Text(
+                  'Digite seu e-mail cadastrado. Enviaremos um link para você redefinir sua senha.',
+                  style: TextStyle(fontSize: 14),
+                ),
+                const SizedBox(height: 16),
+                TextFormField(
+                  controller: emailRecuperacaoController,
+                  keyboardType: TextInputType.emailAddress,
+                  decoration: const InputDecoration(
+                    labelText: 'E-mail',
+                    prefixIcon: Icon(Icons.email),
+                    hintText: 'exemplo@escola.com',
+                  ),
+                  validator: (value) {
+                    if (value == null || value.isEmpty)
+                      return 'Por favor, insira seu e-mail';
+                    if (!value.contains('@')) return 'Insira um e-mail válido';
+                    return null;
+                  },
+                ),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Cancelar'),
+            ),
+            ElevatedButton(
+              onPressed: () {
+                if (formModalKey.currentState!.validate()) {
+                  ref
+                      .read(authNotifierProvider.notifier)
+                      .recuperarSenha(emailRecuperacaoController.text.trim());
+                  Navigator.pop(context);
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text(
+                        'Se o e-mail existir, o link de recuperação foi enviado!',
+                      ),
+                      backgroundColor: Colors.green,
+                    ),
+                  );
+                }
+              },
+              child: const Text('Enviar'),
+            ),
+          ],
+        );
+      },
+    );
   }
 
   @override
   Widget build(BuildContext context) {
-    // Escuta e reage às mudanças de estado da Autenticação
-    ref.listen<AuthState>(authProvider, (previous, next) {
-      if (next is AuthSuccess) {
-        // Se o login deu certo, verifica o perfil e redireciona usando o GoRouter
-        if (next.user.isAdminOrMaster) {
-          context.go('/admin'); // Vai para a área do Admin
-        } else {
-          context.go(
-            '/quiz-selection',
-          ); // Estudante vai para a seleção de simulados
-        }
-      } else if (next is AuthError) {
-        // Se deu erro (senha errada, etc), exibe um alerta visual na tela
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(next.message), backgroundColor: Colors.red),
-        );
-      }
-    });
-
-    // Obtém o estado atual para saber se deve mostrar o carregando no botão
-    final authState = ref.watch(authProvider);
-    final isLoading = authState is AuthLoading;
-
     return Scaffold(
       body: Center(
         child: SingleChildScrollView(
           padding: const EdgeInsets.all(24.0),
           child: Container(
-            constraints: const BoxConstraints(
-              maxWidth: 400,
-            ), // Limita a largura para telas Web
+            constraints: const BoxConstraints(maxWidth: 400),
             child: Form(
               key: _formKey,
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  // Logo / Título do App
                   const Icon(Icons.school, size: 80, color: Colors.blue),
                   const SizedBox(height: 16),
                   const Text(
                     'Rumo Quiz',
                     textAlign: TextAlign.center,
-                    style: TextStyle(fontSize: 32, fontWeight: FontWeight.bold),
-                  ),
-                  const SizedBox(height: 8),
-                  const Text(
-                    'Faça login para acessar seus simulados',
-                    textAlign: TextAlign.center,
-                    style: TextStyle(color: Colors.grey),
+                    style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold),
                   ),
                   const SizedBox(height: 32),
-
-                  // Campo de E-mail
                   TextFormField(
                     controller: _emailController,
                     keyboardType: TextInputType.emailAddress,
                     decoration: const InputDecoration(
                       labelText: 'E-mail',
-                      prefixIcon: Icon(Icons.email),
+                      prefixIcon: Icon(Icons.email_outlined),
                     ),
-                    // Injeta a validação centralizada da Core
-                    validator: Validators.validateEmail,
+                    validator: (value) => value == null || value.isEmpty
+                        ? 'Insira seu e-mail'
+                        : null,
                   ),
                   const SizedBox(height: 16),
-
-                  // Campo de Senha (🟢 CORRIGIDO COM OLHO MÁGICO)
                   TextFormField(
-                    controller: _passwordController,
-                    obscureText:
-                        _obscurePassword, // Vinculado ao estado dinâmico
+                    controller: _senhaController,
+                    obscureText: _ocultarSenha,
                     decoration: InputDecoration(
                       labelText: 'Senha',
-                      prefixIcon: const Icon(Icons.lock),
-                      // 🟢 ÍCONE INTERATIVO ADICIONADO
+                      prefixIcon: const Icon(Icons.lock_outline),
                       suffixIcon: IconButton(
                         icon: Icon(
-                          _obscurePassword
+                          _ocultarSenha
                               ? Icons.visibility_off
                               : Icons.visibility,
-                          color: Colors.grey.shade600,
                         ),
-                        onPressed: () {
-                          setState(() {
-                            _obscurePassword = !_obscurePassword;
-                          });
-                        },
+                        onPressed: () =>
+                            setState(() => _ocultarSenha = !_ocultarSenha),
                       ),
                     ),
-                    // Injeta a validação centralizada da Core
-                    validator: Validators.validatePassword,
+                    validator: (value) => value == null || value.isEmpty
+                        ? 'Insira sua senha'
+                        : null,
+                  ),
+                  const SizedBox(height: 8),
+
+                  // 🟢 LOCAL DE ENCAIXE DO CLIQUE: Associado à nossa nova função
+                  Align(
+                    alignment: Alignment.centerRight,
+                    child: TextButton(
+                      onPressed: () => _exibirModalRecuperarSenha(
+                        context,
+                        ref,
+                      ), // 👈 Chamando o Modal aqui!
+                      child: const Text('Esqueci minha senha'),
+                    ),
                   ),
                   const SizedBox(height: 24),
+                  ElevatedButton(
+                    onPressed: () async {
+                      if (_formKey.currentState!.validate()) {
+                        try {
+                          // 1. Executa o login real chamando o repositório através do DataSource
+                          // (Isso valida se o e-mail e senha existem no Firebase)
+                          final userModel = await ref
+                              .read(authDataSourceProvider)
+                              .loginWithEmailAndPassword(
+                                _emailController.text.trim(),
+                                _senhaController.text.trim(),
+                              );
 
-                  // Átomo Reutilizável (CustomButton) trabalhando junto com o Riverpod
-                  CustomButton(
-                    text: 'Entrar',
-                    isLoading: isLoading,
-                    onPressed: _submit,
+                          // 2. Se o login deu certo, dispara o Log de Auditoria obrigatoriamente
+                          await ref
+                              .read(whiteLabelProvider.notifier)
+                              .inicializarIdentidade(
+                                userModel.institutionId,
+                                '',
+                              );
+                          // 3. Direciona o utilizador com base no perfil (Role)
+                          if (context.mounted) {
+                            if (userModel.role == 'Master' ||
+                                userModel.role == 'Admin') {
+                              context.go('/admin');
+                            } else {
+                              context.go('/quiz-selection');
+                            }
+                          }
+                        } catch (e) {
+                          // Se a senha estiver errada ou o usuário não existir, mostra o erro na tela
+                          if (context.mounted) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(
+                                content: Text(
+                                  e.toString().replaceAll('Exception: ', ''),
+                                ),
+                                backgroundColor: Colors.red,
+                              ),
+                            );
+                          }
+                        }
+                      }
+                    },
+                    style: ElevatedButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(vertical: 16),
+                    ),
+                    child: const Text('Entrar', style: TextStyle(fontSize: 16)),
                   ),
                 ],
               ),
