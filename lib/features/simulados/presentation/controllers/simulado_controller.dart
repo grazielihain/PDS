@@ -7,6 +7,11 @@ import 'package:rumo_quiz/features/prova/domain/models/revisao_questao_model.dar
 import '../../domain/entities/questao_entity.dart';
 import '../../data/repositories/simulado_repository_impl.dart';
 
+final simuladoControllerProvider =
+    StateNotifierProvider<SimuladoController, SimuladoState>((ref) {
+      return SimuladoController(ref);
+    });
+
 // 📋 Essa classe guarda o "estado atual" do simulado na memória do celular
 class SimuladoState {
   final List<QuestaoEntity> questoes;
@@ -113,49 +118,56 @@ class SimuladoController extends StateNotifier<SimuladoState> {
     required String tituloProva,
   }) async {
     try {
-      // 🔴 PASSO DE SUCESSO DO TCC: Força a tela a mudar para "Concluído" IMEDIATAMENTE ao clicar!
-      // Nota: Se o seu estado usar outra variável para a nota ou finalização, ajuste os nomes abaixo.
-      state = state.copyWith(
-        finalizado: true,
-        carregando: false,
-        notaFinal:
-            10, // Define uma nota fictícia/calculada para a tela mudar na hora
-      );
-
-      // 1. Inicialização de contadores matemáticos
       int totalAcertos = 0;
       double notaCalculada = 0.0;
       List<RevisaoQuestaoModel> listaRevisao = [];
       final List<QuestaoEntity> questoesDaProva = state.questoes;
 
-      for (var item in questoesDaProva) {
-        final QuestaoEntity q = item;
-        final int? escolhidaIndex = state.respostasDoAluno[q.id];
-        final bool acertou = escolhidaIndex == q.respostaCorretaIndex;
+      for (int i = 0; i < questoesDaProva.length; i++) {
+        final QuestaoEntity q = questoesDaProva[i];
+
+        // Tenta buscar pelo ID da questão; se falhar/for nulo devido à nova estrutura, busca pelo índice numérico da posição
+        int? escolhidaIndex = state.respostasDoAluno[q.id];
+        if (escolhidaIndex == null && state.respostasDoAluno.containsKey(i)) {
+          escolhidaIndex = state.respostasDoAluno[i];
+        }
+
+        final bool acertou =
+            escolhidaIndex != null && escolhidaIndex == q.respostaCorretaIndex;
 
         if (acertou) {
           totalAcertos++;
           notaCalculada += 1.0;
         }
 
-        listaRevisao.add(
-          RevisaoQuestaoModel(
-            questao: q as QuestaoModel,
-            opcaoEscolhidaIndex: escolhidaIndex,
-          ),
-        );
+        // Garante que a revisão não quebre se o modelo QuestaoModel for exigido
+        if (q is QuestaoModel) {
+          listaRevisao.add(
+            RevisaoQuestaoModel(
+              questao:
+                  q as QuestaoModel, // 🟢 Adicionado 'as QuestaoModel' para eliminar o erro de tipo
+              opcaoEscolhidaIndex: escolhidaIndex,
+            ),
+          );
+        }
       }
 
-      // Atualiza com a nota real calculada para apresentar na banca
-      state = state.copyWith(notaFinal: notaCalculada.toInt());
+      // Atualiza o estado visual exigido pela simulado_page.dart (Mantém compatibilidade total)
+      state = state.copyWith(
+        finalizado: true,
+        carregando: false,
+        notaFinal:
+            totalAcertos, // Atribui como int para evitar o erro de double/int? anterior
+      );
 
-      // 2. SALVAMENTO EM SEGUNDO PLANO (O app não fica mais travado esperando aqui)
+      // Gravação na coleção de nível superior 'historicos' conforme o novo escopo do banco
       final historicoRef = FirebaseFirestore.instance
           .collection('historicos')
           .doc();
+
       final novoHistorico = HistoricoModel(
         id: historicoRef.id,
-        alunoId: userId,
+        alunoId: userId.isEmpty ? 'aluno_anonimo' : userId,
         provaId: provaId,
         tituloProva: tituloProva,
         acertos: totalAcertos,
@@ -163,22 +175,38 @@ class SimuladoController extends StateNotifier<SimuladoState> {
         notaObtida: notaCalculada,
         notaMaxima: questoesDaProva.length.toDouble(),
         tempoUtilizadoSegundos: 0,
-        mensagemFinalizacaoAdmin: 'Parabéns!',
-        pontosGamificacao: 10,
+        mensagemFinalizacaoAdmin: 'Simulado Concluído com Sucesso',
+        pontosGamificacao:
+            10, // 🎯 US 12: Gamificação gravada de forma imutável no histórico
         dataHora: DateTime.now(),
         revisaoQuestoes: listaRevisao,
       );
 
-      // O 'await' foi removido propositalmente aqui para o Firebase rodar em "background" sem travar a tela da aluna
-      historicoRef.set(novoHistorico.toFirestore());
-    } catch (e) {
-      debugPrint('Erro em segundo plano: $e');
+      // Envia os dados estruturados respeitando o seu HistoricoModel original
+      await historicoRef.set(novoHistorico.toFirestore());
+      debugPrint(
+        '🎉 SUCESSO: Histórico registrado na coleção de nível superior!',
+      );
+
+      // US 12 (Gamificação): Atualiza a pontuação acumulada diretamente no nó do usuário correspondente
+      if (userId.isNotEmpty && userId != 'aluno_anonimo') {
+        await FirebaseFirestore.instance
+            .collection('usuarios')
+            .doc(userId)
+            .update({'pontuacaoAcumulada': FieldValue.increment(10)});
+        debugPrint(
+          '🎯 SUCESSO: +10 pontos de gamificação computados no perfil do aluno.',
+        );
+      }
+    } catch (erro) {
+      // Captura e exibe no console o motivo exato caso o Firebase recuse por regras de segurança (Security Rules)
+      debugPrint('❌ FALHA NO FIRESTORE: $erro');
     }
   }
-}
 
-// 🟢 PROVIDER GLOBAL DO CONTROLLER: É ela que a tela vai escutar!
-final simuladoControllerProvider =
-    StateNotifierProvider<SimuladoController, SimuladoState>((ref) {
-      return SimuladoController(ref);
-    });
+  // 🟢 PROVIDER GLOBAL DO CONTROLLER: É ela que a tela vai escutar!
+  final simuladoControllerProvider =
+      StateNotifierProvider<SimuladoController, SimuladoState>((ref) {
+        return SimuladoController(ref);
+      });
+}

@@ -2,8 +2,8 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import '../controllers/simulado_controller.dart';
-
+import '../../presentation/controllers/simulado_controller.dart';
+import 'package:rumo_quiz/features/simulados/presentation/controllers/simulado_controller.dart';
 class SimuladoPage extends ConsumerWidget {
   const SimuladoPage({Key? key}) : super(key: key);
 
