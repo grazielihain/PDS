@@ -1,15 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
-import 'package:rumo_quiz/features/prova/domain/models/questao_model.dart';
-import 'package:rumo_quiz/features/prova/domain/models/revisao_questao_model.dart';
-import 'package:rumo_quiz/features/prova/presentation/pages/resultado_prova_page.dart';
+// 🔄 Imports blindados apontando para a pasta unificada de simulados
+import 'package:rumo_quiz/features/simulados/data/models/questao_model.dart'; 
+import 'package:rumo_quiz/features/simulados/data/models/revisao_questao_model.dart';
+import 'package:rumo_quiz/features/simulados/presentation/pages/resultado_simulado_page.dart';
 import '../../features/auth/presentation/pages/login_page.dart';
-import '../../features/prova/presentation/pages/quiz_selection_page.dart';
+import '../../features/simulados/presentation/pages/quiz_selection_page.dart';
 import '../../features/auth/presentation/pages/meu_perfil_page.dart';
-import '../../features/prova/presentation/pages/historico_page.dart';
+import '../../features/simulados/presentation/pages/historico_page.dart';
 import '../presentation/pages/main_layout_shell.dart';
 import '../../features/simulados/presentation/pages/simulado_page.dart';
-import 'package:rumo_quiz/shared/widgets/organisms/carrossel_patrocinadores.dart';
 
 class AppRouter {
   static final GoRouter router = GoRouter(
@@ -24,7 +24,6 @@ class AppRouter {
         ),
       ),
 
-      // 🗺️ AS ROTAS QUE COMPARTILHAM O CABEÇALHO FIXO E MENU LATERAL
       ShellRoute(
         builder: (context, state, child) {
           return MainLayoutShell(child: child);
@@ -64,6 +63,7 @@ class AppRouter {
                 .map((o) => o.toString())
                 .toList();
 
+            // 🛠️ Tratamento adaptativo dos parâmetros do QuestaoModel vindo do Firebase
             return RevisaoQuestaoModel(
               questao: QuestaoModel(
                 id: mapaQuestao['id']?.toString() ?? '',
@@ -78,7 +78,10 @@ class AppRouter {
                     mapaQuestao['alternativaCorretaIndex'] ??
                     mapaQuestao['respostaCorretaIndex'] ??
                     0,
-                nota: (mapaQuestao['nota'] as num?)?.toDouble() ?? 1.0,
+                // ✅ Inclusão dos 3 parâmetros que estavam faltando e causando o erro:
+                instituicaoId: mapaQuestao['instituicaoId']?.toString() ?? dados['instituicaoId']?.toString() ?? 'Geral',
+                categoriaId: mapaQuestao['categoriaId']?.toString() ?? dados['categoria']?.toString() ?? 'Geral',
+                assuntoId: mapaQuestao['assuntoId']?.toString() ?? dados['assuntoId']?.toString() ?? 'Geral',
               ),
               opcaoEscolhidaIndex:
                   mapaQuestao['opcaoEscolhidaIndex'] ??
@@ -88,8 +91,8 @@ class AppRouter {
             );
           }).toList();
 
-          return ResultadoProvaPage(
-            tituloProva:
+          return ResultadoSimuladoPage(
+            tituloSimulado:
                 dados['categoria'] ??
                 dados['tipoProva'] ??
                 'Simulado Realizado',
@@ -109,7 +112,7 @@ class AppRouter {
                 dados['instituicaoDoAluno'] ??
                 dados['instituicao'] ??
                 'Minha Instituição',
-            logoUrl: dados['logoUrl'], 
+            logoUrl: dados['logoUrl'],
             taxaAcerto: dados['taxaAcerto'] != null
                 ? (dados['taxaAcerto'] as num).toDouble()
                 : ((dados['totalQuestoes'] ?? 0) > 0

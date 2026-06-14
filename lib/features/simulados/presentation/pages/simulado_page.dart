@@ -2,70 +2,63 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import '../../presentation/controllers/simulado_controller.dart';
-import 'package:rumo_quiz/features/simulados/presentation/controllers/simulado_controller.dart';
+import '../../data/models/questao_model.dart';
+import '../../data/models/revisao_questao_model.dart';
+import '../controllers/simulado_controller.dart';
+import '../providers/quiz_session_provider.dart';
+
 class SimuladoPage extends ConsumerWidget {
   const SimuladoPage({Key? key}) : super(key: key);
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    // 🟡 Escuta o estado do simulado em tempo real
-    final state = ref.watch(simuladoControllerProvider);
-    final controller = ref.read(simuladoControllerProvider.notifier);
+    // 🧠 1. Escuta o estado da Sessão Ativa (Nomes idênticos ao seu QuizSessionState)
+    final sessionState = ref.watch(quizSessionProvider);
+    final sessionNotifier = ref.read(quizSessionProvider.notifier);
 
-    // 1. Tela de Carregamento
-    if (state.carregando) {
-      return const Scaffold(body: Center(child: CircularProgressIndicator()));
-    }
+    // 🔄 2. Escuta o Controller de Gravação do Firebase
+    final controllerState = ref.watch(simuladoControllerProvider);
+    final controllerNotifier = ref.read(simuladoControllerProvider.notifier);
 
-    // 2. Tela de Erro (Se não encontrar questões ou cair a internet)
-    if (state.erro != null) {
-      return Scaffold(
+    // ⏳ Tela de Carregamento Assíncrono do Controller (Gravando no Firestore)
+    if (controllerState is AsyncLoading) {
+      return const Scaffold(
         body: Center(
-          child: Text(
-            state.erro!,
-            style: const TextStyle(color: Colors.red, fontSize: 16),
-            textAlign: TextAlign.center,
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              CircularProgressIndicator(),
+              SizedBox(height: 16),
+              Text(
+                'Gravando seu histórico de simulados...',
+                style: TextStyle(fontWeight: FontWeight.w500),
+              ),
+            ],
           ),
         ),
       );
     }
 
-    // 3. Tela de Resultado Final (Quando o aluno clica em finalizar)
-    if (state.finalizado) {
+    // ❌ Tela de Erro de Conexão ou Gravação
+    if (controllerState is AsyncError) {
       return Scaffold(
-        appBar: AppBar(
-          title: const Text('Resultado do Simulado'),
-          automaticallyImplyLeading: false,
-        ),
         body: Center(
           child: Padding(
-            padding: const EdgeInsets.all(16.0),
+            padding: const EdgeInsets.all(24.0),
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                const Text(
-                  '🎉 Simulado Concluído!',
-                  style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
-                ),
-                const SizedBox(height: 20),
+                const Icon(Icons.error_outline, color: Colors.red, size: 64),
+                const SizedBox(height: 16),
                 Text(
-                  'Sua Nota: ${state.notaFinal}',
-                  style: TextStyle(
-                    fontSize: 32,
-                    fontWeight: FontWeight.bold,
-                    color: state.notaFinal >= 7
-                        ? Colors.green
-                        : Colors.red, // Ajustado para notas base 10
-                  ),
+                  'Erro ao processar simulado: ${controllerState.error}',
+                  style: const TextStyle(color: Colors.red, fontSize: 16),
+                  textAlign: TextAlign.center,
                 ),
-                const SizedBox(height: 40),
+                const SizedBox(height: 24),
                 ElevatedButton(
-                  onPressed: () {
-                    // 🟢 Manda o GoRouter levar o usuário de volta para a seleção de Quizzes de forma limpa!
-                    context.go('/quiz-selection');
-                  },
-                  child: const Text('Voltar para o Início'),
+                  onPressed: () => context.go('/quiz-selection'),
+                  child: const Text('Voltar para Início'),
                 ),
               ],
             ),
@@ -74,22 +67,27 @@ class SimuladoPage extends ConsumerWidget {
       );
     }
 
-    // 4. Tela de Execução da Prova (Se houver questões carregadas)
-    if (state.questoes.isEmpty) {
+    // 🛑 Tratamento caso a lista de questões esteja vazia
+    if (sessionState.questoes.isEmpty) {
       return const Scaffold(
-        body: Center(child: Text('Nenhum simulado ativo.')),
+        body: Center(
+          child: Text('Nenhuma questão carregada para este simulado.'),
+        ),
       );
     }
 
-    final questaoAtual = state.questoes[state.indiceQuestaoAtual];
-    final respostaSelecionada =
-        state.respostasDoAluno[state.indiceQuestaoAtual];
+    // ✅ Cast seguro de dynamic para QuestaoModel usando os nomes reais do seu estado
+    final questaoAtual =
+        sessionState.questoes[sessionState.indiceQuestaoAtual] as QuestaoModel;
+    final respostaSelecionadaTexto =
+        sessionState.respostasSelecionadas[questaoAtual.id];
 
     return Scaffold(
       appBar: AppBar(
         title: Text(
-          'Questão ${state.indiceQuestaoAtual + 1} de ${state.questoes.length}',
+          'Questão ${sessionState.indiceQuestaoAtual + 1} de ${sessionState.questoes.length}',
         ),
+        automaticallyImplyLeading: false,
       ),
       body: Padding(
         padding: const EdgeInsets.all(16.0),
@@ -108,22 +106,28 @@ class SimuladoPage extends ConsumerWidget {
               child: ListView.builder(
                 itemCount: questaoAtual.opcoes.length,
                 itemBuilder: (context, index) {
-                  final estaSelecionado = respostaSelecionada == index;
+                  final opcaoTexto = questaoAtual.opcoes[index];
+                  final estaSelecionado =
+                      respostaSelecionadaTexto == opcaoTexto;
 
                   return Card(
                     color: estaSelecionado ? Colors.blue.shade100 : null,
                     margin: const EdgeInsets.symmetric(vertical: 8.0),
                     child: ListTile(
                       leading: CircleAvatar(
-                        child: Text(
-                          String.fromCharCode(65 + index),
-                        ), // Transforma 0 em A, 1 em B...
+                        child: Text(String.fromCharCode(65 + index)),
                       ),
-                      title: Text(questaoAtual.opcoes[index]),
+                      title: Text(opcaoTexto),
                       trailing: estaSelecionado
                           ? const Icon(Icons.check_circle, color: Colors.blue)
                           : null,
-                      onTap: () => controller.selecionarAlternativa(index),
+                      onTap: () {
+                        // ✅ Chamando a função exata do seu Notifier
+                        sessionNotifier.selecionarAlternativa(
+                          questaoAtual.id,
+                          opcaoTexto,
+                        );
+                      },
                     ),
                   );
                 },
@@ -135,46 +139,76 @@ class SimuladoPage extends ConsumerWidget {
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 TextButton(
-                  onPressed: state.indiceQuestaoAtual > 0
-                      ? controller.questaoAnterior
+                  // ✅ Usando 'indiceQuestaoAtual' e 'questaoAnterior' do seu provider
+                  onPressed: sessionState.indiceQuestaoAtual > 0
+                      ? sessionNotifier.questaoAnterior
                       : null,
                   child: const Text('Anterior'),
                 ),
-                if (state.indiceQuestaoAtual == state.questoes.length - 1)
+                if (sessionState.indiceQuestaoAtual ==
+                    sessionState.questoes.length - 1)
                   ElevatedButton(
-                    onPressed: respostaSelecionada != null
-                        ? () async {
-                            final messenger = ScaffoldMessenger.of(context);
+                    onPressed: () async {
+                      int totalAcertos = 0;
+                      List<RevisaoQuestaoModel> listaRevisao = [];
 
-                            try {
-                              // 1. Mostra o aviso visual de carregamento
-                              messenger.showSnackBar(
-                                const SnackBar(
-                                  content: Text('Salvando resultado...'),
-                                  backgroundColor: Colors.blue,
-                                  duration: Duration(seconds: 1),
-                                ),
-                              );
+                      for (var item in sessionState.questoes) {
+                        final q = item as QuestaoModel;
+                        final respAluno =
+                            sessionState.respostasSelecionadas[q.id];
+                        final int indexAluno = respAluno != null
+                            ? q.opcoes.indexOf(respAluno)
+                            : -1;
 
-                              // 2. Busca o ID do Aluno
-                              final String alunoId =
-                                  FirebaseAuth.instance.currentUser?.uid ??
-                                  'aluno_anonimo';
+                        if (indexAluno != -1 &&
+                            indexAluno == q.respostaCorretaIndex) {
+                          totalAcertos++;
+                        }
 
-                              // 3. Executa a finalização e envia os dados ao Firebase
-                              await ref
-                                  .read(simuladoControllerProvider.notifier)
-                                  .finalizarSimulado(
-                                    userId: alunoId,
-                                    instituicaoId: 'instituicao_padrao',
-                                    provaId: 'prova_atual',
-                                    tituloProva: 'Simulado Concluído',
-                                  );
-                            } catch (erro) {
-                              debugPrint('Erro ao salvar no Firebase: $erro');
-                            }
-                          }
-                        : null,
+                        listaRevisao.add(
+                          RevisaoQuestaoModel(
+                            questao: q,
+                            opcaoEscolhidaIndex: indexAluno == -1
+                                ? null
+                                : indexAluno,
+                          ),
+                        );
+                      }
+
+                      double notaCalculada = sessionState.questoes.isNotEmpty
+                          ? (totalAcertos / sessionState.questoes.length) * 10.0
+                          : 0.0;
+
+                      final String alunoId =
+                          FirebaseAuth.instance.currentUser?.uid ??
+                          'aluno_anonimo';
+
+                      // 🚀 Envio para gravação no Firebase via controller
+                      await controllerNotifier.finalizarEGravarSimulado(
+                        questoesDaProva: List<QuestaoModel>.from(
+                          sessionState.questoes,
+                        ),
+                        respostasAluno: sessionState.respostasSelecionadas,
+                        notaCalculada: notaCalculada,
+                        totalAcertos: totalAcertos,
+                        listaRevisao: listaRevisao,
+                      );
+
+                      // 🎯 Navega para a página de resultado repassando o payload
+                      if (context.mounted) {
+                        context.go(
+                          '/resultado',
+                          extra: {
+                            'questoes': sessionState.questoes,
+                            'acertos': totalAcertos,
+                            'totalQuestoes': sessionState.questoes.length,
+                            'NotaObtida': notaCalculada,
+                            'categoria': sessionState.categoriaId,
+                            'revisaoQuestoes': listaRevisao,
+                          },
+                        );
+                      }
+                    },
                     style: ElevatedButton.styleFrom(
                       backgroundColor: Colors.green,
                     ),
@@ -185,9 +219,8 @@ class SimuladoPage extends ConsumerWidget {
                   )
                 else
                   ElevatedButton(
-                    onPressed: respostaSelecionada != null
-                        ? controller.proximaQuestao
-                        : null,
+                    // ✅ Usando 'proximaQuestao' do seu provider
+                    onPressed: sessionNotifier.proximaQuestao,
                     child: const Text('Próxima'),
                   ),
               ],

@@ -1,13 +1,13 @@
 import 'package:flutter/material.dart';
-import 'package:rumo_quiz/features/prova/presentation/pages/inspecionar_prova_page.dart';
-import 'package:rumo_quiz/features/prova/services/certificado_service.dart';
-import 'package:rumo_quiz/features/prova/domain/models/revisao_questao_model.dart';
+import 'package:rumo_quiz/features/simulados/presentation/pages/inspecionar_simulado_page.dart';
+import 'package:rumo_quiz/features/simulados/services/certificado_service.dart';
+import 'package:rumo_quiz/features/simulados/data/models/revisao_questao_model.dart';
 
-class ResultadoProvaPage extends StatelessWidget {
+class ResultadoSimuladoPage extends StatelessWidget {
   final String nomeDoAluno;
   final String instituicaoDoAluno;
   final String? logoUrl;
-  final String tituloProva;
+  final String tituloSimulado;
   final int totalQuestoes;
   final int acertos;
   final int erros;
@@ -19,12 +19,12 @@ class ResultadoProvaPage extends StatelessWidget {
   final List<RevisaoQuestaoModel> revisaoQuestoes; 
   final int tempoUtilizadoSegundos; // 🟢 Adicionado para resolver o erro de parâmetro
 
-  const ResultadoProvaPage({
+  const ResultadoSimuladoPage({
     Key? key,
     required this.nomeDoAluno,
     required this.instituicaoDoAluno,
     this.logoUrl,
-    required this.tituloProva,
+    required this.tituloSimulado,
     required this.totalQuestoes,
     required this.acertos,
     required this.erros,
@@ -146,7 +146,7 @@ class ResultadoProvaPage extends StatelessWidget {
                             _buildBotaoAcao(
                               context,
                               Icons.find_in_page_outlined,
-                              'Inspecionar Prova (Revisão)',
+                              'Inspecionar Simulado (Revisão)',
                               Colors.blue.shade600,
                               nomeDoAluno,
                               instituicaoDoAluno,
@@ -348,7 +348,7 @@ class ResultadoProvaPage extends StatelessWidget {
           if (label.contains('Imprimir Certificado')) {
             
             await CertificadoService.gerarEImprimirCertificado(
-              tituloProva: tituloProva,
+              tituloProva: tituloSimulado,
               acertos: acertos,
               totalQuestoes: totalQuestoes,
               notaObtida: notaObtida,
@@ -357,12 +357,12 @@ class ResultadoProvaPage extends StatelessWidget {
               nomeInstiticao: nomeInstituicao,
               logoUrl: logoUrl,
             );
-          } else if (label.contains('Inspecionar Prova')) {
+          } else if (label.contains('Inspecionar Simulado')) {
             Navigator.push(
               context,
               MaterialPageRoute(
-                builder: (context) => InspecionarProvaPage(
-                   tituloProva: tituloProva,
+                builder: (context) => InspecionarSimuladoPage(
+                   tituloSimulado: tituloSimulado,
                    revisaoQuestoes: revisaoQuestoes,
                  ),
                ),

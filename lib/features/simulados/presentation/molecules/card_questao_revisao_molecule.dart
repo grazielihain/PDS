@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import '../../domain/models/revisao_questao_model.dart';
+import '../../data/models/revisao_questao_model.dart';
 
 class CardQuestaoRevisaoMolecule extends StatelessWidget {
   final int numeroQuestao;
@@ -54,7 +54,7 @@ class CardQuestaoRevisaoMolecule extends StatelessWidget {
                       ),
                       const SizedBox(width: 4),
                       Text(
-                        marcouCorreto ? 'Acertou (+${questao.nota} pts)' : 'Errou (0.0 pts)',
+                        marcouCorreto ? 'Acertou (+1.0 pts)' : 'Errou (0.0 pts)',
                         style: TextStyle(
                           color: marcouCorreto ? Colors.green.shade800 : Colors.red.shade800,
                           fontWeight: FontWeight.bold,

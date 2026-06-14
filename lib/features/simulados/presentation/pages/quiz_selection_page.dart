@@ -2,10 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:go_router/go_router.dart'; // 🟢 Adicionado para usar o GoRouter
-import '../../domain/models/prova_model.dart';
-import '../../data/providers/prova_provider.dart';
-import '../../../simulados/presentation/controllers/simulado_controller.dart'; // 🟢 Import do nosso novo Controller
+import 'package:go_router/go_router.dart';
+import '../../data/models/prova_model.dart';
+import '../providers/prova_provider.dart';
+import '../providers/quiz_session_provider.dart'; // 🔄 Importado o provedor de sessão correto
 
 class QuizSelectionPage extends ConsumerWidget {
   const QuizSelectionPage({super.key});
@@ -46,7 +46,7 @@ class QuizSelectionPage extends ConsumerWidget {
 
           // Assistimos o provider passando o ID
           final provasAsyncValue = ref.watch(
-            listaProvasProvider(instituicaoId),
+            listaQuestoesFirestoreProvider(instituicaoId),
           );
 
           return Padding(
@@ -99,7 +99,8 @@ class QuizSelectionPage extends ConsumerWidget {
                       return ListView.builder(
                         itemCount: listaProvas.length,
                         itemBuilder: (context, index) {
-                          final prova = listaProvas[index];
+                          // 🧠 Agora cada item da lista é uma QuestaoModel vinda do provider
+                          final questao = listaProvas[index];
 
                           return Card(
                             elevation: 4,
@@ -114,15 +115,17 @@ class QuizSelectionPage extends ConsumerWidget {
                                 size: 40,
                                 color: Colors.blue,
                               ),
+                              // 🔄 Trocado prova.titulo por questao.pergunta (ou assuntoId se preferir um título curto)
                               title: Text(
-                                prova.titulo,
+                                'Simulado de ${questao.categoriaId.toUpperCase()}',
                                 style: const TextStyle(
                                   fontWeight: FontWeight.bold,
                                   fontSize: 18,
                                 ),
                               ),
+                              // 🔄 Trocado prova.descricao pelos detalhes da categoria e assunto da questão
                               subtitle: Text(
-                                '${prova.descricao}\nTempo: ${prova.tempoEmMinutos} min',
+                                'Assunto: ${questao.assuntoId}\nQuestão ID: ${questao.id}',
                               ),
                               isThreeLine: true,
                               trailing: const Icon(
@@ -130,18 +133,18 @@ class QuizSelectionPage extends ConsumerWidget {
                                 color: Colors.blue,
                               ),
                               onTap: () {
-                                // 🟢 1. Navega DIRETO para a nossa nova página do simulado usando o GoRouter
-                                context.go('/executar-simulado');
-
-                                // 🟢 2. Manda o motor iniciar a busca em segundo plano imediatamente.
-                                // A própria SimuladoPage vai gerenciar a bolinha de carregamento de forma segura!
-                                ref
-                                    .read(simuladoControllerProvider.notifier)
-                                    .iniciarSimulado(
-                                      institutionId: instituicaoId,
-                                      categoriaId: 'direito',
-                                      assuntoId: 'constitucional',
+                                // 🧠 Alimenta o motor de sessão com os dados da questão clicada
+                                ref.read(quizSessionProvider.notifier).iniciarSimulado(
+                                      categoriaId: questao.categoriaId, 
+                                      modoProva: 'completa',
+                                      assunto: questao.assuntoId,
+                                      questoesDisponiveisNoBanco: const [], 
+                                      qtdSolicitada: 10, 
+                                      tempoMinutos: 30, // Definido um tempo padrão seguro (ex: 30 min) já que a questão não possui tempo próprio
                                     );
+
+                                // 🚀 Navega de forma segura
+                                context.go('/executar-simulado');
                               },
                             ),
                           );

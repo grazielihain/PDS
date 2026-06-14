@@ -1,13 +1,13 @@
 import 'package:flutter/material.dart';
-import 'package:rumo_quiz/features/prova/domain/models/revisao_questao_model.dart';
+import 'package:rumo_quiz/features/simulados/data/models/revisao_questao_model.dart';
 
-class InspecionarProvaPage extends StatelessWidget {
-  final String tituloProva;
+class InspecionarSimuladoPage extends StatelessWidget {
+  final String tituloSimulado;
   final List<RevisaoQuestaoModel> revisaoQuestoes;
 
-  const InspecionarProvaPage({
+  const InspecionarSimuladoPage({
     super.key,
-    required this.tituloProva,
+    required this.tituloSimulado,
     required this.revisaoQuestoes,
   });
 
@@ -15,7 +15,7 @@ class InspecionarProvaPage extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text('Revisão: $tituloProva'),
+        title: Text('Revisão: $tituloSimulado'),
         backgroundColor: Colors.blue.shade700,
         foregroundColor: Colors.white,
       ),
@@ -87,7 +87,7 @@ class InspecionarProvaPage extends StatelessWidget {
                         ),
                         const SizedBox(height: 8),
                         Text(
-                          'Assunto/Referência: $tituloProva',
+                          'Assunto/Referência: $tituloSimulado',
                           style: TextStyle(
                             color: Colors.grey.shade600,
                             fontSize: 13,
