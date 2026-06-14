@@ -140,7 +140,7 @@ class QuizSelectionPage extends ConsumerWidget {
                                       questoesDisponiveisNoBanco:
                                           listaProvas, // 🚀 Agora a lista vai cheia!
                                       qtdSolicitada: 10,
-                                      tempoMinutos: 30,
+                                      tempoMinutos: 6,
                                     );
 
                                 // Navega com segurança para a página do simulado ativo

@@ -18,20 +18,22 @@ class SimuladoPage extends ConsumerWidget {
     required dynamic controllerNotifier,
   }) async {
     debugPrint('======= PROCESSANDO ENVIO DO SIMULADO =======');
-    
+
     int totalAcertos = 0;
     List<Map<String, dynamic>> listaRevisaoJson = [];
 
     try {
       for (var item in sessionState.questoes) {
-        final dynamic q = item; 
+        final dynamic q = item;
         final String questaoId = q.id ?? '';
         final List<String> opcoes = List<String>.from(q.opcoes ?? []);
         final int respostaCerta = q.respostaCorretaIndex ?? 0;
-        
+
         final respAluno = sessionState.respostasSelecionadas[questaoId];
-        final int indexAluno = respAluno != null ? opcoes.indexOf(respAluno) : -1;
-        
+        final int indexAluno = respAluno != null
+            ? opcoes.indexOf(respAluno)
+            : -1;
+
         if (indexAluno != -1 && indexAluno == respostaCerta) {
           totalAcertos++;
         }
@@ -43,8 +45,8 @@ class SimuladoPage extends ConsumerWidget {
             'pergunta': q.pergunta ?? '',
             'opcoes': opcoes,
             'respostaCorretaIndex': respostaCerta,
-            'nota': q.nota ?? 1.0,
-          }
+            'nota': 1.0,
+          },
         });
       }
     } catch (e) {
@@ -59,14 +61,18 @@ class SimuladoPage extends ConsumerWidget {
 
     try {
       await controllerNotifier.finalizarEGravarSimulado(
-        questoesDaProva: sessionState.questoes.map((item) => item as QuestaoModel).toList(),
+        questoesDaProva: sessionState.questoes
+            .map((item) => item as QuestaoModel)
+            .toList(),
         respostasAluno: sessionState.respostasSelecionadas,
         notaCalculada: notaCalculada,
         totalAcertos: totalAcertos,
         listaRevisao: sessionState.questoes.map((item) {
           final q = item as QuestaoModel;
           final respAluno = sessionState.respostasSelecionadas[q.id];
-          final int indexAluno = respAluno != null ? q.opcoes.indexOf(respAluno) : -1;
+          final int indexAluno = respAluno != null
+              ? q.opcoes.indexOf(respAluno)
+              : -1;
 
           return RevisaoQuestaoModel(
             questao: q,
@@ -76,19 +82,24 @@ class SimuladoPage extends ConsumerWidget {
       );
       debugPrint('Gravação no Firebase concluída com sucesso!');
     } catch (erroFirebase) {
-      debugPrint('Aviso: Erro ao persistir no banco (mas avançando): $erroFirebase');
+      debugPrint(
+        'Aviso: Erro ao persistir no banco (mas avançando): $erroFirebase',
+      );
     }
 
     if (context.mounted) {
       debugPrint('Redirecionando para /resultado...');
-      context.go('/resultado', extra: {
-        'questoes': sessionState.questoes,
-        'acertos': totalAcertos,
-        'totalQuestoes': sessionState.questoes.length,
-        'NotaObtida': notaCalculada,
-        'categoria': sessionState.categoriaId,
-        'revisaoQuestoes': listaRevisaoJson,
-      });
+      context.go(
+        '/resultado',
+        extra: {
+          'questoes': sessionState.questoes,
+          'acertos': totalAcertos,
+          'totalQuestoes': sessionState.questoes.length,
+          'NotaObtida': notaCalculada,
+          'categoria': sessionState.categoriaId,
+          'revisaoQuestoes': listaRevisaoJson,
+        },
+      );
     }
   }
 
@@ -96,8 +107,10 @@ class SimuladoPage extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     // 🧠 Tipagem estrita com as classes reais que você enviou
     final QuizSessionState sessionState = ref.watch(quizSessionProvider);
-    final QuizSessionNotifier sessionNotifier = ref.read(quizSessionProvider.notifier);
-    
+    final QuizSessionNotifier sessionNotifier = ref.read(
+      quizSessionProvider.notifier,
+    );
+
     final controllerState = ref.watch(simuladoControllerProvider);
     final controllerNotifier = ref.read(simuladoControllerProvider.notifier);
 
@@ -107,7 +120,7 @@ class SimuladoPage extends ConsumerWidget {
 
     // ⏳ Leitura direta das variáveis do seu QuizSessionState
     final int tempoRestante = sessionState.tempoRestanteSegundos;
-    
+
     // Dedução lógica real: se o estado marca tempo maior que zero, a prova tem tempo controlado
     final bool possuiTempo = tempoRestante > 0 || sessionState.tempoEncerrado;
 
@@ -177,12 +190,16 @@ class SimuladoPage extends ConsumerWidget {
       );
     }
 
-    final questaoAtual = sessionState.questoes[sessionState.indiceQuestaoAtual] as QuestaoModel;
-    final respostaSelecionadaTexto = sessionState.respostasSelecionadas[questaoAtual.id];
+    final questaoAtual =
+        sessionState.questoes[sessionState.indiceQuestaoAtual] as QuestaoModel;
+    final respostaSelecionadaTexto =
+        sessionState.respostasSelecionadas[questaoAtual.id];
 
     // Lógica Cromática Baseada no seu aviso de 5 minutos (300 segundos)
     final bool emAlertaCritico = tempoRestante <= 300;
-    final Color corDoCronometro = emAlertaCritico ? Colors.red.shade700 : Colors.blue.shade800;
+    final Color corDoCronometro = emAlertaCritico
+        ? Colors.red.shade700
+        : Colors.blue.shade800;
 
     // Formatação de Segundos para String legível MM:SS
     String formatarTempo(int totalSegundos) {
@@ -195,7 +212,10 @@ class SimuladoPage extends ConsumerWidget {
       appBar: AppBar(
         title: Text(
           'Questão ${sessionState.indiceQuestaoAtual + 1} de ${sessionState.questoes.length}',
-          style: TextStyle(fontSize: isMobile ? 18 : 22, fontWeight: FontWeight.bold),
+          style: TextStyle(
+            fontSize: isMobile ? 18 : 22,
+            fontWeight: FontWeight.bold,
+          ),
         ),
         automaticallyImplyLeading: false,
         actions: [
@@ -206,9 +226,14 @@ class SimuladoPage extends ConsumerWidget {
               child: Center(
                 child: AnimatedContainer(
                   duration: const Duration(milliseconds: 500),
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 6,
+                  ),
                   decoration: BoxDecoration(
-                    color: emAlertaCritico ? Colors.red.shade100 : Colors.blue.shade50,
+                    color: emAlertaCritico
+                        ? Colors.red.shade100
+                        : Colors.blue.shade50,
                     borderRadius: BorderRadius.circular(20),
                     border: Border.all(color: corDoCronometro, width: 1.5),
                   ),
@@ -216,9 +241,11 @@ class SimuladoPage extends ConsumerWidget {
                     mainAxisSize: MainAxisSize.min,
                     children: [
                       Icon(
-                        emAlertaCritico ? Icons.timer_sharp : Icons.timer_outlined, 
-                        color: corDoCronometro, 
-                        size: 18
+                        emAlertaCritico
+                            ? Icons.timer_sharp
+                            : Icons.timer_outlined,
+                        color: corDoCronometro,
+                        size: 18,
                       ),
                       const SizedBox(width: 6),
                       Text(
@@ -259,7 +286,11 @@ class SimuladoPage extends ConsumerWidget {
                       Expanded(
                         child: Text(
                           'Atenção! Restam menos de 5 minutos para o fim da sua prova.',
-                          style: TextStyle(color: Colors.white, fontWeight: FontWeight.w600, fontSize: 13),
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontWeight: FontWeight.w600,
+                            fontSize: 13,
+                          ),
                         ),
                       ),
                     ],
@@ -270,9 +301,9 @@ class SimuladoPage extends ConsumerWidget {
               Text(
                 questaoAtual.pergunta,
                 style: TextStyle(
-                  fontSize: isMobile ? 16 : 20, 
+                  fontSize: isMobile ? 16 : 20,
                   fontWeight: FontWeight.w500,
-                  height: 1.4
+                  height: 1.4,
                 ),
               ),
               const SizedBox(height: 20),
@@ -283,7 +314,8 @@ class SimuladoPage extends ConsumerWidget {
                   itemCount: questaoAtual.opcoes.length,
                   itemBuilder: (context, index) {
                     final opcaoTexto = questaoAtual.opcoes[index];
-                    final estaSelecionado = respostaSelecionadaTexto == opcaoTexto;
+                    final estaSelecionado =
+                        respostaSelecionadaTexto == opcaoTexto;
 
                     return Card(
                       elevation: estaSelecionado ? 3 : 1,
@@ -291,20 +323,29 @@ class SimuladoPage extends ConsumerWidget {
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(10),
                         side: BorderSide(
-                          color: estaSelecionado ? Colors.blue.shade700 : Colors.transparent,
-                          width: 1.5
+                          color: estaSelecionado
+                              ? Colors.blue.shade700
+                              : Colors.transparent,
+                          width: 1.5,
                         ),
                       ),
                       margin: const EdgeInsets.symmetric(vertical: 6.0),
                       child: ListTile(
-                        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+                        contentPadding: const EdgeInsets.symmetric(
+                          horizontal: 16,
+                          vertical: 4,
+                        ),
                         leading: CircleAvatar(
-                          backgroundColor: estaSelecionado ? Colors.blue.shade700 : Colors.grey.shade200,
+                          backgroundColor: estaSelecionado
+                              ? Colors.blue.shade700
+                              : Colors.grey.shade200,
                           child: Text(
                             String.fromCharCode(65 + index),
                             style: TextStyle(
-                              color: estaSelecionado ? Colors.white : Colors.black87,
-                              fontWeight: FontWeight.bold
+                              color: estaSelecionado
+                                  ? Colors.white
+                                  : Colors.black87,
+                              fontWeight: FontWeight.bold,
                             ),
                           ),
                         ),
@@ -347,21 +388,31 @@ class SimuladoPage extends ConsumerWidget {
                               ? sessionNotifier.questaoAnterior
                               : null,
                           style: OutlinedButton.styleFrom(
-                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(8),
+                            ),
                           ),
                         ),
                       ),
-                      
+
                       // Botão Próxima ou Finalizar Simulado
-                      if (sessionState.indiceQuestaoAtual == sessionState.questoes.length - 1)
+                      if (sessionState.indiceQuestaoAtual ==
+                          sessionState.questoes.length - 1)
                         SizedBox(
                           width: isMobile ? 160 : 200,
                           height: 45,
                           child: ElevatedButton.icon(
-                            icon: const Icon(Icons.check, color: Colors.white, size: 18),
+                            icon: const Icon(
+                              Icons.check,
+                              color: Colors.white,
+                              size: 18,
+                            ),
                             label: const Text(
                               'Finalizar Simulado',
-                              style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+                              style: TextStyle(
+                                color: Colors.white,
+                                fontWeight: FontWeight.bold,
+                              ),
                             ),
                             onPressed: () => _processarEnvioSimulado(
                               context: context,
@@ -371,7 +422,9 @@ class SimuladoPage extends ConsumerWidget {
                             ),
                             style: ElevatedButton.styleFrom(
                               backgroundColor: Colors.green.shade600,
-                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(8),
+                              ),
                               elevation: 2,
                             ),
                           ),
@@ -383,7 +436,9 @@ class SimuladoPage extends ConsumerWidget {
                           child: ElevatedButton(
                             onPressed: sessionNotifier.proximaQuestao,
                             style: ElevatedButton.styleFrom(
-                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(8),
+                              ),
                             ),
                             child: const Row(
                               mainAxisAlignment: MainAxisAlignment.center,

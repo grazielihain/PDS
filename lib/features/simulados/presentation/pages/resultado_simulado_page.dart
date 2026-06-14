@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import 'package:rumo_quiz/features/simulados/presentation/pages/inspecionar_simulado_page.dart';
 import 'package:rumo_quiz/features/simulados/services/certificado_service.dart';
 import 'package:rumo_quiz/features/simulados/data/models/revisao_questao_model.dart';
 
-class ResultadoSimuladoPage extends StatelessWidget {
+class ResultadoSimuladoPage extends ConsumerWidget {
   final String nomeDoAluno;
   final String instituicaoDoAluno;
   final String? logoUrl;
@@ -16,8 +18,8 @@ class ResultadoSimuladoPage extends StatelessWidget {
   final int pontosGamificacao;
   final double taxaAcerto;
   final String mensagemFinalizacaoAdmin;
-  final List<RevisaoQuestaoModel> revisaoQuestoes; 
-  final int tempoUtilizadoSegundos; // 🟢 Adicionado para resolver o erro de parâmetro
+  final List<RevisaoQuestaoModel> revisaoQuestoes;
+  final int tempoUtilizadoSegundos;
 
   const ResultadoSimuladoPage({
     Key? key,
@@ -34,10 +36,9 @@ class ResultadoSimuladoPage extends StatelessWidget {
     required this.taxaAcerto,
     required this.mensagemFinalizacaoAdmin,
     required this.revisaoQuestoes,
-    required this.tempoUtilizadoSegundos, // 🟢 Requerido no construtor
+    required this.tempoUtilizadoSegundos,
   }) : super(key: key);
 
-  // 🕒 Função utilitária para converter segundos em MM:SS ou HH:MM:SS
   String _formatarTempo(int segundosTotais) {
     if (segundosTotais <= 0) return '00:00';
     final int horas = segundosTotais ~/ 3600;
@@ -54,20 +55,31 @@ class ResultadoSimuladoPage extends StatelessWidget {
   }
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    // 🎨 CAPTURA DINÂMICA: Pega a cor que a instituição definiu no tema global do app
+    final Color corInstitucional = Theme.of(context).colorScheme.primary;
+    final Color corSecundariaInstitucional = Theme.of(
+      context,
+    ).colorScheme.secondary;
+
     return Scaffold(
-      backgroundColor: Colors.grey.shade50,
+      backgroundColor: Colors
+          .transparent, // Permite que o fundo do MainLayoutShell prevaleça
+
       body: SafeArea(
         child: Center(
           child: ConstrainedBox(
             constraints: const BoxConstraints(maxWidth: 800),
             child: SingleChildScrollView(
               physics: const BouncingScrollPhysics(),
-              padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 32.0),
+              padding: const EdgeInsets.symmetric(
+                horizontal: 24.0,
+                vertical: 32.0,
+              ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  // SEÇÃO 1: CABEÇALHO DE SUCESSO
+                  // SEÇÃO 1: CABEÇALHO DE SUCESSO DO SIMULADO
                   Center(
                     child: Column(
                       children: [
@@ -84,17 +96,17 @@ class ResultadoSimuladoPage extends StatelessWidget {
                           ),
                         ),
                         const SizedBox(height: 16),
-                        const Text(
-                          'Prova Finalizada!',
+                        Text(
+                          'Simulado Concluído!',
                           style: TextStyle(
                             fontSize: 28,
                             fontWeight: FontWeight.bold,
-                            color: Colors.green,
+                            color: corInstitucional, // Aplicado dinamicamente
                           ),
                         ),
                         const SizedBox(height: 6),
                         Text(
-                          'Parabéns por concluir a prova, $nomeDoAluno!',
+                          'Parabéns por finalizar a avaliação, $nomeDoAluno!',
                           textAlign: TextAlign.center,
                           style: TextStyle(
                             fontSize: 16,
@@ -107,7 +119,7 @@ class ResultadoSimuladoPage extends StatelessWidget {
                   ),
                   const SizedBox(height: 32),
 
-                  // SEÇÃO 2: OS BOTÕES DE AÇÃO RÁPIDA (Responsivo)
+                  // SEÇÃO 2: BOTÕES DE AÇÃO RÁPIDA (Agora 100% baseados na cor da instituição)
                   LayoutBuilder(
                     builder: (context, constraints) {
                       if (constraints.maxWidth > 600) {
@@ -118,10 +130,7 @@ class ResultadoSimuladoPage extends StatelessWidget {
                                 context,
                                 Icons.find_in_page_outlined,
                                 'Inspecionar Prova',
-                                Colors.blue.shade600,
-                                nomeDoAluno,
-                                instituicaoDoAluno,
-                                logoUrl,
+                                corInstitucional,
                               ),
                             ),
                             const SizedBox(width: 12),
@@ -130,14 +139,16 @@ class ResultadoSimuladoPage extends StatelessWidget {
                                 context,
                                 Icons.picture_as_pdf_outlined,
                                 'Imprimir Certificado',
-                                Colors.purple.shade600,
-                                nomeDoAluno,
-                                instituicaoDoAluno,
-                                logoUrl,
+                                corSecundariaInstitucional, // Variação secundária da instituição
                               ),
                             ),
                             const SizedBox(width: 12),
-                            Expanded(child: _buildBotaoVoltar(context)),
+                            Expanded(
+                              child: _buildBotaoVoltar(
+                                context,
+                                corInstitucional,
+                              ),
+                            ),
                           ],
                         );
                       } else {
@@ -146,24 +157,18 @@ class ResultadoSimuladoPage extends StatelessWidget {
                             _buildBotaoAcao(
                               context,
                               Icons.find_in_page_outlined,
-                              'Inspecionar Simulado (Revisão)',
-                              Colors.blue.shade600,
-                              nomeDoAluno,
-                              instituicaoDoAluno,
-                              logoUrl,
+                              'Inspecionar Prova',
+                              corInstitucional,
                             ),
                             const SizedBox(height: 8),
                             _buildBotaoAcao(
                               context,
                               Icons.picture_as_pdf_outlined,
-                              'Imprimir Certificado (PDF)',
-                              Colors.purple.shade600,
-                              nomeDoAluno,
-                              instituicaoDoAluno,
-                              logoUrl,
+                              'Imprimir Certificado',
+                              corSecundariaInstitucional,
                             ),
                             const SizedBox(height: 8),
-                            _buildBotaoVoltar(context),
+                            _buildBotaoVoltar(context, corInstitucional),
                           ],
                         );
                       }
@@ -171,13 +176,10 @@ class ResultadoSimuladoPage extends StatelessWidget {
                   ),
                   const SizedBox(height: 36),
 
-                  // SEÇÃO 3: RESUMO DA PROVA (Cards de Métricas)
+                  // SEÇÃO 3: RESUMO METRIFICADO
                   const Text(
                     'Resumo da Prova',
-                    style: TextStyle(
-                      fontSize: 20,
-                      fontWeight: FontWeight.bold,
-                    ),
+                    style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
                   ),
                   const SizedBox(height: 14),
                   GridView.count(
@@ -206,13 +208,12 @@ class ResultadoSimuladoPage extends StatelessWidget {
                       _buildCardResumo(
                         'Nota Obtida',
                         '${notaObtida.toStringAsFixed(1)} / $notaMaxima pts',
-                        Colors.blue.shade700,
+                        corInstitucional, // Aplicado dinamicamente
                       ),
                     ],
                   ),
                   const SizedBox(height: 14),
-                  
-                  // Row Dinâmica para mostrar o XP acumulado e o Tempo gasto lado a lado
+
                   Row(
                     children: [
                       Expanded(
@@ -226,7 +227,7 @@ class ResultadoSimuladoPage extends StatelessWidget {
                       Expanded(
                         child: _buildCardResumo(
                           'Tempo Decorrido',
-                          _formatarTempo(tempoUtilizadoSegundos), // ⏱️ Exibindo o tempo formatado
+                          _formatarTempo(tempoUtilizadoSegundos),
                           Colors.teal.shade700,
                         ),
                       ),
@@ -237,10 +238,7 @@ class ResultadoSimuladoPage extends StatelessWidget {
                   // SEÇÃO 4: BARRAS DE TAXA DE ACERTO
                   const Text(
                     'Métricas de Aproveitamento',
-                    style: TextStyle(
-                      fontSize: 20,
-                      fontWeight: FontWeight.bold,
-                    ),
+                    style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
                   ),
                   const SizedBox(height: 14),
                   Row(
@@ -273,46 +271,51 @@ class ResultadoSimuladoPage extends StatelessWidget {
                   const SizedBox(height: 32),
 
                   // SEÇÃO 5: MENSAGEM DO ADMINISTRADOR
-                  Container(
-                    padding: const EdgeInsets.all(20),
-                    decoration: BoxDecoration(
-                      color: Colors.blue.shade50,
-                      borderRadius: BorderRadius.circular(12),
-                      border: Border.all(
-                        color: Colors.blue.shade200,
-                        width: 1.2,
+                  if (mensagemFinalizacaoAdmin.isNotEmpty)
+                    Container(
+                      padding: const EdgeInsets.all(20),
+                      decoration: BoxDecoration(
+                        color: corInstitucional.withValues(alpha: 0.05),
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(
+                          color: corInstitucional.withValues(alpha: 0.2),
+                          width: 1.2,
+                        ),
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            children: [
+                              Icon(
+                                Icons.gavel,
+                                color: corInstitucional,
+                                size: 22,
+                              ),
+                              const SizedBox(width: 8),
+                              Text(
+                                'Mensagem da Coordenação / Admin',
+                                style: TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                  color: corInstitucional,
+                                  fontSize: 16,
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 12),
+                          Text(
+                            mensagemFinalizacaoAdmin,
+                            style: const TextStyle(
+                              fontStyle: FontStyle.italic,
+                              color: Colors.black87,
+                              fontSize: 15,
+                              height: 1.4,
+                            ),
+                          ),
+                        ],
                       ),
                     ),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Row(
-                          children: const [
-                            Icon(Icons.gavel, color: Colors.blue, size: 22),
-                            SizedBox(width: 8),
-                            Text(
-                              'Mensagem da Coordenação / Admin',
-                              style: TextStyle(
-                                fontWeight: FontWeight.bold,
-                                color: Colors.blue,
-                                fontSize: 16,
-                              ),
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 12),
-                        Text(
-                          mensagemFinalizacaoAdmin,
-                          style: const TextStyle(
-                            fontStyle: FontStyle.italic,
-                            color: Colors.black87,
-                            fontSize: 15,
-                            height: 1.4,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
                 ],
               ),
             ),
@@ -327,9 +330,6 @@ class ResultadoSimuladoPage extends StatelessWidget {
     IconData icon,
     String label,
     Color cor,
-    String nomeAluno,
-    String nomeInstituicao,
-    String? logoUrl,
   ) {
     return SizedBox(
       width: double.infinity,
@@ -343,33 +343,31 @@ class ResultadoSimuladoPage extends StatelessWidget {
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
         ),
         onPressed: () async {
-          print('DEBUG TCC: Quantidade de questões enviadas para revisão: ${revisaoQuestoes.length}');
-
-          if (label.contains('Imprimir Certificado')) {
-            
+          if (label.contains('Certificado')) {
             await CertificadoService.gerarEImprimirCertificado(
               tituloProva: tituloSimulado,
               acertos: acertos,
               totalQuestoes: totalQuestoes,
               notaObtida: notaObtida,
               notaMaxima: notaMaxima,
-              nomeAluno: nomeAluno,
-              nomeInstiticao: nomeInstituicao,
+              nomeAluno: nomeDoAluno,
+              nomeInstiticao: instituicaoDoAluno,
               logoUrl: logoUrl,
             );
-          } else if (label.contains('Inspecionar Simulado')) {
+          } else if (label.contains('Inspecionar') || label.contains('Prova')) {
+            for (var rev in revisaoQuestoes) {
+              print(
+                'Questão ID: ${rev.questao.id} | Escolhida: ${rev.opcaoEscolhidaIndex} | Correta: ${rev.questao.respostaCorretaIndex}',
+              );
+            }
             Navigator.push(
               context,
               MaterialPageRoute(
                 builder: (context) => InspecionarSimuladoPage(
-                   tituloSimulado: tituloSimulado,
-                   revisaoQuestoes: revisaoQuestoes,
-                 ),
-               ),
-             );
-          } else {
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(content: Text('Ação: $label...')),
+                  tituloSimulado: tituloSimulado,
+                  revisaoQuestoes: revisaoQuestoes,
+                ),
+              ),
             );
           }
         },
@@ -377,7 +375,7 @@ class ResultadoSimuladoPage extends StatelessWidget {
     );
   }
 
-  Widget _buildBotaoVoltar(BuildContext context) {
+  Widget _buildBotaoVoltar(BuildContext context, Color corInstitucional) {
     return SizedBox(
       width: double.infinity,
       height: 48,
@@ -388,11 +386,11 @@ class ResultadoSimuladoPage extends StatelessWidget {
           style: TextStyle(fontWeight: FontWeight.bold),
         ),
         style: OutlinedButton.styleFrom(
-          side: BorderSide(color: Colors.blue.shade700),
-          foregroundColor: Colors.blue.shade700,
+          side: BorderSide(color: corInstitucional),
+          foregroundColor: corInstitucional,
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
         ),
-        onPressed: () => Navigator.pop(context),
+        onPressed: () => context.go('/historico'),
       ),
     );
   }
@@ -401,10 +399,10 @@ class ResultadoSimuladoPage extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: cor.withAlpha((0.08 * 255).toInt()),
+        color: cor.withValues(alpha: 0.08),
         borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: cor.withAlpha((0.3 * 255).toInt())),
-                    ),
+        border: Border.all(color: cor.withValues(alpha: 0.3)),
+      ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         mainAxisAlignment: MainAxisAlignment.center,
