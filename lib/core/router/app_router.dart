@@ -6,16 +6,15 @@ import 'package:rumo_quiz/features/prova/presentation/pages/resultado_prova_page
 import '../../features/auth/presentation/pages/login_page.dart';
 import '../../features/prova/presentation/pages/quiz_selection_page.dart';
 import '../../features/auth/presentation/pages/meu_perfil_page.dart';
-import '../../features/prova/presentation/pages/historico_page.dart'; 
+import '../../features/prova/presentation/pages/historico_page.dart';
 import '../presentation/pages/main_layout_shell.dart';
-// 🟢 IMPORT DA NOSSA NOVA PÁGINA DE SIMULADOS
 import '../../features/simulados/presentation/pages/simulado_page.dart';
+import 'package:rumo_quiz/shared/widgets/organisms/carrossel_patrocinadores.dart';
 
 class AppRouter {
   static final GoRouter router = GoRouter(
     initialLocation: '/login',
     routes: [
-      // 🚪 Fora do cabeçalho fixo (Tela Cheia)
       GoRoute(path: '/login', builder: (context, state) => const LoginPage()),
 
       GoRoute(
@@ -31,17 +30,14 @@ class AppRouter {
           return MainLayoutShell(child: child);
         },
         routes: [
-          // Aba: Fazer Quiz / Simulados
           GoRoute(
             path: '/quiz-selection',
             builder: (context, state) => const QuizSelectionPage(),
           ),
-          // Aba: Meu Perfil
           GoRoute(
             path: '/perfil',
             builder: (context, state) => const MeuPerfilPage(),
           ),
-          // Aba: Meus Resultados / Histórico
           GoRoute(
             path: '/historico',
             builder: (context, state) => const HistoricoProvasPage(),
@@ -49,7 +45,6 @@ class AppRouter {
         ],
       ),
 
-      // 📝 Tela de execução ou resultados críticos (se optar por rodar por fora)
       GoRoute(
         path: '/resultado',
         builder: (context, state) {
@@ -126,7 +121,6 @@ class AppRouter {
         },
       ),
 
-      // 🟢 ROTA DA NOSSA SPRINT 2 (Tela Cheia para focar na prova)
       GoRoute(
         path: '/executar-simulado',
         builder: (context, state) => const SimuladoPage(),

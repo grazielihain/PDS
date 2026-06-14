@@ -3,6 +3,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:go_router/go_router.dart';
 import '../../../shared/widgets/organisms/menu_lateral_organism.dart';
+import 'package:rumo_quiz/shared/widgets/organisms/carrossel_patrocinadores.dart';
 
 class MainLayoutShell extends StatefulWidget {
   final Widget child;
@@ -48,15 +49,6 @@ class _MainLayoutShellState extends State<MainLayoutShell> {
     }
     setState(() => _carregandoUsuario = false);
   }
-
-  // Identifica qual o index correspondente da aba com base na rota do GoRouter
-  //int _calcularIndiceAtivo() {
-  //  final String localizacao = GoRouterState.of(context).uri.toString();
-  //  if (localizacao.startsWith('/quiz-selection')) return 0;
-  //  if (localizacao.startsWith('/perfil')) return 1;
-  //  if (localizacao.startsWith('/historico')) return 2;
-  //  return 0;
-  //}
 
   @override
   Widget build(BuildContext context) {
@@ -180,7 +172,6 @@ class _MainLayoutShellState extends State<MainLayoutShell> {
               const SizedBox(width: 8),
             ],
           ),
-
           body: Row(
             children: [
               if (isWeb) ...[
@@ -197,11 +188,18 @@ class _MainLayoutShellState extends State<MainLayoutShell> {
                 VerticalDivider(width: 1, color: Colors.grey.shade300),
               ],
 
-              // 📺 CONTEÚDO PRINCIPAL OTINIZADO
-              // Mantemos o widget.child injetado diretamente aqui para respeitar o GoRouter.
-              // A otimização de persistência já está protegida pelo cache do usuário acima!
+              // 📺 CONTEÚDO PRINCIPAL VOLTOU AO ORIGINAL
+              // Mantendo apenas o widget.child puro para evitar empilhamentos que quebram layouts filhos
               Expanded(child: widget.child),
             ],
+          ),
+
+          // 🟢 SOLUÇÃO DEFINITIVA: Injetado na propriedade nativa de navegação inferior do Scaffold pai
+          bottomNavigationBar: const CarrosselPatrocinadores(
+            logosUrls:
+                [], // Vazio para testar se ele vai injetar o Rumo Quiz e a Instituição automaticamente
+            corCustomizadaInstituicao:
+                null, // No futuro, passe a cor vinda do seu Firebase aqui!
           ),
         );
       },
