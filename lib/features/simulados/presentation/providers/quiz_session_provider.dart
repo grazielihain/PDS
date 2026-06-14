@@ -12,7 +12,8 @@ class QuizSessionState {
   final String? assuntoSelecionado;
   final List<dynamic> questoes; // Lista de Questões filtradas/sorteadas
   final int indiceQuestaoAtual;
-  final Map<String, String> respostasSelecionadas; // {questaoId: alternativaSelecionada}
+  final Map<String, String>
+  respostasSelecionadas; // {questaoId: alternativaSelecionada}
   final int tempoRestanteSegundos;
   final bool tempoEncerrado;
   final bool mostrarAviso5Minutos;
@@ -49,8 +50,10 @@ class QuizSessionState {
       assuntoSelecionado: asuntoSelecionado ?? this.assuntoSelecionado,
       questoes: questoes ?? this.questoes,
       indiceQuestaoAtual: indiceQuestaoAtual ?? this.indiceQuestaoAtual,
-      respostasSelecionadas: respostasSelecionadas ?? this.respostasSelecionadas,
-      tempoRestanteSegundos: tempoRestanteSegundos ?? this.tempoRestanteSegundos,
+      respostasSelecionadas:
+          respostasSelecionadas ?? this.respostasSelecionadas,
+      tempoRestanteSegundos:
+          tempoRestanteSegundos ?? this.tempoRestanteSegundos,
       tempoEncerrado: tempoEncerrado ?? this.tempoEncerrado,
       mostrarAviso5Minutos: mostrarAviso5Minutos ?? this.mostrarAviso5Minutos,
     );
@@ -71,24 +74,38 @@ class QuizSessionNotifier extends StateNotifier<QuizSessionState> {
     String? assunto,
     required List<dynamic> questoesDisponiveisNoBanco,
     required int qtdSolicitada,
-    int? tempoMinutos, // nulo se for "Sem Tempo"
+    int? tempoMinutos,
   }) {
-    // Filtrar questões por Categoria e Assunto (se aplicável)
+    // Filtrar questões extraindo os dados com segurança, seja objeto ou mapa
     List<dynamic> questoesFiltradas = questoesDisponiveisNoBanco.where((q) {
-      final bCategoria = q['categoriaId'] == categoriaId;
+      // 🧠 Detecta se o item é o modelo ou um mapa do Firestore
+      final String qCategoriaId = (q is Map)
+          ? (q['categoriaId'] ?? '')
+          : (q.categoriaId ?? '');
+      final String qAssuntoId = (q is Map)
+          ? (q['assuntoId'] ?? '')
+          : (q.assuntoId ?? '');
+
+      final bCategoria =
+          qCategoriaId.toLowerCase() == categoriaId.toLowerCase();
+
       if (modoProva == 'assunto' && assunto != null) {
-        return bCategoria && q['assuntoId'] == assunto;
+        return bCategoria && qAssuntoId.toLowerCase() == assunto.toLowerCase();
       }
       return bCategoria;
     }).toList();
 
-    // 🛡️ REGRA DE NEGÓCIO: Tratamento de Limite Máximo de Questões Cadastradas
+    // 🛡️ REGRA DE NEGÓCIO: Tratamento de Limite Máximo
     int limiteMaximo = questoesFiltradas.length;
-    int qtdFinalAQuizzar = qtdSolicitada > limiteMaximo ? limiteMaximo : qtdSolicitada;
+    int qtdFinalAQuizzar = qtdSolicitada > limiteMaximo
+        ? limiteMaximo
+        : qtdSolicitada;
 
-    // 🎲 SISTEMA DE SORTEIO EMBALADO (Não repete na mesma prova)
+    // 🎲 SISTEMA DE SORTEIO
     questoesFiltradas.shuffle(Random());
-    List<dynamic> questoesSorteadas = questoesFiltradas.take(qtdFinalAQuizzar).toList();
+    List<dynamic> questoesSorteadas = questoesFiltradas
+        .take(qtdFinalAQuizzar)
+        .toList();
 
     // Configuração inicial do Timer
     int segundosTotais = (tempoMinutos ?? 0) * 60;
@@ -98,7 +115,7 @@ class QuizSessionNotifier extends StateNotifier<QuizSessionState> {
       categoriaId: categoriaId,
       modoProva: modoProva,
       assuntoSelecionado: assunto,
-      questoes: questoesSorteadas,
+      questoes: questoesSorteadas, // 🎯 Agora vai populado corretamente!
       indiceQuestaoAtual: 0,
       respostasSelecionadas: {},
       tempoRestanteSegundos: segundosTotais,
@@ -106,7 +123,6 @@ class QuizSessionNotifier extends StateNotifier<QuizSessionState> {
       mostrarAviso5Minutos: false,
     );
 
-    // Se tiver tempo configurado, starta o relógio regressivo
     if (tempoMinutos != null && tempoMinutos > 0) {
       _iniciarRelogio();
     }
@@ -118,14 +134,11 @@ class QuizSessionNotifier extends StateNotifier<QuizSessionState> {
     _cronometroTimer = Timer.periodic(const Duration(seconds: 1), (timer) {
       if (state.tempoRestanteSegundos <= 1) {
         _cronometroTimer?.cancel();
-        state = state.copyWith(
-          tempoRestanteSegundos: 0,
-          tempoEncerrado: true,
-        );
+        state = state.copyWith(tempoRestanteSegundos: 0, tempoEncerrado: true);
         finalizarSimuladoForcado();
       } else {
         int novoTempo = state.tempoRestanteSegundos - 1;
-        
+
         // 🔔 REGRA DOS 5 MINUTOS: Avisa quando faltar exatamente 5 minutos (300 segundos)
         bool aviso5Min = (novoTempo == 300);
 
@@ -139,9 +152,11 @@ class QuizSessionNotifier extends StateNotifier<QuizSessionState> {
 
   /// 🔘 3. SELECIONAR ALTERNATIVA
   void selecionarAlternativa(String questaoId, String alternativaLetra) {
-    final novasRespostas = Map<String, String>.from(state.respostasSelecionadas);
+    final novasRespostas = Map<String, String>.from(
+      state.respostasSelecionadas,
+    );
     novasRespostas[questaoId] = alternativaLetra;
-    
+
     state = state.copyWith(respostasSelecionadas: novasRespostas);
   }
 
@@ -184,6 +199,7 @@ class QuizSessionNotifier extends StateNotifier<QuizSessionState> {
 }
 
 /// 🌍 PROVIDER GLOBAL DISPONÍVEL PARA OS WIDGETS OBSERVADOS
-final quizSessionProvider = StateNotifierProvider<QuizSessionNotifier, QuizSessionState>((ref) {
-  return QuizSessionNotifier();
-});
+final quizSessionProvider =
+    StateNotifierProvider<QuizSessionNotifier, QuizSessionState>((ref) {
+      return QuizSessionNotifier();
+    });

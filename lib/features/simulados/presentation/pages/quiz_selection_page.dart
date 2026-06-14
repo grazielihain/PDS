@@ -97,9 +97,9 @@ class QuizSelectionPage extends ConsumerWidget {
                       }
 
                       return ListView.builder(
+                        padding: const EdgeInsets.all(16),
                         itemCount: listaProvas.length,
                         itemBuilder: (context, index) {
-                          // 🧠 Agora cada item da lista é uma QuestaoModel vinda do provider
                           final questao = listaProvas[index];
 
                           return Card(
@@ -115,7 +115,6 @@ class QuizSelectionPage extends ConsumerWidget {
                                 size: 40,
                                 color: Colors.blue,
                               ),
-                              // 🔄 Trocado prova.titulo por questao.pergunta (ou assuntoId se preferir um título curto)
                               title: Text(
                                 'Simulado de ${questao.categoriaId.toUpperCase()}',
                                 style: const TextStyle(
@@ -123,27 +122,28 @@ class QuizSelectionPage extends ConsumerWidget {
                                   fontSize: 18,
                                 ),
                               ),
-                              // 🔄 Trocado prova.descricao pelos detalhes da categoria e assunto da questão
                               subtitle: Text(
-                                'Assunto: ${questao.assuntoId}\nQuestão ID: ${questao.id}',
+                                'Assunto: ${questao.assuntoId}\nDisponível na sua instituição',
                               ),
-                              isThreeLine: true,
                               trailing: const Icon(
                                 Icons.arrow_forward_ios,
                                 color: Colors.blue,
                               ),
                               onTap: () {
-                                // 🧠 Alimenta o motor de sessão com os dados da questão clicada
-                                ref.read(quizSessionProvider.notifier).iniciarSimulado(
-                                      categoriaId: questao.categoriaId, 
+                                // 🟢 CORREÇÃO CRÍTICA: Injeta a lista real de questões capturadas do banco!
+                                ref
+                                    .read(quizSessionProvider.notifier)
+                                    .iniciarSimulado(
+                                      categoriaId: questao.categoriaId,
                                       modoProva: 'completa',
                                       assunto: questao.assuntoId,
-                                      questoesDisponiveisNoBanco: const [], 
-                                      qtdSolicitada: 10, 
-                                      tempoMinutos: 30, // Definido um tempo padrão seguro (ex: 30 min) já que a questão não possui tempo próprio
+                                      questoesDisponiveisNoBanco:
+                                          listaProvas, // 🚀 Agora a lista vai cheia!
+                                      qtdSolicitada: 10,
+                                      tempoMinutos: 30,
                                     );
 
-                                // 🚀 Navega de forma segura
+                                // Navega com segurança para a página do simulado ativo
                                 context.go('/executar-simulado');
                               },
                             ),

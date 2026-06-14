@@ -149,53 +149,96 @@ class SimuladoPage extends ConsumerWidget {
                     sessionState.questoes.length - 1)
                   ElevatedButton(
                     onPressed: () async {
+                      // 1. Mostra um feedback visual imediato no console para sabermos que o clique funcionou
+                      debugPrint('======= BOTÃO FINALIZAR CLICADO =======');
+
                       int totalAcertos = 0;
-                      List<RevisaoQuestaoModel> listaRevisao = [];
+                      List<Map<String, dynamic>> listaRevisaoJson = [];
 
-                      for (var item in sessionState.questoes) {
-                        final q = item as QuestaoModel;
-                        final respAluno =
-                            sessionState.respostasSelecionadas[q.id];
-                        final int indexAluno = respAluno != null
-                            ? q.opcoes.indexOf(respAluno)
-                            : -1;
+                      try {
+                        for (var item in sessionState.questoes) {
+                          // Tratamento dinâmico para evitar qualquer quebra de classe
+                          final dynamic q = item;
+                          final String questaoId = q.id ?? '';
+                          final List<String> opcoes = List<String>.from(
+                            q.opcoes ?? [],
+                          );
+                          final int respostaCerta = q.respostaCorretaIndex ?? 0;
 
-                        if (indexAluno != -1 &&
-                            indexAluno == q.respostaCorretaIndex) {
-                          totalAcertos++;
-                        }
+                          final respAluno =
+                              sessionState.respostasSelecionadas[questaoId];
+                          final int indexAluno = respAluno != null
+                              ? opcoes.indexOf(respAluno)
+                              : -1;
 
-                        listaRevisao.add(
-                          RevisaoQuestaoModel(
-                            questao: q,
-                            opcaoEscolhidaIndex: indexAluno == -1
+                          if (indexAluno != -1 && indexAluno == respostaCerta) {
+                            totalAcertos++;
+                          }
+
+                          listaRevisaoJson.add({
+                            'opcaoEscolhidaIndex': indexAluno == -1
                                 ? null
                                 : indexAluno,
-                          ),
-                        );
+                            'questao': {
+                              'id': questaoId,
+                              'pergunta': q.pergunta ?? '',
+                              'opcoes': opcoes,
+                              'respostaCorretaIndex': respostaCerta,
+                              'nota': q.nota ?? 1.0,
+                            },
+                          });
+                        }
+                      } catch (e) {
+                        debugPrint('Erro no mapeamento local das questões: $e');
                       }
 
                       double notaCalculada = sessionState.questoes.isNotEmpty
                           ? (totalAcertos / sessionState.questoes.length) * 10.0
                           : 0.0;
 
-                      final String alunoId =
-                          FirebaseAuth.instance.currentUser?.uid ??
-                          'aluno_anonimo';
-
-                      // 🚀 Envio para gravação no Firebase via controller
-                      await controllerNotifier.finalizarEGravarSimulado(
-                        questoesDaProva: List<QuestaoModel>.from(
-                          sessionState.questoes,
-                        ),
-                        respostasAluno: sessionState.respostasSelecionadas,
-                        notaCalculada: notaCalculada,
-                        totalAcertos: totalAcertos,
-                        listaRevisao: listaRevisao,
+                      debugPrint(
+                        'Acertos calculados: $totalAcertos | Nota: $notaCalculada',
                       );
 
-                      // 🎯 Navega para a página de resultado repassando o payload
+                      // 2. Envio para gravação envelopado em try/catch para não travar a navegação da tela
+                      try {
+                        await controllerNotifier.finalizarEGravarSimulado(
+                          // Converte a lista genérica de volta para a lista estrita de QuestaoModel
+                          questoesDaProva: sessionState.questoes
+                              .map((item) => item as QuestaoModel)
+                              .toList(),
+                          respostasAluno: sessionState.respostasSelecionadas,
+                          notaCalculada: notaCalculada,
+                          totalAcertos: totalAcertos,
+                          // Reconstrói o modelo de revisão esperado pelo controller/Firestore usando o histórico que você mandou
+                          listaRevisao: sessionState.questoes.map((item) {
+                            final q = item as QuestaoModel;
+                            final respAluno =
+                                sessionState.respostasSelecionadas[q.id];
+                            final int indexAluno = respAluno != null
+                                ? q.opcoes.indexOf(respAluno)
+                                : -1;
+
+                            return RevisaoQuestaoModel(
+                              questao: q,
+                              opcaoEscolhidaIndex: indexAluno == -1
+                                  ? null
+                                  : indexAluno,
+                            );
+                          }).toList(),
+                        );
+                        debugPrint(
+                          'Gravação no Firebase concluída com sucesso!',
+                        );
+                      } catch (erroFirebase) {
+                        debugPrint(
+                          'Aviso: Erro ao persistir no banco (mas avançando): $erroFirebase',
+                        );
+                      }
+
+                      // 3. Força a navegação para a tela de resultados de forma garantida
                       if (context.mounted) {
+                        debugPrint('Redirecionando para /resultado...');
                         context.go(
                           '/resultado',
                           extra: {
@@ -204,7 +247,7 @@ class SimuladoPage extends ConsumerWidget {
                             'totalQuestoes': sessionState.questoes.length,
                             'NotaObtida': notaCalculada,
                             'categoria': sessionState.categoriaId,
-                            'revisaoQuestoes': listaRevisao,
+                            'revisaoQuestoes': listaRevisaoJson,
                           },
                         );
                       }
