@@ -1,11 +1,10 @@
 import 'package:flutter/material.dart';
 
 /// [ORGANISMO] CarrosselPatrocinadores
-/// Rodapé White Label Dinâmico e Reativo de acordo com as regras do projeto.
+/// Rodapé White Label Dinâmico, Reativo e Defensivo contra URLs nulas ou corrompidas.
 class CarrosselPatrocinadores extends StatelessWidget {
   final List<String> logosUrls;
-  final Color?
-  corCustomizadaInstituicao; // Cor escolhida pelo Admin no Firestore
+  final Color? corCustomizadaInstituicao; 
 
   const CarrosselPatrocinadores({
     super.key,
@@ -15,33 +14,29 @@ class CarrosselPatrocinadores extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // 🎨 Definição da Cor de Fundo: Usa a cor do Admin ou um azul padrão caso seja nula
     final corFundo = corCustomizadaInstituicao ?? Colors.blue.shade700;
 
-    // 🌓 Lógica de contraste para o texto (se o fundo for claro, texto escuro; se escuro, texto branco)
     final corTextoEIcone =
         ThemeData.estimateBrightnessForColor(corFundo) == Brightness.dark
-        ? Colors.white
-        : Colors.black87;
+            ? Colors.white
+            : Colors.black87;
 
-    // 🛡️ REGRA DE NEGÓCIO: Montar a lista final de logos baseada nas regras de preenchimento
     List<Widget> itensCarrossel = [];
 
-    // 1. Adiciona as logos customizadas enviadas pelo Admin (limitado a no máximo 5)
-    final logosAdministradas = logosUrls.take(5).toList();
-    for (var url in logosAdministradas) {
-      itensCarrossel.add(_buildLogoItem(url));
+    // Limpa registros nulos ou vazios que possam vir acidentalmente do Firestore
+    final logosValidas = logosUrls.where((url) => url.isNotEmpty).take(5).toList();
+    
+    for (var url in logosValidas) {
+      itensCarrossel.add(_buildLogoItem(url, corTextoEIcone));
     }
 
-    // 2. Se a lista ficou menor que 5, adicionamos obrigatoriamente os fallbacks do projeto:
-    if (itensCarrossel.length < 5) {
-      // Logo da Instituição (Fallback 1)
+    // Injeção de fallbacks estruturais caso a lista não atinja 3 elementos básicos
+    if (itensCarrossel.length < 3) {
       itensCarrossel.add(
         _buildFallbackLogoItem(Icons.school, 'Instituição', corTextoEIcone),
       );
     }
-    if (itensCarrossel.length < 5) {
-      // Logo padrão do Rumo Quiz (Fallback 2)
+    if (itensCarrossel.length < 3) {
       itensCarrossel.add(
         _buildFallbackLogoItem(Icons.quiz, 'Rumo Quiz', corTextoEIcone),
       );
@@ -51,7 +46,7 @@ class CarrosselPatrocinadores extends StatelessWidget {
       width: double.infinity,
       height: 56,
       decoration: BoxDecoration(
-        color: corFundo, // Cor dinâmica baseada no Admin
+        color: corFundo,
         boxShadow: [
           BoxShadow(
             color: Colors.black.withOpacity(0.1),
@@ -63,7 +58,6 @@ class CarrosselPatrocinadores extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
       child: Row(
         children: [
-          // Rótulo identificador adaptável ao contraste
           Row(
             mainAxisSize: MainAxisSize.min,
             children: [
@@ -97,32 +91,47 @@ class CarrosselPatrocinadores extends StatelessWidget {
     );
   }
 
-  /// Construtor de Logo vinda da URL (Storage)
-  Widget _buildLogoItem(String url) {
+  Widget _buildLogoItem(String url, Color corTratamento) {
     return Padding(
       key: ValueKey(url),
       padding: const EdgeInsets.symmetric(horizontal: 8.0),
       child: Container(
         padding: const EdgeInsets.all(4),
         decoration: BoxDecoration(
-          color: Colors.white, // Fundo branco para destacar a logo da marca
+          color: Colors.white,
           borderRadius: BorderRadius.circular(4),
         ),
-        child: Image.network(url, height: 36, fit: BoxFit.contain),
+        // 🛡️ Tratamento preventivo de quebra de conexão ou link inválido no Storage
+        child: Image.network(
+          url, 
+          height: 36, 
+          fit: BoxFit.contain,
+          errorBuilder: (context, error, stackTrace) {
+            return Container(
+              padding: const EdgeInsets.symmetric(horizontal: 8),
+              color: Colors.grey.shade200,
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(Icons.broken_image_outlined, size: 14, color: Colors.grey.shade600),
+                  const SizedBox(width: 4),
+                  Text('Logo', style: TextStyle(fontSize: 10, color: Colors.grey.shade600)),
+                ],
+              ),
+            );
+          },
+        ),
       ),
     );
   }
 
-  /// Construtor dos Fallbacks Obrigatórios (Rumo Quiz e Instituição)
   Widget _buildFallbackLogoItem(IconData icone, String texto, Color corTexto) {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 8.0),
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
         decoration: BoxDecoration(
-          color: corTexto.withOpacity(
-            0.15,
-          ), // Cria um tom sobre tom elegante com o fundo
+          color: corTexto.withOpacity(0.15),
           borderRadius: BorderRadius.circular(6),
           border: Border.all(color: corTexto.withOpacity(0.25)),
         ),

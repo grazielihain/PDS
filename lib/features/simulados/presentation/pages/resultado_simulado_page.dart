@@ -1,3 +1,4 @@
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -344,13 +345,16 @@ class ResultadoSimuladoPage extends ConsumerWidget {
         ),
         onPressed: () async {
           if (label.contains('Certificado')) {
+            final usuarioAtual = FirebaseAuth.instance.currentUser;
+            final String nomeAtualizado =
+                usuarioAtual?.displayName ?? nomeDoAluno;
             await CertificadoService.gerarEImprimirCertificado(
               tituloProva: tituloSimulado,
               acertos: acertos,
               totalQuestoes: totalQuestoes,
               notaObtida: notaObtida,
               notaMaxima: notaMaxima,
-              nomeAluno: nomeDoAluno,
+              nomeAluno: nomeAtualizado,
               nomeInstiticao: instituicaoDoAluno,
               logoUrl: logoUrl,
             );

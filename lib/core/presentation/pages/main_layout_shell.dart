@@ -1,9 +1,9 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:go_router/go_router.dart';
 
-// Importações dos seus componentes oficiais
 import '../../../../shared/widgets/organisms/menu_lateral_organism.dart';
 import 'package:rumo_quiz/shared/widgets/organisms/carrossel_patrocinadores.dart';
 
@@ -19,32 +19,53 @@ class _MainLayoutShellState extends State<MainLayoutShell> {
   bool _menuWebExpandido = true;
   Map<String, dynamic>? _dadosUsuario;
   bool _carregandoUsuario = true;
+  StreamSubscription<DocumentSnapshot>? _usuarioSubscription;
 
   @override
   void initState() {
     super.initState();
-    _buscarDadosUsuarioUnicaVez();
+    _escutarDadosUsuarioTempoReal();
   }
 
-  Future<void> _buscarDadosUsuarioUnicaVez() async {
-    try {
-      final user = FirebaseAuth.instance.currentUser;
-      if (user != null) {
-        final doc = await FirebaseFirestore.instance
-            .collection('usuarios')
-            .doc(user.uid)
-            .get();
+  @override
+  void dispose() {
+    _usuarioSubscription?.cancel();
+    super.dispose();
+  }
+
+  void _escutarDadosUsuarioTempoReal() {
+    final user = FirebaseAuth.instance.currentUser;
+    
+    // 🛡️ SEGURANÇA: Se o usuário não estiver autenticado, impede tela vermelha e joga pro login
+    if (user == null) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) context.go('/login');
+      });
+      return;
+    }
+
+    // Escuta em tempo real o documento do usuário
+    _usuarioSubscription = FirebaseFirestore.instance
+        .collection('usuarios')
+        .doc(user.uid)
+        .snapshots()
+        .listen(
+      (doc) {
+        if (!mounted) return;
         if (doc.exists) {
           setState(() {
             _dadosUsuario = doc.data();
+            _carregandoUsuario = false;
           });
+        } else {
+          setState(() => _carregandoUsuario = false);
         }
-      }
-      setState(() => _carregandoUsuario = false);
-    } catch (e) {
-      debugPrint('Erro ao carregar dados do usuário: $e');
-      setState(() => _carregandoUsuario = false);
-    }
+      },
+      onError: (error) {
+        debugPrint('Erro no stream do usuário: $error');
+        if (mounted) setState(() => _carregandoUsuario = false);
+      },
+    );
   }
 
   Color _converterHexParaCor(String? hex) {
@@ -60,18 +81,21 @@ class _MainLayoutShellState extends State<MainLayoutShell> {
   @override
   Widget build(BuildContext context) {
     if (_carregandoUsuario) {
-      return const Scaffold(body: Center(child: CircularProgressIndicator()));
+      return const Scaffold(
+        body: Center(child: CircularProgressIndicator()),
+      );
     }
 
-    // Variáveis reais extraídas do documento NoSQL do Firestore
+    // Mapeamento seguro com Fallbacks caso as chaves não existam no Firestore
     final String avatar = _dadosUsuario?['avatarEmoji'] ?? '👨‍🎓';
     final String nomeAluno = _dadosUsuario?['nome'] ?? 'Estudante';
-    final String instituicao = _dadosUsuario?['instituicao'] ?? 'Instituição';
+    final String iNstituicaoNome = _dadosUsuario?['instituicao'] ?? 'Instituição';
     final String? logoInstituicao = _dadosUsuario?['logoInstituicao'];
-    final String tipoAcesso = (_dadosUsuario?['role'] ?? 'Acess3')
-        .toString()
-        .trim();
+    final String tipoAcesso = (_dadosUsuario?['role'] ?? 'Acesso').toString().trim();
     final String? corHex = _dadosUsuario?['corCustomizada'];
+    
+    // Extração das logos dos patrocinadores cadastradas no documento do usuário/instituição
+    final List<String> patrocinadoresUrls = List<String>.from(_dadosUsuario?['patrocinadores'] ?? []);
 
     final Color corPrimaria = (tipoAcesso == 'Admin')
         ? Colors.indigo.shade50
@@ -79,11 +103,9 @@ class _MainLayoutShellState extends State<MainLayoutShell> {
 
     return LayoutBuilder(
       builder: (context, constraints) {
-        // Define se a tela está sendo exibida em ambiente Web/Desktop ou Mobile
         final isWeb = constraints.maxWidth > 900;
 
         return Scaffold(
-          // 🍔 1. MENU SANDUÍCHE MOBILE (Aparece em telas menores)
           drawer: isWeb
               ? null
               : MenuLateralOrganism(
@@ -92,22 +114,17 @@ class _MainLayoutShellState extends State<MainLayoutShell> {
                   avatarEmoji: avatar,
                   nomeAluno: nomeAluno,
                 ),
-
-          // 🏷️ 2. CABEÇALHO UNIFICADO E RESPONSIVO (Logo + Nome)
           appBar: AppBar(
             backgroundColor: corPrimaria,
-            foregroundColor: Colors.white,
+            foregroundColor: (tipoAcesso == 'Admin') ? Colors.black87 : Colors.white,
             elevation: 2,
             leading: isWeb
                 ? IconButton(
                     icon: const Icon(Icons.menu),
-                    tooltip: _menuWebExpandido
-                        ? 'Recolher Menu'
-                        : 'Expandir Menu',
-                    onPressed: () =>
-                        setState(() => _menuWebExpandido = !_menuWebExpandido),
+                    tooltip: _menuWebExpandido ? 'Recolher Menu' : 'Expandir Menu',
+                    onPressed: () => setState(() => _menuWebExpandido = !_menuWebExpandido),
                   )
-                : null, // No celular o Flutter insere o ícone de hambúrguer automaticamente
+                : null,
             title: Row(
               children: [
                 if (logoInstituicao != null && logoInstituicao.isNotEmpty) ...[
@@ -116,20 +133,17 @@ class _MainLayoutShellState extends State<MainLayoutShell> {
                     height: 32,
                     fit: BoxFit.contain,
                     errorBuilder: (c, e, s) =>
-                        const Icon(Icons.school_outlined, color: Colors.white),
+                        Icon(Icons.school_outlined, color: (tipoAcesso == 'Admin') ? Colors.black87 : Colors.white),
                   ),
                   const SizedBox(width: 10),
                 ] else ...[
-                  const Icon(Icons.school_outlined, color: Colors.white),
+                  Icon(Icons.school_outlined, color: (tipoAcesso == 'Admin') ? Colors.black87 : Colors.white),
                   const SizedBox(width: 8),
                 ],
                 Flexible(
                   child: Text(
-                    instituicao,
-                    style: const TextStyle(
-                      fontWeight: FontWeight.bold,
-                      fontSize: 16,
-                    ),
+                    iNstituicaoNome,
+                    style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                   ),
@@ -146,28 +160,24 @@ class _MainLayoutShellState extends State<MainLayoutShell> {
                   children: [
                     Text(
                       nomeAluno,
-                      style: const TextStyle(
-                        fontSize: 14,
-                        fontWeight: FontWeight.bold,
-                      ),
+                      style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
                     ),
                     Text(
                       tipoAcesso,
-                      style: const TextStyle(
+                      style: TextStyle(
                         fontSize: 11,
-                        color: Colors.white70,
+                        color: (tipoAcesso == 'Admin') ? Colors.black54 : Colors.white70,
                       ),
                     ),
                   ],
                 ),
                 const SizedBox(width: 12),
               ],
-
-              // 🚪 ÍCONE DE SAIR NO LADO DIREITO (FUNCIONANDO)
               IconButton(
-                icon: const Icon(Icons.logout_outlined, color: Colors.white),
+                icon: Icon(Icons.logout_outlined, color: (tipoAcesso == 'Admin') ? Colors.black87 : Colors.white),
                 tooltip: 'Sair do Sistema',
                 onPressed: () async {
+                  _usuarioSubscription?.cancel(); // Cancela o Listener antes do Logout
                   await FirebaseAuth.instance.signOut();
                   if (context.mounted) {
                     context.go('/login');
@@ -177,16 +187,12 @@ class _MainLayoutShellState extends State<MainLayoutShell> {
               const SizedBox(width: 8),
             ],
           ),
-
-          // 📺 3. CORPO DISTRIBUÍDO (Barra lateral se for Web + Miolo da página correspondente)
           body: Row(
             children: [
               if (isWeb)
                 AnimatedContainer(
                   duration: const Duration(milliseconds: 200),
-                  width: _menuWebExpandido
-                      ? 260
-                      : 70, // Retrai para ícones ao invés de sumir tudo!
+                  width: _menuWebExpandido ? 260 : 70,
                   child: MenuLateralOrganism(
                     isWebMode: true,
                     isExpanded: _menuWebExpandido,
@@ -195,14 +201,14 @@ class _MainLayoutShellState extends State<MainLayoutShell> {
                   ),
                 ),
               if (isWeb) VerticalDivider(width: 1, color: Colors.grey.shade300),
-
-              // Garante que o miolo da tela se espalhe ocupando todo o restante da janela
               Expanded(child: widget.child),
             ],
           ),
-
-          // 🦶 4. RODAPÉ ORIGINAL DE PATROCINADORES
-          bottomNavigationBar: const CarrosselPatrocinadores(),
+          // Conectamos os dados reais capturados do Firestore diretamente no Rodapé dinâmico
+          bottomNavigationBar: CarrosselPatrocinadores(
+            logosUrls: patrocinadoresUrls,
+            corCustomizadaInstituicao: corPrimaria,
+          ),
         );
       },
     );

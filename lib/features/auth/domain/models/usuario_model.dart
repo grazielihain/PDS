@@ -17,7 +17,7 @@ class UsuarioModel {
   factory UsuarioModel.fromMap(Map<String, dynamic> map, String id) {
     return UsuarioModel(
       uid: id,
-      nome: map['nome'] ?? 'Estudante',
+      nome: map['nome'] ?? '',
       email: map['email'] ?? '',
       avatarEmoji: map['avatarEmoji'] ?? '🐱',
       instituicao: map['instituicao'] ?? 'Sua Instituição de Ensino',

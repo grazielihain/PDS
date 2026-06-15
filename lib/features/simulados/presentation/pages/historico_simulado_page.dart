@@ -3,7 +3,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:intl/intl.dart';
 import 'package:go_router/go_router.dart';
-import 'package:rumo_quiz/core/constants/app_constants.dart'; 
+import 'package:rumo_quiz/core/constants/app_constants.dart';
 
 class HistoricoSimuladoPage extends StatefulWidget {
   const HistoricoSimuladoPage({super.key});
@@ -38,7 +38,6 @@ class _HistoricoSimuladoPageState extends State<HistoricoSimuladoPage> {
     }
 
     try {
-      // 🔥 CORRIGIDO: Aponta para a subcoleção linear correta do usuário
       final snapshot = await _firestore
           .collection('usuarios')
           .doc(user.uid)
@@ -52,6 +51,9 @@ class _HistoricoSimuladoPageState extends State<HistoricoSimuladoPage> {
           .toSet()
           .toList();
 
+      // Ordena as categorias alfabeticamente para melhor UX
+      categorias.sort();
+
       setState(() {
         _categoriasDisponiveis = ['Todas', ...categorias];
         _carregandoCategorias = false;
@@ -64,13 +66,16 @@ class _HistoricoSimuladoPageState extends State<HistoricoSimuladoPage> {
 
   Query _montarQueryHistorico() {
     final user = _auth.currentUser;
-    
-    // 🔥 CORRIGIDO: Se não houver usuário, joga para uma coleção fantasma vazia para evitar crash
+
+    // Se não houver usuário, joga para uma coleção fantasma vazia para evitar crash
     if (user == null) {
-      return _firestore.collection('usuarios').doc('anonimo').collection('historico_simulados');
+      return _firestore
+          .collection('usuarios')
+          .doc('anonimo')
+          .collection('historico_simulados');
     }
 
-    // 🔥 CORRIGIDO: Caminho linear direto da subcoleção de simulados do usuário logado
+    // Caminho linear direto da subcoleção de simulados do usuário logado
     Query query = _firestore
         .collection('usuarios')
         .doc(user.uid)
@@ -81,7 +86,7 @@ class _HistoricoSimuladoPageState extends State<HistoricoSimuladoPage> {
       query = query.where('categoria', isEqualTo: _categoriaSelecionada);
     }
 
-    // Ordenação utilizando o índice padrão/composto da subcoleção por dataHora
+    // Ordenação utilizando o índice (Lembre-se: Requer índice composto se misturado com 'where')
     query = query.orderBy('dataHora', descending: true);
 
     if (_filtroSelecionado == 'ultimas') {
@@ -186,9 +191,9 @@ class _HistoricoSimuladoPageState extends State<HistoricoSimuladoPage> {
                             selected: _filtroSelecionado == 'categoria',
                             onSelected: (selected) {
                               if (selected) {
-                                setState(
-                                  () => _filtroSelecionado = 'categoria',
-                                );
+                                setState(() {
+                                  _filtroSelecionado = 'categoria';
+                                });
                               }
                             },
                           ),
@@ -216,7 +221,13 @@ class _HistoricoSimuladoPageState extends State<HistoricoSimuladoPage> {
                                 ),
                                 child: DropdownButtonHideUnderline(
                                   child: DropdownButton<String>(
-                                    value: _categoriaSelecionada,
+                                    // 🔥 CORREÇÃO DE SEGURANÇA: Garante que o valor selecionado exista na lista antes de renderizar
+                                    value:
+                                        _categoriasDisponiveis.contains(
+                                          _categoriaSelecionada,
+                                        )
+                                        ? _categoriaSelecionada
+                                        : 'Todas',
                                     isExpanded: true,
                                     items: _categoriasDisponiveis.map((cat) {
                                       return DropdownMenuItem(
@@ -248,6 +259,20 @@ class _HistoricoSimuladoPageState extends State<HistoricoSimuladoPage> {
                   stream: _montarQueryHistorico().snapshots(),
                   builder: (context, snapshot) {
                     if (snapshot.hasError) {
+                      // 🔥 UX MELHORADA: Se o erro for falta de índice, avisa de forma limpa no console/tela
+                      final erroStr = snapshot.error.toString();
+                      if (erroStr.contains('FAILED_PRECONDITION')) {
+                        return const Center(
+                          child: Padding(
+                            padding: EdgeInsets.all(24.0),
+                            child: Text(
+                              'Configurando índices de busca no banco de dados. Volte em instantes!',
+                              textAlign: TextAlign.center,
+                              style: TextStyle(color: Colors.black54),
+                            ),
+                          ),
+                        );
+                      }
                       return Center(
                         child: Text(
                           'Erro ao carregar dados: ${snapshot.error}',
@@ -284,23 +309,25 @@ class _HistoricoSimuladoPageState extends State<HistoricoSimuladoPage> {
                             documentos[index].data() as Map<String, dynamic>;
 
                         final categoria = dados['categoria'] ?? 'Geral';
-                        final tipoProva = dados['tipoProva'] ?? 'Simulado Completo';
+                        final tipoProva =
+                            dados['tipoProva'] ?? 'Simulado Completo';
                         final assunto = dados['assunto'];
 
                         final acertos = dados['acertos'] ?? 0;
                         final totalQuestoes = dados['totalQuestoes'] ?? 0;
 
-                        // Unificado para ler tanto de 'notaObtida' quanto 'NotaObtida' ou 'pontosProva'
                         final notaObtida =
-                            (dados['notaObtida'] as num?)?.toDouble() ?? 
-                            (dados['NotaObtida'] as num?)?.toDouble() ?? 
-                            (dados['pontosProva'] as num?)?.toDouble() ?? 0.0;
-                            
-                        final pontosGamificacao = dados['pontosGamificacao'] ?? 0;
+                            (dados['notaObtida'] as num?)?.toDouble() ??
+                            (dados['NotaObtida'] as num?)?.toDouble() ??
+                            (dados['pontosProva'] as num?)?.toDouble() ??
+                            0.0;
+
+                        final pontosGamificacao =
+                            dados['pontosGamificacao'] ?? 0;
 
                         String dataHoraFormatada = 'Data indisponível';
-                        // 🔥 SUPORTE HÍBRIDO: Aceita tanto o campo novo 'dataHora' quanto o antigo 'dataConclusao'
-                        final campoData = dados['dataHora'] ?? dados['dataConclusao'];
+                        final campoData =
+                            dados['dataHora'] ?? dados['dataConclusao'];
                         if (campoData != null && campoData is Timestamp) {
                           dataHoraFormatada = DateFormat(
                             'dd/MM/yyyy - HH:mm',
@@ -311,7 +338,9 @@ class _HistoricoSimuladoPageState extends State<HistoricoSimuladoPage> {
                             ? (acertos / totalQuestoes) * 100
                             : 0.0;
                         final isPorAssunto =
-                            tipoProva.toString().toLowerCase().contains('assunto') ||
+                            tipoProva.toString().toLowerCase().contains(
+                              'assunto',
+                            ) ||
                             assunto != null;
 
                         return Card(
@@ -380,7 +409,8 @@ class _HistoricoSimuladoPageState extends State<HistoricoSimuladoPage> {
                                           height: 60,
                                           child: CircularProgressIndicator(
                                             value: percentual / 100,
-                                            backgroundColor: Colors.grey.shade100,
+                                            backgroundColor:
+                                                Colors.grey.shade100,
                                             color: percentual >= 70
                                                 ? Colors.green
                                                 : Colors.orange,
@@ -399,7 +429,8 @@ class _HistoricoSimuladoPageState extends State<HistoricoSimuladoPage> {
                                     const SizedBox(width: 20),
                                     Expanded(
                                       child: Column(
-                                        crossAxisAlignment: CrossAxisAlignment.start,
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.start,
                                         children: [
                                           Text(
                                             'Acertos: $acertos de $totalQuestoes questões',
@@ -429,7 +460,8 @@ class _HistoricoSimuladoPageState extends State<HistoricoSimuladoPage> {
                                         borderRadius: BorderRadius.circular(8),
                                       ),
                                       child: Column(
-                                        crossAxisAlignment: CrossAxisAlignment.end,
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.end,
                                         children: [
                                           Text(
                                             'Nota: ${notaObtida.toStringAsFixed(1)}',

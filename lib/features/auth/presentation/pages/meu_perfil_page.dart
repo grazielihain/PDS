@@ -22,7 +22,18 @@ class __MeuPerfilPageState extends State<MeuPerfilPage> {
   final _novaSenhaController = TextEditingController();
   final _confirmarSenhaController = TextEditingController();
 
-  final List<String> _listaAvatares = ['🐱', '🐶', '🦊', '🦁', '🐰', '🐼', '🐨', '🐯', '🐻', '🐵'];
+  final List<String> _listaAvatares = [
+    '🐱',
+    '🐶',
+    '🦊',
+    '🦁',
+    '🐰',
+    '🐼',
+    '🐨',
+    '🐯',
+    '🐻',
+    '🐵',
+  ];
   String _avatarSelecionado = '🐱';
   bool _carregando = true;
 
@@ -66,16 +77,23 @@ class __MeuPerfilPageState extends State<MeuPerfilPage> {
   Future<void> _salvarDadosPerfil() async {
     final user = _auth.currentUser;
     if (user == null) return;
-    
-    if (_nomeController.text.trim().isEmpty || _emailController.text.trim().isEmpty) {
+
+    if (_nomeController.text.trim().isEmpty ||
+        _emailController.text.trim().isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Nome e Email não podem ficar vazios! ⚠️')),
+        const SnackBar(
+          content: Text('Nome e Email não podem ficar vazios! ⚠️'),
+        ),
       );
       return;
     }
 
     try {
       final novoEmail = _emailController.text.trim();
+      final novoNome = _nomeController.text.trim();
+
+      // 1. 🔥 A CORREÇÃO: Atualiza o perfil nativo do Firebase Auth para o GoRouter ler instantaneamente
+      await user.updateDisplayName(novoNome);
 
       if (novoEmail != user.email) {
         await user.verifyBeforeUpdateEmail(novoEmail);
@@ -83,7 +101,7 @@ class __MeuPerfilPageState extends State<MeuPerfilPage> {
 
       final usuario = UsuarioModel(
         uid: user.uid,
-        nome: _nomeController.text.trim(),
+        nome: novoNome,
         email: novoEmail,
         avatarEmoji: _avatarSelecionado,
         instituicao: _instituicaoDoUsuario,
@@ -96,20 +114,21 @@ class __MeuPerfilPageState extends State<MeuPerfilPage> {
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Perfil atualizado com sucesso! 🎉')),
+          const SnackBar(content: Text('Perfil updated com sucesso! 🎉')),
         );
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Erro ao salvar dados: $e')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Erro ao salvar dados: $e')));
       }
     }
   }
 
   Future<void> _alterarSenhaFirebase() async {
-    if (_senhaAtualController.text.isEmpty || _novaSenhaController.text.isEmpty) {
+    if (_senhaAtualController.text.isEmpty ||
+        _novaSenhaController.text.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Preencha os campos de senha!')),
       );
@@ -118,11 +137,13 @@ class __MeuPerfilPageState extends State<MeuPerfilPage> {
 
     if (_novaSenhaController.text != _confirmarSenhaController.text) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('A nova senha e a confirmação não conferem!')),
+        const SnackBar(
+          content: Text('A nova senha e a confirmação não conferem!'),
+        ),
       );
       return;
     }
-    
+
     final user = _auth.currentUser;
     if (user == null) return;
     try {
@@ -144,9 +165,9 @@ class __MeuPerfilPageState extends State<MeuPerfilPage> {
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Erro ao alterar senha: $e')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Erro ao alterar senha: $e')));
       }
     }
   }
@@ -173,7 +194,10 @@ class __MeuPerfilPageState extends State<MeuPerfilPage> {
         child: ConstrainedBox(
           constraints: const BoxConstraints(maxWidth: 800),
           child: SingleChildScrollView(
-            padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 32.0),
+            padding: const EdgeInsets.symmetric(
+              horizontal: 24.0,
+              vertical: 32.0,
+            ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
@@ -191,7 +215,10 @@ class __MeuPerfilPageState extends State<MeuPerfilPage> {
                     const SizedBox(height: 4),
                     Text(
                       'Gerencie suas informações pessoais, personalize seu avatar e mantenha a segurança da sua conta.',
-                      style: TextStyle(fontSize: 14, color: Colors.grey.shade600),
+                      style: TextStyle(
+                        fontSize: 14,
+                        color: Colors.grey.shade600,
+                      ),
                     ),
                     const Padding(
                       padding: EdgeInsets.symmetric(vertical: 16.0),
@@ -229,8 +256,13 @@ class __MeuPerfilPageState extends State<MeuPerfilPage> {
                       ),
                       const SizedBox(height: 12),
                       Text(
-                        _nomeController.text.isEmpty ? 'Estudante' : _nomeController.text,
-                        style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
+                        _nomeController.text.isEmpty
+                            ? 'Estudante'
+                            : _nomeController.text,
+                        style: const TextStyle(
+                          fontSize: 22,
+                          fontWeight: FontWeight.bold,
+                        ),
                       ),
                     ],
                   ),
@@ -269,30 +301,39 @@ class __MeuPerfilPageState extends State<MeuPerfilPage> {
                     GridView.builder(
                       shrinkWrap: true,
                       physics: const NeverScrollableScrollPhysics(),
-                      gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
-                        maxCrossAxisExtent: 120,
-                        mainAxisSpacing: 12,
-                        crossAxisSpacing: 12,
-                        childAspectRatio: 1.1,
-                      ),
+                      gridDelegate:
+                          const SliverGridDelegateWithMaxCrossAxisExtent(
+                            maxCrossAxisExtent: 120,
+                            mainAxisSpacing: 12,
+                            crossAxisSpacing: 12,
+                            childAspectRatio: 1.1,
+                          ),
                       itemCount: _listaAvatares.length,
                       itemBuilder: (context, index) {
                         final avatar = _listaAvatares[index];
                         final isSelected = _avatarSelecionado == avatar;
                         return InkWell(
-                          onTap: () => setState(() => _avatarSelecionado = avatar),
+                          onTap: () =>
+                              setState(() => _avatarSelecionado = avatar),
                           borderRadius: BorderRadius.circular(12),
                           child: Container(
                             decoration: BoxDecoration(
-                              color: isSelected ? Colors.blue.shade50 : Colors.grey.shade50,
+                              color: isSelected
+                                  ? Colors.blue.shade50
+                                  : Colors.grey.shade50,
                               borderRadius: BorderRadius.circular(12),
                               border: Border.all(
-                                color: isSelected ? Colors.blue.shade600 : Colors.grey.shade300,
+                                color: isSelected
+                                    ? Colors.blue.shade600
+                                    : Colors.grey.shade300,
                                 width: isSelected ? 2.5 : 1,
                               ),
                             ),
                             alignment: Alignment.center,
-                            child: Text(avatar, style: const TextStyle(fontSize: 38)),
+                            child: Text(
+                              avatar,
+                              style: const TextStyle(fontSize: 38),
+                            ),
                           ),
                         );
                       },
@@ -313,7 +354,9 @@ class __MeuPerfilPageState extends State<MeuPerfilPage> {
                       isPassword: true,
                       obscureText: _ocultarSenhaAtual,
                       onToggleVisibility: () {
-                        setState(() => _ocultarSenhaAtual = !_ocultarSenhaAtual);
+                        setState(
+                          () => _ocultarSenhaAtual = !_ocultarSenhaAtual,
+                        );
                       },
                     ),
                     const SizedBox(height: 16),
@@ -335,7 +378,10 @@ class __MeuPerfilPageState extends State<MeuPerfilPage> {
                       isPassword: true,
                       obscureText: _ocultarConfirmarSenha,
                       onToggleVisibility: () {
-                        setState(() => _ocultarConfirmarSenha = !_ocultarConfirmarSenha);
+                        setState(
+                          () =>
+                              _ocultarConfirmarSenha = !_ocultarConfirmarSenha,
+                        );
                       },
                     ),
                     const SizedBox(height: 20),
@@ -350,7 +396,11 @@ class __MeuPerfilPageState extends State<MeuPerfilPage> {
     );
   }
 
-  Widget _buildCardContainer({required String titulo, required IconData icone, required List<Widget> children}) {
+  Widget _buildCardContainer({
+    required String titulo,
+    required IconData icone,
+    required List<Widget> children,
+  }) {
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
@@ -365,10 +415,19 @@ class __MeuPerfilPageState extends State<MeuPerfilPage> {
             children: [
               Icon(icone, color: Colors.blue.shade700, size: 24),
               const SizedBox(width: 8),
-              Text(titulo, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+              Text(
+                titulo,
+                style: const TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
             ],
           ),
-          const Padding(padding: EdgeInsets.symmetric(vertical: 12.0), child: Divider()),
+          const Padding(
+            padding: EdgeInsets.symmetric(vertical: 12.0),
+            child: Divider(),
+          ),
           ...children,
         ],
       ),
@@ -393,14 +452,20 @@ class __MeuPerfilPageState extends State<MeuPerfilPage> {
         prefixIcon: Icon(icon, color: Colors.grey.shade600),
         suffixIcon: isPassword
             ? IconButton(
-                icon: Icon(obscureText ? Icons.visibility_off : Icons.visibility, color: Colors.grey.shade600),
+                icon: Icon(
+                  obscureText ? Icons.visibility_off : Icons.visibility,
+                  color: Colors.grey.shade600,
+                ),
                 onPressed: onToggleVisibility,
               )
             : null,
         filled: !enabled,
         fillColor: Colors.grey.shade100,
         border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
-        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+        contentPadding: const EdgeInsets.symmetric(
+          horizontal: 16,
+          vertical: 14,
+        ),
       ),
     );
   }
@@ -411,7 +476,10 @@ class __MeuPerfilPageState extends State<MeuPerfilPage> {
       child: ElevatedButton.icon(
         onPressed: onPressed,
         icon: const Icon(Icons.save_outlined, size: 18),
-        label: const Text('Alterar / Salvar', style: TextStyle(fontWeight: FontWeight.bold)),
+        label: const Text(
+          'Alterar / Salvar',
+          style: TextStyle(fontWeight: FontWeight.bold),
+        ),
         style: ElevatedButton.styleFrom(
           backgroundColor: Colors.blue.shade700,
           foregroundColor: Colors.white,
