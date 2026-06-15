@@ -4,14 +4,14 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:intl/intl.dart';
 import 'package:go_router/go_router.dart';
 
-class HistoricoProvasPage extends StatefulWidget {
-  const HistoricoProvasPage({super.key});
+class HistoricoSimuladoPage extends StatefulWidget {
+  const HistoricoSimuladoPage({super.key});
 
   @override
-  State<HistoricoProvasPage> createState() => _HistoricoProvasPageState();
+  State<HistoricoSimuladoPage> createState() => _HistoricoSimuladoPageState();
 }
 
-class _HistoricoProvasPageState extends State<HistoricoProvasPage> {
+class _HistoricoSimuladoPageState extends State<HistoricoSimuladoPage> {
   final _auth = FirebaseAuth.instance;
   final _firestore = FirebaseFirestore.instance;
 
