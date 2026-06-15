@@ -4,7 +4,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:go_router/go_router.dart';
 import '../../data/models/prova_model.dart';
-import '../providers/prova_provider.dart';
+import '../providers/simulado_provider.dart';
 import '../providers/quiz_session_provider.dart'; // 🔄 Importado o provedor de sessão correto
 
 class QuizSelectionPage extends ConsumerWidget {

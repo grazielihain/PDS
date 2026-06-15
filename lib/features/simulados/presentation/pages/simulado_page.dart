@@ -10,7 +10,7 @@ import '../providers/quiz_session_provider.dart';
 class SimuladoPage extends ConsumerWidget {
   const SimuladoPage({Key? key}) : super(key: key);
 
-  // ⚡ GATILHO UNIFICADO DE ENVIO AUTOMÁTICO OU MANUAL (Evita duplicação de lógica)
+  // ⚡ GATILHO UNIFICADO DE ENVIO AUTOMÁTICO OU MANUAL
   Future<void> _processarEnvioSimulado({
     required BuildContext context,
     required QuizSessionState sessionState,
@@ -95,7 +95,8 @@ class SimuladoPage extends ConsumerWidget {
           'questoes': sessionState.questoes,
           'acertos': totalAcertos,
           'totalQuestoes': sessionState.questoes.length,
-          'NotaObtida': notaCalculada,
+          'notaObtida':
+              notaCalculada, // ✅ CORRIGIDO: 'n' minúsculo para casar com o AppRouter
           'categoria': sessionState.categoriaId,
           'revisaoQuestoes': listaRevisaoJson,
         },
@@ -105,7 +106,6 @@ class SimuladoPage extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    // 🧠 Tipagem estrita com as classes reais que você enviou
     final QuizSessionState sessionState = ref.watch(quizSessionProvider);
     final QuizSessionNotifier sessionNotifier = ref.read(
       quizSessionProvider.notifier,
@@ -114,26 +114,23 @@ class SimuladoPage extends ConsumerWidget {
     final controllerState = ref.watch(simuladoControllerProvider);
     final controllerNotifier = ref.read(simuladoControllerProvider.notifier);
 
-    // 🖥️ Captura de informações de responsividade estrutural
     final double larguraTela = MediaQuery.of(context).size.width;
     final bool isMobile = larguraTela < 600;
-
-    // ⏳ Leitura direta das variáveis do seu QuizSessionState
     final int tempoRestante = sessionState.tempoRestanteSegundos;
-
-    // Dedução lógica real: se o estado marca tempo maior que zero, a prova tem tempo controlado
     final bool possuiTempo = tempoRestante > 0 || sessionState.tempoEncerrado;
 
-    // ⏰ 🚨 GATILHO DE ENCERRAMENTO FORÇADO (US 15)
-    // Se a prova possui controle de tempo e o timer chegou a zero ou disparou flag de encerrado
+    // ⏰ 🚨 GATILHO DE ENCERRAMENTO FORÇADO CORRIGIDO CONTRA LOOPS
     if (possuiTempo && (tempoRestante <= 0 || sessionState.tempoEncerrado)) {
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        _processarEnvioSimulado(
-          context: context,
-          sessionState: sessionState,
-          sessionNotifier: sessionNotifier,
-          controllerNotifier: controllerNotifier,
-        );
+      // ✅ Protegido com microtask para rodar na próxima iteração de loop do Flutter safely
+      Future.microtask(() {
+        if (context.mounted) {
+          _processarEnvioSimulado(
+            context: context,
+            sessionState: sessionState,
+            sessionNotifier: sessionNotifier,
+            controllerNotifier: controllerNotifier,
+          );
+        }
       });
     }
 
@@ -195,13 +192,11 @@ class SimuladoPage extends ConsumerWidget {
     final respostaSelecionadaTexto =
         sessionState.respostasSelecionadas[questaoAtual.id];
 
-    // Lógica Cromática Baseada no seu aviso de 5 minutos (300 segundos)
     final bool emAlertaCritico = tempoRestante <= 300;
     final Color corDoCronometro = emAlertaCritico
         ? Colors.red.shade700
         : Colors.blue.shade800;
 
-    // Formatação de Segundos para String legível MM:SS
     String formatarTempo(int totalSegundos) {
       final int minutos = totalSegundos ~/ 60;
       final int segundos = totalSegundos % 60;
@@ -219,7 +214,6 @@ class SimuladoPage extends ConsumerWidget {
         ),
         automaticallyImplyLeading: false,
         actions: [
-          // ⏱️ Widget do Cronômetro que consome as suas variáveis
           if (possuiTempo && tempoRestante > 0)
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 16.0),
@@ -270,7 +264,6 @@ class SimuladoPage extends ConsumerWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              // 🚨 Banner de Alerta usando o 'emAlertaCritico' computado com segurança
               if (possuiTempo && emAlertaCritico && tempoRestante > 0)
                 Container(
                   margin: const EdgeInsets.only(bottom: 16),
@@ -297,7 +290,6 @@ class SimuladoPage extends ConsumerWidget {
                   ),
                 ),
 
-              // Enunciado da Pergunta
               Text(
                 questaoAtual.pergunta,
                 style: TextStyle(
@@ -308,7 +300,6 @@ class SimuladoPage extends ConsumerWidget {
               ),
               const SizedBox(height: 20),
 
-              // Lista de Alternativas Dinâmicas
               Expanded(
                 child: ListView.builder(
                   itemCount: questaoAtual.opcoes.length,
@@ -370,14 +361,12 @@ class SimuladoPage extends ConsumerWidget {
 
               const SizedBox(height: 16),
 
-              // Rodapé de Ações Responsivo
               SafeArea(
                 child: Padding(
                   padding: const EdgeInsets.symmetric(vertical: 8.0),
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      // Botão Anterior
                       SizedBox(
                         width: isMobile ? 110 : 140,
                         height: 45,
@@ -395,7 +384,6 @@ class SimuladoPage extends ConsumerWidget {
                         ),
                       ),
 
-                      // Botão Próxima ou Finalizar Simulado
                       if (sessionState.indiceQuestaoAtual ==
                           sessionState.questoes.length - 1)
                         SizedBox(
