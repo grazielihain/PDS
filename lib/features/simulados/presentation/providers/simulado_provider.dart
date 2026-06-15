@@ -26,8 +26,7 @@ final listaQuestoesFirestoreProvider = StreamProvider.family<List<QuestaoModel>,
 });
 
 /// 📜 PROVIDER PARA O HISTÓRICO DE SIMULADOS
-/// 📉 OTIMIZADO PARA PLANO GRATUITO: Acessa direto a subcoleção do usuário logado,
-/// eliminando a necessidade de CollectionGroup e reduzindo drasticamente as leituras do banco.
+/// 📉 OTIMIZADO: Ajustado para ler as chaves corretas sincronizadas com o controller e índices.
 final historicoSimuladosProvider = StreamProvider<List<HistoricoModel>>((ref) {
   final user = FirebaseAuth.instance.currentUser;
   if (user == null) return Stream.value([]);
@@ -35,15 +34,16 @@ final historicoSimuladosProvider = StreamProvider<List<HistoricoModel>>((ref) {
   return FirebaseFirestore.instance
       .collection('usuarios')
       .doc(user.uid)
-      .collection('historico_simulados') // 👈 Rota linear direta do usuário
-      .orderBy('dataConclusao', descending: true)
+      .collection('historico_simulados') 
+      .orderBy('dataHora', descending: true) // 🔥 CORRIGIDO: De 'dataConclusao' para 'dataHora' (Bate com o Índice composto)
       .snapshots()
       .map((snapshot) => snapshot.docs.map((doc) {
             final data = doc.data();
             
-            final dataConclusaoRaw = data['dataConclusao'];
-            final DateTime dataFinal = dataConclusaoRaw is Timestamp 
-                ? dataConclusaoRaw.toDate() 
+            // 🔥 CORRIGIDO: Lendo o campo unificado 'dataHora' do Firestore
+            final dataHoraRaw = data['dataHora'] ?? data['dataConclusao'];
+            final DateTime dataFinal = dataHoraRaw is Timestamp 
+                ? dataHoraRaw.toDate() 
                 : DateTime.now();
 
             return HistoricoModel(
@@ -56,10 +56,10 @@ final historicoSimuladosProvider = StreamProvider<List<HistoricoModel>>((ref) {
               totalQuestoes: data['totalQuestoes'] ?? 0,
               acertos: data['acertos'] ?? 0,
               erros: data['erros'] ?? 0,
-              pontosProva: (data['pontosProva'] as num?)?.toDouble() ?? 0.0,
+              // 🔥 CORRIGIDO: Lendo de 'notaObtida' conforme o novo padrão do banco
+              pontosProva: (data['notaObtida'] ?? data['pontosProva'] as num?)?.toDouble() ?? 0.0,
               pontosGamificacao: data['pontosGamificacao'] ?? 0,
               dataConclusao: dataFinal,
-              // Mantém compatibilidade com a listaRevisaoJson ou revisaoQuestoes
               revisaoQuestoes: List<Map<String, dynamic>>.from(
                 data['revisaoQuestoes'] ?? data['listaRevisaoJson'] ?? []
               ),
@@ -68,7 +68,7 @@ final historicoSimuladosProvider = StreamProvider<List<HistoricoModel>>((ref) {
 });
 
 /// 🚀 PROVIDER ADICIONAL: FUNÇÃO DE ENVIO/GRAVAÇÃO DO SIMULADO NO HISTÓRICO
-/// Chame esta função usando ref.read(salvarSimuladoProvider)(...) ao clicar em finalizar o quiz.
+/// 🔥 ATUALIZADO: Sincronizado com os mesmos campos padrão do SimuladoController para não quebrar o banco.
 final salvarSimuladoProvider = Provider((ref) {
   return ({
     required String userId,
@@ -80,7 +80,7 @@ final salvarSimuladoProvider = Provider((ref) {
   }) async {
     final DocumentReference docRef = FirebaseFirestore.instance
         .collection('usuarios')
-        .doc(userId)
+        .doc(userId.isEmpty ? 'anonimo' : userId)
         .collection('historico_simulados')
         .doc();
 
@@ -94,9 +94,9 @@ final salvarSimuladoProvider = Provider((ref) {
       'acertos': acertos,
       'erros': totalQuestoes - acertos,
       'totalQuestoes': totalQuestoes,
-      'pontosGamificacao': acertos * 10, 
-      'pontosProva': acertos.toDouble(), 
-      'dataConclusao': FieldValue.serverTimestamp(), 
+      'pontosGamificacao': 10, // Mantido bônus fixo da regra de gamificação
+      'notaObtida': acertos.toDouble(), // 🔥 CORRIGIDO: De 'pontosProva' para 'notaObtida'
+      'dataHora': FieldValue.serverTimestamp(), // 🔥 CORRIGIDO: De 'dataConclusao' para 'dataHora'
       'revisaoQuestoes': listaRevisaoJson, 
     };
 

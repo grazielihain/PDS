@@ -32,15 +32,26 @@ class SimuladoController extends StateNotifier<AsyncValue<void>> {
       final historicoRef = FirebaseFirestore.instance
           .collection('usuarios')
           .doc(userId.isEmpty ? 'anonimo' : userId)
-          .collection('historico_simulados')
+          .collection('historico_simulados') // Subcoleção onde os dados reais residem
           .doc();
 
-      // 🧠 2. ACESSO AO ESTADO DO RIVERPOD (Correção do state.value)
-      // Como o quizSessionProvider usa StateNotifier, lemos as propriedades diretamente de 'sessionState'
+      // 🧠 2. ACESSO AO ESTADO DO RIVERPOD
       final sessionState = ref.read(quizSessionProvider);
 
-      // 🛠️ 3. CONVERSÃO DA LISTA DE REVISÃO (Correção do tipo da listaRevisao)
-      // Mapeia a lista de objetos do Flutter para a estrutura de Map exigida pelo HistoricoModel
+      // 🔍 EXTRAÇÃO DINÂMICA DA INSTITUIÇÃO
+      // Buscamos o instituicaoId diretamente da primeira questão do simulado executado
+      String instituicaoIdExtraida = 'instituicao_padrao';
+      if (sessionState.questoes.isNotEmpty) {
+        final primeiraQuestao = sessionState.questoes.first;
+        if (primeiraQuestao is Map) {
+          instituicaoIdExtraida = primeiraQuestao['instituicaoId'] ?? 'instituicao_padrao';
+        } else {
+          // Caso seu objeto de questão seja uma classe/modelo estruturado
+          instituicaoIdExtraida = primeiraQuestao.instituicaoId ?? 'instituicao_padrao';
+        }
+      }
+
+      // 🛠️ 3. CONVERSÃO DA LISTA DE REVISÃO
       final List<Map<String, dynamic>> listaRevisaoMapeada = listaRevisao.map((item) {
         return {
           'opcaoEscolhidaIndex': item.opcaoEscolhidaIndex,
@@ -60,7 +71,8 @@ class SimuladoController extends StateNotifier<AsyncValue<void>> {
       final novoHistorico = HistoricoModel(
         id: historicoRef.id,
         userId: userId.isEmpty ? 'aluno_anonimo' : userId,
-        instituicaoId: sessionState.categoriaId.isEmpty ? 'instituicao_padrao' : 'SUA_INSTITUICAO_AQUI', 
+        // ✅ CORRIGIDO: Agora usa a variável segura extraída da questão real
+        instituicaoId: instituicaoIdExtraida, 
         categoria: sessionState.categoriaId.isEmpty ? 'Geral' : sessionState.categoriaId, 
         tipoProva: sessionState.modoProva == 'assunto' ? 'Por Assunto' : 'Completa', 
         assunto: sessionState.assuntoSelecionado, 
@@ -68,25 +80,25 @@ class SimuladoController extends StateNotifier<AsyncValue<void>> {
         acertos: totalAcertos,
         erros: questoesDaProva.length - totalAcertos, 
         pontosProva: notaCalculada, 
-        pontosGamificacao: 10, // 🎯 US 12: Bônus imutável da regra de Gamificação
+        pontosGamificacao: 10, 
         dataConclusao: DateTime.now(),
-        revisaoQuestoes: listaRevisaoMapeada, // ✅ Passa a lista convertida com sucesso
+        revisaoQuestoes: listaRevisaoMapeada, 
       );
 
       // 5. Salva os dados de forma assíncrona no Cloud Firestore
       await historicoRef.set({
         'id': novoHistorico.id,
         'userId': novoHistorico.userId,
-        'instituicaoId': novoHistorico.instituicaoId,
+        'instituicaoId': novoHistorico.instituicaoId, // 🎯 Casado perfeitamente com seu índice composto!
         'categoria': novoHistorico.categoria,
         'tipoProva': novoHistorico.tipoProva,
         'assunto': novoHistorico.assunto,
         'totalQuestoes': novoHistorico.totalQuestoes,
         'acertos': novoHistorico.acertos,
         'erros': novoHistorico.erros,
-        'pontosProva': novoHistorico.pontosProva,
+        'notaObtida': novoHistorico.pontosProva, // 💎 Alinhado com a tela de histórico
         'pontosGamificacao': novoHistorico.pontosGamificacao,
-        'dataConclusao': Timestamp.fromDate(novoHistorico.dataConclusao),
+        'dataHora': Timestamp.fromDate(novoHistorico.dataConclusao), // 💎 Casado com o índice do Firestore
         'revisaoQuestoes': novoHistorico.revisaoQuestoes,
       });
 

@@ -3,6 +3,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:intl/intl.dart';
 import 'package:go_router/go_router.dart';
+import 'package:rumo_quiz/core/constants/app_constants.dart'; 
 
 class HistoricoSimuladoPage extends StatefulWidget {
   const HistoricoSimuladoPage({super.key});
@@ -25,12 +26,25 @@ class _HistoricoSimuladoPageState extends State<HistoricoSimuladoPage> {
   @override
   void initState() {
     super.initState();
-    _carregarCategorias();
+    _carregarCategoriasDoHistorico();
   }
 
-  Future<void> _carregarCategorias() async {
+  /// 📉 Otimizado para Plano Gratuito: Acessa a rota linear da subcoleção do usuário logado
+  Future<void> _carregarCategoriasDoHistorico() async {
+    final user = _auth.currentUser;
+    if (user == null) {
+      setState(() => _carregandoCategorias = false);
+      return;
+    }
+
     try {
-      final snapshot = await _firestore.collection('Provas').get();
+      // 🔥 CORRIGIDO: Aponta para a subcoleção linear correta do usuário
+      final snapshot = await _firestore
+          .collection('usuarios')
+          .doc(user.uid)
+          .collection('historico_simulados')
+          .get();
+
       final categorias = snapshot.docs
           .map((doc) => doc.data()['categoria'] as String?)
           .where((cat) => cat != null && cat.isNotEmpty)
@@ -43,23 +57,31 @@ class _HistoricoSimuladoPageState extends State<HistoricoSimuladoPage> {
         _carregandoCategorias = false;
       });
     } catch (e) {
-      debugPrint('Erro ao carregar categorias para o filtro: $e');
+      debugPrint('Erro ao carregar categorias do histórico: $e');
       setState(() => _carregandoCategorias = false);
     }
   }
 
   Query _montarQueryHistorico() {
     final user = _auth.currentUser;
-    Query query = _firestore.collection('historicos');
-
-    if (user != null) {
-      query = query.where('alunoId', isEqualTo: user.uid);
+    
+    // 🔥 CORRIGIDO: Se não houver usuário, joga para uma coleção fantasma vazia para evitar crash
+    if (user == null) {
+      return _firestore.collection('usuarios').doc('anonimo').collection('historico_simulados');
     }
 
+    // 🔥 CORRIGIDO: Caminho linear direto da subcoleção de simulados do usuário logado
+    Query query = _firestore
+        .collection('usuarios')
+        .doc(user.uid)
+        .collection('historico_simulados');
+
+    // Se o filtro for por categoria específica
     if (_filtroSelecionado == 'categoria' && _categoriaSelecionada != 'Todas') {
       query = query.where('categoria', isEqualTo: _categoriaSelecionada);
     }
 
+    // Ordenação utilizando o índice padrão/composto da subcoleção por dataHora
     query = query.orderBy('dataHora', descending: true);
 
     if (_filtroSelecionado == 'ultimas') {
@@ -262,35 +284,34 @@ class _HistoricoSimuladoPageState extends State<HistoricoSimuladoPage> {
                             documentos[index].data() as Map<String, dynamic>;
 
                         final categoria = dados['categoria'] ?? 'Geral';
-                        final tipoProva =
-                            dados['tipoProva'] ?? 'Simulado Completo';
+                        final tipoProva = dados['tipoProva'] ?? 'Simulado Completo';
                         final assunto = dados['assunto'];
 
                         final acertos = dados['acertos'] ?? 0;
                         final totalQuestoes = dados['totalQuestoes'] ?? 0;
-                        final questoesRespondidas =
-                            dados['questoesRespondidas'] ?? totalQuestoes;
 
+                        // Unificado para ler tanto de 'notaObtida' quanto 'NotaObtida' ou 'pontosProva'
                         final notaObtida =
-                            (dados['NotaObtida'] as num?)?.toDouble() ?? 0.0;
-                        final pontosGamificacao =
-                            dados['pontosGamificacao'] ?? 0;
+                            (dados['notaObtida'] as num?)?.toDouble() ?? 
+                            (dados['NotaObtida'] as num?)?.toDouble() ?? 
+                            (dados['pontosProva'] as num?)?.toDouble() ?? 0.0;
+                            
+                        final pontosGamificacao = dados['pontosGamificacao'] ?? 0;
 
                         String dataHoraFormatada = 'Data indisponível';
-                        if (dados['dataHora'] != null) {
-                          final timestamp = dados['dataHora'] as Timestamp;
+                        // 🔥 SUPORTE HÍBRIDO: Aceita tanto o campo novo 'dataHora' quanto o antigo 'dataConclusao'
+                        final campoData = dados['dataHora'] ?? dados['dataConclusao'];
+                        if (campoData != null && campoData is Timestamp) {
                           dataHoraFormatada = DateFormat(
                             'dd/MM/yyyy - HH:mm',
-                          ).format(timestamp.toDate());
+                          ).format(campoData.toDate());
                         }
 
                         final percentual = totalQuestoes > 0
                             ? (acertos / totalQuestoes) * 100
                             : 0.0;
                         final isPorAssunto =
-                            tipoProva.toString().toLowerCase().contains(
-                              'assunto',
-                            ) ||
+                            tipoProva.toString().toLowerCase().contains('assunto') ||
                             assunto != null;
 
                         return Card(
@@ -305,7 +326,6 @@ class _HistoricoSimuladoPageState extends State<HistoricoSimuladoPage> {
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                // 🟢 TOPO: Substituído por Spacer (Imune a erros de enum)
                                 Row(
                                   children: [
                                     Container(
@@ -326,7 +346,7 @@ class _HistoricoSimuladoPageState extends State<HistoricoSimuladoPage> {
                                         ),
                                       ),
                                     ),
-                                    const Spacer(), // Mágica do Flutter: joga a data pro final
+                                    const Spacer(),
                                     Text(
                                       dataHoraFormatada,
                                       style: TextStyle(
@@ -360,8 +380,7 @@ class _HistoricoSimuladoPageState extends State<HistoricoSimuladoPage> {
                                           height: 60,
                                           child: CircularProgressIndicator(
                                             value: percentual / 100,
-                                            backgroundColor:
-                                                Colors.grey.shade100,
+                                            backgroundColor: Colors.grey.shade100,
                                             color: percentual >= 70
                                                 ? Colors.green
                                                 : Colors.orange,
@@ -380,8 +399,7 @@ class _HistoricoSimuladoPageState extends State<HistoricoSimuladoPage> {
                                     const SizedBox(width: 20),
                                     Expanded(
                                       child: Column(
-                                        crossAxisAlignment:
-                                            CrossAxisAlignment.start,
+                                        crossAxisAlignment: CrossAxisAlignment.start,
                                         children: [
                                           Text(
                                             'Acertos: $acertos de $totalQuestoes questões',
@@ -392,7 +410,7 @@ class _HistoricoSimuladoPageState extends State<HistoricoSimuladoPage> {
                                           ),
                                           const SizedBox(height: 2),
                                           Text(
-                                            'Questões Respondidas: $questoesRespondidas/$totalQuestoes',
+                                            'Status: Concluído',
                                             style: TextStyle(
                                               fontSize: 12,
                                               color: Colors.grey.shade600,
@@ -410,47 +428,27 @@ class _HistoricoSimuladoPageState extends State<HistoricoSimuladoPage> {
                                         color: Colors.grey.shade50,
                                         borderRadius: BorderRadius.circular(8),
                                       ),
-                                      child: isPorAssunto
-                                          ? const Row(
-                                              mainAxisSize: MainAxisSize.min,
-                                              children: [
-                                                Icon(
-                                                  Icons.star,
-                                                  color: Colors.amber,
-                                                  size: 24,
-                                                ),
-                                                SizedBox(width: 4),
-                                                Text(
-                                                  'Assunto',
-                                                  style: TextStyle(
-                                                    fontWeight: FontWeight.bold,
-                                                    fontSize: 12,
-                                                  ),
-                                                ),
-                                              ],
-                                            )
-                                          : Column(
-                                              crossAxisAlignment:
-                                                  CrossAxisAlignment.end,
-                                              children: [
-                                                Text(
-                                                  'Nota: ${notaObtida.toStringAsFixed(1)}',
-                                                  style: const TextStyle(
-                                                    fontWeight: FontWeight.bold,
-                                                    color: Colors.blueAccent,
-                                                    fontSize: 14,
-                                                  ),
-                                                ),
-                                                Text(
-                                                  '+$pontosGamificacao XP',
-                                                  style: const TextStyle(
-                                                    fontSize: 11,
-                                                    color: Colors.green,
-                                                    fontWeight: FontWeight.w500,
-                                                  ),
-                                                ),
-                                              ],
+                                      child: Column(
+                                        crossAxisAlignment: CrossAxisAlignment.end,
+                                        children: [
+                                          Text(
+                                            'Nota: ${notaObtida.toStringAsFixed(1)}',
+                                            style: const TextStyle(
+                                              fontWeight: FontWeight.bold,
+                                              color: Colors.blueAccent,
+                                              fontSize: 14,
                                             ),
+                                          ),
+                                          Text(
+                                            '+$pontosGamificacao XP',
+                                            style: const TextStyle(
+                                              fontSize: 11,
+                                              color: Colors.green,
+                                              fontWeight: FontWeight.w500,
+                                            ),
+                                          ),
+                                        ],
+                                      ),
                                     ),
                                   ],
                                 ),
@@ -460,7 +458,6 @@ class _HistoricoSimuladoPageState extends State<HistoricoSimuladoPage> {
                                   child: Divider(height: 1),
                                 ),
 
-                                // 🟢 BOTÃO: Substituído por Spacer (Imune a erros de enum)
                                 Row(
                                   children: [
                                     const Spacer(),
@@ -477,8 +474,6 @@ class _HistoricoSimuladoPageState extends State<HistoricoSimuladoPage> {
                                         ),
                                       ),
                                       onPressed: () {
-                                        final historicoId =
-                                            documentos[index].id;
                                         context.push(
                                           '/resultado',
                                           extra: dados,
