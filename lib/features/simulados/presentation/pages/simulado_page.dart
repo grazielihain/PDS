@@ -10,7 +10,6 @@ import '../providers/quiz_session_provider.dart';
 class SimuladoPage extends ConsumerWidget {
   const SimuladoPage({Key? key}) : super(key: key);
 
-  // ⚡ GATILHO UNIFICADO DE ENVIO AUTOMÁTICO OU MANUAL
   Future<void> _processarEnvioSimulado({
     required BuildContext context,
     required QuizSessionState sessionState,
@@ -57,8 +56,6 @@ class SimuladoPage extends ConsumerWidget {
         ? (totalAcertos / sessionState.questoes.length) * 10.0
         : 0.0;
 
-    debugPrint('Acertos calculados: $totalAcertos | Nota: $notaCalculada');
-
     try {
       await controllerNotifier.finalizarEGravarSimulado(
         questoesDaProva: sessionState.questoes
@@ -80,25 +77,23 @@ class SimuladoPage extends ConsumerWidget {
           );
         }).toList(),
       );
-      debugPrint('Gravação no Firebase concluída com sucesso!');
     } catch (erroFirebase) {
-      debugPrint(
-        'Aviso: Erro ao persistir no banco (mas avançando): $erroFirebase',
-      );
+      debugPrint('Aviso: Erro ao persistir no banco: $erroFirebase');
     }
 
     if (context.mounted) {
-      debugPrint('Redirecionando para /resultado...');
+      final bool provaPorAssunto = sessionState.modoProva == 'assunto';
+
       context.go(
         '/resultado',
         extra: {
           'questoes': sessionState.questoes,
           'acertos': totalAcertos,
           'totalQuestoes': sessionState.questoes.length,
-          'notaObtida':
-              notaCalculada, // ✅ CORRIGIDO: 'n' minúsculo para casar com o AppRouter
+          'notaObtida': notaCalculada,
           'categoria': sessionState.categoriaId,
           'revisaoQuestoes': listaRevisaoJson,
+          'isPorAssunto': provaPorAssunto,
         },
       );
     }
@@ -119,9 +114,7 @@ class SimuladoPage extends ConsumerWidget {
     final int tempoRestante = sessionState.tempoRestanteSegundos;
     final bool possuiTempo = tempoRestante > 0 || sessionState.tempoEncerrado;
 
-    // ⏰ 🚨 GATILHO DE ENCERRAMENTO FORÇADO CORRIGIDO CONTRA LOOPS
     if (possuiTempo && (tempoRestante <= 0 || sessionState.tempoEncerrado)) {
-      // ✅ Protegido com microtask para rodar na próxima iteração de loop do Flutter safely
       Future.microtask(() {
         if (context.mounted) {
           _processarEnvioSimulado(
@@ -135,55 +128,12 @@ class SimuladoPage extends ConsumerWidget {
     }
 
     if (controllerState is AsyncLoading) {
-      return const Scaffold(
-        body: Center(
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              CircularProgressIndicator(),
-              SizedBox(height: 16),
-              Text(
-                'Gravando seu histórico de simulados...',
-                style: TextStyle(fontWeight: FontWeight.w500),
-              ),
-            ],
-          ),
-        ),
-      );
-    }
-
-    if (controllerState is AsyncError) {
-      return Scaffold(
-        body: Center(
-          child: Padding(
-            padding: const EdgeInsets.all(24.0),
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                const Icon(Icons.error_outline, color: Colors.red, size: 64),
-                const SizedBox(height: 16),
-                Text(
-                  'Erro ao processar simulado: ${controllerState.error}',
-                  style: const TextStyle(color: Colors.red, fontSize: 16),
-                  textAlign: TextAlign.center,
-                ),
-                const SizedBox(height: 24),
-                ElevatedButton(
-                  onPressed: () => context.go('/quiz-selection'),
-                  child: const Text('Voltar para Início'),
-                ),
-              ],
-            ),
-          ),
-        ),
-      );
+      return const Scaffold(body: Center(child: CircularProgressIndicator()));
     }
 
     if (sessionState.questoes.isEmpty) {
       return const Scaffold(
-        body: Center(
-          child: Text('Nenhuma questão carregada para este simulado.'),
-        ),
+        body: Center(child: Text('Nenhuma questão carregada.')),
       );
     }
 
@@ -195,7 +145,7 @@ class SimuladoPage extends ConsumerWidget {
     final bool emAlertaCritico = tempoRestante <= 300;
     final Color corDoCronometro = emAlertaCritico
         ? Colors.red.shade700
-        : Colors.blue.shade800;
+        : const Color(0xFF1E3A8A);
 
     String formatarTempo(int totalSegundos) {
       final int minutos = totalSegundos ~/ 60;
@@ -203,32 +153,45 @@ class SimuladoPage extends ConsumerWidget {
       return '${minutos.toString().padLeft(2, '0')}:${segundos.toString().padLeft(2, '0')}';
     }
 
+    final int questoesRespondidas = sessionState.respostasSelecionadas.length;
+    final double percentualProgresso = sessionState.questoes.isNotEmpty
+        ? (sessionState.indiceQuestaoAtual + 1) / sessionState.questoes.length
+        : 0.0;
+
     return Scaffold(
       appBar: AppBar(
-        title: Text(
-          'Questão ${sessionState.indiceQuestaoAtual + 1} de ${sessionState.questoes.length}',
-          style: TextStyle(
-            fontSize: isMobile ? 18 : 22,
-            fontWeight: FontWeight.bold,
-          ),
-        ),
+        backgroundColor: Colors.white,
+        elevation: 1,
         automaticallyImplyLeading: false,
+        title: Row(
+          children: [
+            const Icon(Icons.school, color: Color(0xFF1E3A8A), size: 28),
+            const SizedBox(width: 8),
+            Text(
+              'Rumo Quiz',
+              style: TextStyle(
+                color: const Color(0xFF1E3A8A),
+                fontWeight: FontWeight.bold,
+                fontSize: isMobile ? 18 : 22,
+              ),
+            ),
+          ],
+        ),
         actions: [
           if (possuiTempo && tempoRestante > 0)
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 16.0),
               child: Center(
-                child: AnimatedContainer(
-                  duration: const Duration(milliseconds: 500),
+                child: Container(
                   padding: const EdgeInsets.symmetric(
-                    horizontal: 12,
+                    horizontal: 14,
                     vertical: 6,
                   ),
                   decoration: BoxDecoration(
                     color: emAlertaCritico
-                        ? Colors.red.shade100
-                        : Colors.blue.shade50,
-                    borderRadius: BorderRadius.circular(20),
+                        ? Colors.red.shade50
+                        : const Color(0xFFEFF6FF),
+                    borderRadius: BorderRadius.circular(30),
                     border: Border.all(color: corDoCronometro, width: 1.5),
                   ),
                   child: Row(
@@ -257,194 +220,338 @@ class SimuladoPage extends ConsumerWidget {
             ),
         ],
       ),
-      body: Center(
-        child: Container(
-          constraints: const BoxConstraints(maxWidth: 900),
-          padding: const EdgeInsets.all(16.0),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              if (possuiTempo && emAlertaCritico && tempoRestante > 0)
-                Container(
-                  margin: const EdgeInsets.only(bottom: 16),
-                  padding: const EdgeInsets.all(10),
-                  decoration: BoxDecoration(
-                    color: Colors.red.shade600,
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: const Row(
-                    children: [
-                      Icon(Icons.warning_amber_rounded, color: Colors.white),
-                      SizedBox(width: 10),
-                      Expanded(
-                        child: Text(
-                          'Atenção! Restam menos de 5 minutos para o fim da sua prova.',
+      body: Column(
+        children: [
+          LinearProgressIndicator(
+            value: percentualProgresso,
+            backgroundColor: Colors.grey.shade200,
+            valueColor: const AlwaysStoppedAnimation<Color>(Color(0xFF3B82F6)),
+            minHeight: 4,
+          ),
+          Expanded(
+            child: Center(
+              child: Container(
+                constraints: const BoxConstraints(maxWidth: 900),
+                padding: const EdgeInsets.all(20.0),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    if (possuiTempo && emAlertaCritico && tempoRestante > 0)
+                      Container(
+                        margin: const EdgeInsets.only(bottom: 16),
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          color: Colors.red.shade600,
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: const Row(
+                          children: [
+                            Icon(
+                              Icons.warning_amber_rounded,
+                              color: Colors.white,
+                            ),
+                            SizedBox(width: 10),
+                            Text(
+                              'Atenção! Restam menos de 5 minutos para o fim da sua prova.',
+                              style: TextStyle(
+                                color: Colors.white,
+                                fontWeight: FontWeight.w600,
+                                fontSize: 13,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 12,
+                            vertical: 6,
+                          ),
+                          decoration: BoxDecoration(
+                            color: Colors.grey.shade100,
+                            borderRadius: BorderRadius.circular(6),
+                          ),
+                          child: Text(
+                            'QUESTÃO ${sessionState.indiceQuestaoAtual + 1} DE ${sessionState.questoes.length}',
+                            style: TextStyle(
+                              color: Colors.grey.shade700,
+                              fontWeight: FontWeight.bold,
+                              fontSize: 12,
+                            ),
+                          ),
+                        ),
+                        Text(
+                          '$questoesRespondidas respondidas',
                           style: TextStyle(
-                            color: Colors.white,
-                            fontWeight: FontWeight.w600,
+                            color: Colors.grey.shade500,
                             fontSize: 13,
                           ),
                         ),
+                      ],
+                    ),
+                    const SizedBox(height: 16),
+                    Text(
+                      questaoAtual.pergunta,
+                      style: TextStyle(
+                        fontSize: isMobile ? 16 : 19,
+                        fontWeight: FontWeight.w600,
+                        color: const Color(0xFF1F2937),
+                        height: 1.5,
                       ),
-                    ],
-                  ),
-                ),
+                    ),
+                    const SizedBox(height: 24),
+                    Expanded(
+                      child: ListView.builder(
+                        itemCount: questaoAtual.opcoes.length,
+                        itemBuilder: (context, index) {
+                          final opcaoTexto = questaoAtual.opcoes[index];
+                          final estaSelecionado =
+                              respostaSelecionadaTexto == opcaoTexto;
 
-              Text(
-                questaoAtual.pergunta,
-                style: TextStyle(
-                  fontSize: isMobile ? 16 : 20,
-                  fontWeight: FontWeight.w500,
-                  height: 1.4,
-                ),
-              ),
-              const SizedBox(height: 20),
-
-              Expanded(
-                child: ListView.builder(
-                  itemCount: questaoAtual.opcoes.length,
-                  itemBuilder: (context, index) {
-                    final opcaoTexto = questaoAtual.opcoes[index];
-                    final estaSelecionado =
-                        respostaSelecionadaTexto == opcaoTexto;
-
-                    return Card(
-                      elevation: estaSelecionado ? 3 : 1,
-                      color: estaSelecionado ? Colors.blue.shade50 : null,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(10),
-                        side: BorderSide(
-                          color: estaSelecionado
-                              ? Colors.blue.shade700
-                              : Colors.transparent,
-                          width: 1.5,
-                        ),
-                      ),
-                      margin: const EdgeInsets.symmetric(vertical: 6.0),
-                      child: ListTile(
-                        contentPadding: const EdgeInsets.symmetric(
-                          horizontal: 16,
-                          vertical: 4,
-                        ),
-                        leading: CircleAvatar(
-                          backgroundColor: estaSelecionado
-                              ? Colors.blue.shade700
-                              : Colors.grey.shade200,
-                          child: Text(
-                            String.fromCharCode(65 + index),
-                            style: TextStyle(
+                          return AnimatedContainer(
+                            duration: const Duration(milliseconds: 200),
+                            margin: const EdgeInsets.symmetric(vertical: 6.0),
+                            decoration: BoxDecoration(
                               color: estaSelecionado
-                                  ? Colors.white
-                                  : Colors.black87,
-                              fontWeight: FontWeight.bold,
+                                  ? const Color(0xFFEFF6FF)
+                                  : Colors.white,
+                              borderRadius: BorderRadius.circular(12),
+                              border: Border.all(
+                                color: estaSelecionado
+                                    ? const Color(0xFF2563EB)
+                                    : Colors.grey.shade300,
+                                width: estaSelecionado ? 2.0 : 1.0,
+                              ),
+                              boxShadow: estaSelecionado
+                                  ? [
+                                      BoxShadow(
+                                        color: Colors.blue.withValues(
+                                          alpha: 0.1,
+                                        ),
+                                        blurRadius: 4,
+                                        offset: const Offset(0, 2),
+                                      ),
+                                    ]
+                                  : null,
                             ),
-                          ),
-                        ),
-                        title: Text(
-                          opcaoTexto,
-                          style: TextStyle(fontSize: isMobile ? 14 : 16),
-                        ),
-                        trailing: estaSelecionado
-                            ? const Icon(Icons.check_circle, color: Colors.blue)
-                            : null,
-                        onTap: () {
-                          sessionNotifier.selecionarAlternativa(
-                            questaoAtual.id,
-                            opcaoTexto,
+                            child: ListTile(
+                              contentPadding: const EdgeInsets.symmetric(
+                                horizontal: 16,
+                                vertical: 6,
+                              ),
+                              leading: CircleAvatar(
+                                radius: 18,
+                                backgroundColor: estaSelecionado
+                                    ? const Color(0xFF2563EB)
+                                    : Colors.grey.shade100,
+                                child: Text(
+                                  String.fromCharCode(65 + index),
+                                  style: TextStyle(
+                                    color: estaSelecionado
+                                        ? Colors.white
+                                        : const Color(0xFF4B5563),
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 14,
+                                  ),
+                                ),
+                              ),
+                              title: Text(
+                                opcaoTexto,
+                                style: TextStyle(
+                                  fontSize: isMobile ? 14 : 15,
+                                  color: const Color(0xFF374151),
+                                  fontWeight: estaSelecionado
+                                      ? FontWeight.w500
+                                      : FontWeight.normal,
+                                ),
+                              ),
+                              trailing: estaSelecionado
+                                  ? const Icon(
+                                      Icons.check_circle,
+                                      color: Color(0xFF2563EB),
+                                    )
+                                  : null,
+                              onTap: () =>
+                                  sessionNotifier.selecionarAlternativa(
+                                    questaoAtual.id,
+                                    opcaoTexto,
+                                  ),
+                            ),
                           );
                         },
                       ),
-                    );
-                  },
+                    ),
+                  ],
                 ),
               ),
+            ),
+          ),
 
-              const SizedBox(height: 16),
-
-              SafeArea(
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(vertical: 8.0),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          // 🏛️ RODAPÉ INTEGRADO (Botões de Navegação + Patrocinadores)
+          Container(
+            decoration: BoxDecoration(
+              color: Colors.white,
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: 0.05),
+                  blurRadius: 10,
+                  offset: const Offset(0, -4),
+                ),
+              ],
+            ),
+            padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 24),
+            child: SafeArea(
+              child: Center(
+                child: Container(
+                  constraints: const BoxConstraints(maxWidth: 900),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
                     children: [
-                      SizedBox(
-                        width: isMobile ? 110 : 140,
-                        height: 45,
-                        child: OutlinedButton.icon(
-                          icon: const Icon(Icons.arrow_back_ios, size: 16),
-                          label: const Text('Anterior'),
-                          onPressed: sessionState.indiceQuestaoAtual > 0
-                              ? sessionNotifier.questaoAnterior
-                              : null,
-                          style: OutlinedButton.styleFrom(
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(8),
+                      // Linha de Botões Anterior / Próxima
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          SizedBox(
+                            width: isMobile ? 110 : 140,
+                            height: 44,
+                            child: OutlinedButton.icon(
+                              icon: const Icon(Icons.arrow_back_ios, size: 14),
+                              label: const Text('Anterior'),
+                              onPressed: sessionState.indiceQuestaoAtual > 0
+                                  ? sessionNotifier.questaoAnterior
+                                  : null,
+                              style: OutlinedButton.styleFrom(
+                                side: BorderSide(color: Colors.grey.shade300),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                              ),
                             ),
                           ),
-                        ),
+                          if (sessionState.indiceQuestaoAtual ==
+                              sessionState.questoes.length - 1)
+                            SizedBox(
+                              width: isMobile ? 160 : 200,
+                              height: 44,
+                              child: ElevatedButton.icon(
+                                icon: const Icon(
+                                  Icons.check,
+                                  color: Colors.white,
+                                  size: 18,
+                                ),
+                                label: const Text(
+                                  'Finalizar Simulado',
+                                  style: TextStyle(
+                                    color: Colors.white,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                                onPressed: () => _processarEnvioSimulado(
+                                  context: context,
+                                  sessionState: sessionState,
+                                  sessionNotifier: sessionNotifier,
+                                  controllerNotifier: controllerNotifier,
+                                ),
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: const Color(0xFF10B981),
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(8),
+                                  ),
+                                ),
+                              ),
+                            )
+                          else
+                            SizedBox(
+                              width: isMobile ? 110 : 140,
+                              height: 44,
+                              child: ElevatedButton(
+                                onPressed: sessionNotifier.proximaQuestao,
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: const Color(0xFF2563EB),
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(8),
+                                  ),
+                                ),
+                                child: const Row(
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  children: [
+                                    Text(
+                                      'Próxima',
+                                      style: TextStyle(
+                                        color: Colors.white,
+                                        fontWeight: FontWeight.w500,
+                                      ),
+                                    ),
+                                    SizedBox(width: 4),
+                                    Icon(
+                                      Icons.arrow_forward_ios,
+                                      size: 14,
+                                      color: Colors.white,
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ),
+                        ],
                       ),
+                      const SizedBox(height: 12),
+                      const Divider(height: 1, color: Color(0xFFE5E7EB)),
+                      const SizedBox(height: 8),
 
-                      if (sessionState.indiceQuestaoAtual ==
-                          sessionState.questoes.length - 1)
-                        SizedBox(
-                          width: isMobile ? 160 : 200,
-                          height: 45,
-                          child: ElevatedButton.icon(
-                            icon: const Icon(
-                              Icons.check,
-                              color: Colors.white,
-                              size: 18,
-                            ),
-                            label: const Text(
-                              'Finalizar Simulado',
-                              style: TextStyle(
-                                color: Colors.white,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                            onPressed: () => _processarEnvioSimulado(
-                              context: context,
-                              sessionState: sessionState,
-                              sessionNotifier: sessionNotifier,
-                              controllerNotifier: controllerNotifier,
-                            ),
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: Colors.green.shade600,
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(8),
-                              ),
-                              elevation: 2,
+                      // 🛡️ SUB-RODAPÉ DE PATROCINADORES / REALIZAÇÃO
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Text(
+                            'Realização e Apoio:',
+                            style: TextStyle(
+                              fontSize: 11,
+                              color: Colors.grey.shade400,
+                              fontWeight: FontWeight.w500,
                             ),
                           ),
-                        )
-                      else
-                        SizedBox(
-                          width: isMobile ? 110 : 140,
-                          height: 45,
-                          child: ElevatedButton(
-                            onPressed: sessionNotifier.proximaQuestao,
-                            style: ElevatedButton.styleFrom(
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(8),
-                              ),
-                            ),
-                            child: const Row(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: [
-                                Text('Próxima'),
-                                SizedBox(width: 6),
-                                Icon(Icons.arrow_forward_ios, size: 16),
-                              ],
+                          const SizedBox(width: 12),
+                          Icon(
+                            Icons.gavel,
+                            size: 14,
+                            color: Colors.grey.shade400,
+                          ),
+                          const SizedBox(width: 4),
+                          Text(
+                            'TRT-4',
+                            style: TextStyle(
+                              fontSize: 11,
+                              color: Colors.grey.shade500,
+                              fontWeight: FontWeight.bold,
                             ),
                           ),
-                        ),
+                          const SizedBox(width: 16),
+                          Icon(
+                            Icons.account_balance,
+                            size: 14,
+                            color: Colors.grey.shade400,
+                          ),
+                          const SizedBox(width: 4),
+                          Text(
+                            'Rumo Cultural',
+                            style: TextStyle(
+                              fontSize: 11,
+                              color: Colors.grey.shade500,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ],
+                      ),
                     ],
                   ),
                 ),
               ),
-            ],
+            ),
           ),
-        ),
+        ],
       ),
     );
   }

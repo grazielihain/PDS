@@ -29,13 +29,18 @@ class SimuladoRepositoryImpl implements SimuladoRepository {
         assuntoId: assuntoId,
       );
 
+      // Proteção preventiva: Se o servidor retornar uma lista vazia ou nula
+      if (modelos.isEmpty) {
+        return [];
+      }
+
       // 2. Transforma (mapeia) cada QuestaoModel em uma QuestaoEntity limpa
       return modelos.map((model) {
         return QuestaoEntity(
           id: model.id,
           pergunta: model.pergunta,
           opcoes: model.opcoes,
-          respostaCorretaIndex: model.respostaCorretaIndex,
+          respostaCorretaIndex: model.respostaCorretaIndex, 
         );
       }).toList();
       

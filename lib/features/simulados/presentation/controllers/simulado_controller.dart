@@ -32,7 +32,7 @@ class SimuladoController extends StateNotifier<AsyncValue<void>> {
       final historicoRef = FirebaseFirestore.instance
           .collection('usuarios')
           .doc(userId.isEmpty ? 'anonimo' : userId)
-          .collection('historico_simulados') // Subcoleção onde os dados reais residem
+          .collection('historico_simulados') // Subcoleção onde os dados reais residem isolados
           .doc();
 
       // 🧠 2. ACESSO AO ESTADO DO RIVERPOD
@@ -45,9 +45,18 @@ class SimuladoController extends StateNotifier<AsyncValue<void>> {
         final primeiraQuestao = sessionState.questoes.first;
         if (primeiraQuestao is Map) {
           instituicaoIdExtraida = primeiraQuestao['instituicaoId'] ?? 'instituicao_padrao';
+        } else if (primeiraQuestao is QuestaoModel) {
+          // 🔥 Ajuste de segurança: Garante a leitura correta se for o modelo estruturado
+          instituicaoIdExtraida = primeiraQuestao.instituicaoId.isEmpty 
+              ? 'instituicao_padrao' 
+              : primeiraQuestao.instituicaoId;
         } else {
-          // Caso seu objeto de questão seja uma classe/modelo estruturado
-          instituicaoIdExtraida = primeiraQuestao.instituicaoId ?? 'instituicao_padrao';
+          // Fallback genérico caso use outra tipagem em alguma refatoração
+          try {
+            instituicaoIdExtraida = (primeiraQuestao as dynamic).instituicaoId ?? 'instituicao_padrao';
+          } catch (_) {
+            instituicaoIdExtraida = 'instituicao_padrao';
+          }
         }
       }
 
@@ -71,7 +80,6 @@ class SimuladoController extends StateNotifier<AsyncValue<void>> {
       final novoHistorico = HistoricoModel(
         id: historicoRef.id,
         userId: userId.isEmpty ? 'aluno_anonimo' : userId,
-        // ✅ CORRIGIDO: Agora usa a variável segura extraída da questão real
         instituicaoId: instituicaoIdExtraida, 
         categoria: sessionState.categoriaId.isEmpty ? 'Geral' : sessionState.categoriaId, 
         tipoProva: sessionState.modoProva == 'assunto' ? 'Por Assunto' : 'Completa', 
@@ -80,12 +88,12 @@ class SimuladoController extends StateNotifier<AsyncValue<void>> {
         acertos: totalAcertos,
         erros: questoesDaProva.length - totalAcertos, 
         pontosProva: notaCalculada, 
-        pontosGamificacao: 10, 
+        pontosGamificacao: 10, // Pontuação fixa imutável de bônus exigida pela gamificação
         dataConclusao: DateTime.now(),
         revisaoQuestoes: listaRevisaoMapeada, 
       );
 
-      // 5. Salva os dados de forma assíncrona no Cloud Firestore
+      // 5. Salva os dados de forma assíncrona no Cloud Firestore (Mantendo chaves originais)
       await historicoRef.set({
         'id': novoHistorico.id,
         'userId': novoHistorico.userId,

@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:rumo_quiz/features/simulados/presentation/pages/inspecionar_simulado_page.dart';
+import 'package:rumo_quiz/features/simulados/presentation/providers/quiz_session_provider.dart';
 import 'package:rumo_quiz/features/simulados/services/certificado_service.dart';
 import 'package:rumo_quiz/features/simulados/data/models/revisao_questao_model.dart';
 
@@ -43,10 +44,10 @@ class ResultadoSimuladoPage extends ConsumerWidget {
   String _formatarTempo(int segundosTotais) {
     if (segundosTotais <= 0) return '00:00';
     final int horas = segundosTotais ~/ 3600;
-    final int minutos = (segundosTotais % 3600) ~/ 60;
+    final int minutes = (segundosTotais % 3600) ~/ 60;
     final int segundos = segundosTotais % 60;
 
-    final String minutosStr = minutos.toString().padLeft(2, '0');
+    final String minutosStr = minutes.toString().padLeft(2, '0');
     final String segundosStr = segundos.toString().padLeft(2, '0');
 
     if (horas > 0) {
@@ -57,70 +58,86 @@ class ResultadoSimuladoPage extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    // 🎨 CAPTURA DINÂMICA: Pega a cor que a instituição definiu no tema global do app
-    final Color corInstitucional = Theme.of(context).colorScheme.primary;
-    final Color corSecundariaInstitucional = Theme.of(
-      context,
-    ).colorScheme.secondary;
+    final Color corInstitucional = const Color(0xFF1E3A8A);
+    final Color corSecundariaInstitucional = Theme.of(context).colorScheme.secondary;
+
+    final sessionState = ref.watch(quizSessionProvider);
+    final bool provaPorAssunto = sessionState.modoProva == 'assunto';
+    final double larguraTela = MediaQuery.of(context).size.width;
+    final bool isMobile = larguraTela < 600;
+
+    // 🎨 Cores Oficiais da Identidade Rumo Quiz (Verde Esmeralda e Laranja Claro)
+    final Color verdeEsmeralda = const Color(0xFF10B981);
+    final Color laranjaClaro = const Color(0xFFF97316);
 
     return Scaffold(
-      backgroundColor: Colors
-          .transparent, // Permite que o fundo do MainLayoutShell prevaleça
-
+      backgroundColor: Colors.grey.shade50,
+      appBar: AppBar(
+        backgroundColor: Colors.white,
+        elevation: 1,
+        automaticallyImplyLeading: false,
+        title: Row(
+          children: [
+            const Icon(Icons.school, color: Color(0xFF1E3A8A), size: 28),
+            const SizedBox(width: 8),
+            Text(
+              'Rumo Quiz',
+              style: TextStyle(
+                color: const Color(0xFF1E3A8A),
+                fontWeight: FontWeight.bold,
+                fontSize: isMobile ? 18 : 22,
+              ),
+            ),
+          ],
+        ),
+      ),
       body: SafeArea(
         child: Center(
-          child: ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 800),
+          child: Container(
+            constraints: const BoxConstraints(maxWidth: 850),
             child: SingleChildScrollView(
               physics: const BouncingScrollPhysics(),
-              padding: const EdgeInsets.symmetric(
-                horizontal: 24.0,
-                vertical: 32.0,
-              ),
+              padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 32.0),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  // SEÇÃO 1: CABEÇALHO DE SUCESSO DO SIMULADO
+                  // SEÇÃO 1: CABEÇALHO DE SUCESSO
                   Center(
                     child: Column(
                       children: [
                         Container(
                           padding: const EdgeInsets.all(16),
                           decoration: BoxDecoration(
-                            color: Colors.green.shade50,
+                            color: verdeEsmeralda.withValues(alpha: 0.1),
                             shape: BoxShape.circle,
                           ),
                           child: Icon(
                             Icons.check_circle_rounded,
-                            size: 80,
-                            color: Colors.green.shade600,
+                            size: 72,
+                            color: verdeEsmeralda,
                           ),
                         ),
                         const SizedBox(height: 16),
                         Text(
                           'Simulado Concluído!',
                           style: TextStyle(
-                            fontSize: 28,
+                            fontSize: isMobile ? 24 : 28,
                             fontWeight: FontWeight.bold,
-                            color: corInstitucional, // Aplicado dinamicamente
+                            color: const Color(0xFF1F2937),
                           ),
                         ),
                         const SizedBox(height: 6),
                         Text(
                           'Parabéns por finalizar a avaliação, $nomeDoAluno!',
                           textAlign: TextAlign.center,
-                          style: TextStyle(
-                            fontSize: 16,
-                            color: Colors.grey.shade700,
-                            fontWeight: FontWeight.w500,
-                          ),
+                          style: TextStyle(fontSize: 15, color: Colors.grey.shade600),
                         ),
                       ],
                     ),
                   ),
-                  const SizedBox(height: 32),
+                  const SizedBox(height: 28),
 
-                  // SEÇÃO 2: BOTÕES DE AÇÃO RÁPIDA (Agora 100% baseados na cor da instituição)
+                  // SEÇÃO 2: BOTÕES DE AÇÃO RÁPIDA
                   LayoutBuilder(
                     builder: (context, constraints) {
                       if (constraints.maxWidth > 600) {
@@ -132,6 +149,7 @@ class ResultadoSimuladoPage extends ConsumerWidget {
                                 Icons.find_in_page_outlined,
                                 'Inspecionar Prova',
                                 corInstitucional,
+                                isPorAssunto: provaPorAssunto,
                               ),
                             ),
                             const SizedBox(width: 12),
@@ -140,14 +158,8 @@ class ResultadoSimuladoPage extends ConsumerWidget {
                                 context,
                                 Icons.picture_as_pdf_outlined,
                                 'Imprimir Certificado',
-                                corSecundariaInstitucional, // Variação secundária da instituição
-                              ),
-                            ),
-                            const SizedBox(width: 12),
-                            Expanded(
-                              child: _buildBotaoVoltar(
-                                context,
-                                corInstitucional,
+                                corSecundariaInstitucional,
+                                isPorAssunto: provaPorAssunto,
                               ),
                             ),
                           ],
@@ -160,160 +172,109 @@ class ResultadoSimuladoPage extends ConsumerWidget {
                               Icons.find_in_page_outlined,
                               'Inspecionar Prova',
                               corInstitucional,
+                              isPorAssunto: provaPorAssunto,
                             ),
-                            const SizedBox(height: 8),
+                            const SizedBox(height: 10),
                             _buildBotaoAcao(
                               context,
                               Icons.picture_as_pdf_outlined,
                               'Imprimir Certificado',
                               corSecundariaInstitucional,
+                              isPorAssunto: provaPorAssunto,
                             ),
-                            const SizedBox(height: 8),
-                            _buildBotaoVoltar(context, corInstitucional),
                           ],
                         );
                       }
                     },
                   ),
+                  const SizedBox(height: 12),
+                  _buildBotaoVoltar(context, corInstitucional),
+                  
                   const SizedBox(height: 36),
+                  const Divider(height: 1, color: Color(0xFFE5E7EB)),
+                  const SizedBox(height: 28),
 
-                  // SEÇÃO 3: RESUMO METRIFICADO
+                  // SEÇÃO 3: RESUMO METRIFICADO (REGRAS VINCULADAS AO TIPO DE PROVA)
                   const Text(
-                    'Resumo da Prova',
-                    style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                    'Resumo do Desempenho',
+                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Color(0xFF1F2937)),
                   ),
-                  const SizedBox(height: 14),
-                  GridView.count(
-                    crossAxisCount: 2,
-                    shrinkWrap: true,
-                    physics: const NeverScrollableScrollPhysics(),
-                    mainAxisSpacing: 14,
-                    crossAxisSpacing: 14,
-                    childAspectRatio: 2.5,
+                  const SizedBox(height: 12),
+                  Wrap(
+                    spacing: 12,
+                    runSpacing: 12,
                     children: [
-                      _buildCardResumo(
-                        'Total Questões',
-                        '$totalQuestoes',
-                        Colors.grey.shade700,
-                      ),
-                      _buildCardResumo(
-                        'Total Acertos',
-                        '$acertos',
-                        Colors.green.shade700,
-                      ),
-                      _buildCardResumo(
-                        'Total Erros',
-                        '$erros',
-                        Colors.red.shade700,
-                      ),
-                      _buildCardResumo(
-                        'Nota Obtida',
-                        '${notaObtida.toStringAsFixed(1)} / $notaMaxima pts',
-                        corInstitucional, // Aplicado dinamicamente
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 14),
-
-                  Row(
-                    children: [
-                      Expanded(
-                        child: _buildCardResumo(
-                          'Gamificação',
-                          '+$pontosGamificacao XP',
-                          Colors.amber.shade900,
-                        ),
-                      ),
-                      const SizedBox(width: 14),
-                      Expanded(
-                        child: _buildCardResumo(
-                          'Tempo Decorrido',
-                          _formatarTempo(tempoUtilizadoSegundos),
-                          Colors.teal.shade700,
-                        ),
-                      ),
+                      _buildCardResumoLarguraMutavel('Questões', '$totalQuestoes', Colors.grey.shade700, Colors.grey.shade100, larguraTela),
+                      _buildCardResumoLarguraMutavel('Acertos', '$acertos', verdeEsmeralda, verdeEsmeralda.withValues(alpha: 0.08), larguraTela),
+                      _buildCardResumoLarguraMutavel('Erros', '$erros', laranjaClaro, laranjaClaro.withValues(alpha: 0.08), larguraTela),
+                      
+                      // ✅ REGRA: Ponto de Prova só aparece no Resumo se for Prova Completa (!provaPorAssunto)
+                      if (!provaPorAssunto)
+                        _buildCardResumoLarguraMutavel('Pontos de Prova', '${notaObtida.toStringAsFixed(1)} / $notaMaxima', corInstitucional, corInstitucional.withValues(alpha: 0.04), larguraTela),
+                      
+                      // ✅ REGRA: Pontuação Acumulada (Gamificação) sempre aparece no Resumo de Prova
+                      _buildCardResumoLarguraMutavel('Pontuação Acumulada', '+$pontosGamificacao XP', Colors.amber.shade900, Colors.amber.shade50, larguraTela),
+                      
+                      _buildCardResumoLarguraMutavel('Tempo Decorrido', _formatarTempo(tempoUtilizadoSegundos), Colors.teal.shade700, Colors.teal.shade50, larguraTela),
                     ],
                   ),
                   const SizedBox(height: 32),
 
                   // SEÇÃO 4: BARRAS DE TAXA DE ACERTO
-                  const Text(
-                    'Métricas de Aproveitamento',
-                    style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
-                  ),
-                  const SizedBox(height: 14),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Text(
-                        'Taxa de Acerto: ${taxaAcerto.toStringAsFixed(0)}%',
-                        style: const TextStyle(
-                          fontWeight: FontWeight.w500,
-                          fontSize: 16,
+                  Container(
+                    padding: const EdgeInsets.all(20),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: Colors.grey.shade200),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Text(
+                              'Taxa de Acerto: ${taxaAcerto.toStringAsFixed(0)}%',
+                              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: Color(0xFF374151)),
+                            ),
+                            Text('$acertos de $totalQuestoes corretas', style: TextStyle(color: Colors.grey.shade500, fontSize: 14)),
+                          ],
                         ),
-                      ),
-                      Text(
-                        '$acertos / $totalQuestoes Questões',
-                        style: const TextStyle(
-                          color: Colors.grey,
-                          fontSize: 15,
+                        const SizedBox(height: 12),
+                        LinearProgressIndicator(
+                          value: taxaAcerto / 100,
+                          backgroundColor: Colors.grey.shade100,
+                          color: taxaAcerto >= 70 ? verdeEsmeralda : laranjaClaro,
+                          minHeight: 10,
+                          borderRadius: BorderRadius.circular(30),
                         ),
-                      ),
-                    ],
+                      ],
+                    ),
                   ),
-                  const SizedBox(height: 8),
-                  LinearProgressIndicator(
-                    value: taxaAcerto / 100,
-                    backgroundColor: Colors.grey.shade300,
-                    color: taxaAcerto >= 70 ? Colors.green : Colors.orange,
-                    minHeight: 12,
-                    borderRadius: BorderRadius.circular(6),
-                  ),
-                  const SizedBox(height: 32),
+                  const SizedBox(height: 24),
 
                   // SEÇÃO 5: MENSAGEM DO ADMINISTRADOR
                   if (mensagemFinalizacaoAdmin.isNotEmpty)
                     Container(
-                      padding: const EdgeInsets.all(20),
+                      padding: const EdgeInsets.all(16),
                       decoration: BoxDecoration(
-                        color: corInstitucional.withValues(alpha: 0.05),
+                        color: corInstitucional.withValues(alpha: 0.04),
                         borderRadius: BorderRadius.circular(12),
-                        border: Border.all(
-                          color: corInstitucional.withValues(alpha: 0.2),
-                          width: 1.2,
-                        ),
+                        border: Border.all(color: corInstitucional.withValues(alpha: 0.15)),
                       ),
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Row(
                             children: [
-                              Icon(
-                                Icons.gavel,
-                                color: corInstitucional,
-                                size: 22,
-                              ),
+                              Icon(Icons.comment_bank_outlined, color: corInstitucional, size: 20),
                               const SizedBox(width: 8),
-                              Text(
-                                'Mensagem da Coordenação / Admin',
-                                style: TextStyle(
-                                  fontWeight: FontWeight.bold,
-                                  color: corInstitucional,
-                                  fontSize: 16,
-                                ),
-                              ),
+                              const Text('Mensagem da Coordenação', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
                             ],
                           ),
-                          const SizedBox(height: 12),
-                          Text(
-                            mensagemFinalizacaoAdmin,
-                            style: const TextStyle(
-                              fontStyle: FontStyle.italic,
-                              color: Colors.black87,
-                              fontSize: 15,
-                              height: 1.4,
-                            ),
-                          ),
+                          const SizedBox(height: 8),
+                          Text(mensagemFinalizacaoAdmin, style: const TextStyle(color: Color(0xFF4B5563), fontSize: 14, height: 1.4)),
                         ],
                       ),
                     ),
@@ -326,28 +287,23 @@ class ResultadoSimuladoPage extends ConsumerWidget {
     );
   }
 
-  Widget _buildBotaoAcao(
-    BuildContext context,
-    IconData icon,
-    String label,
-    Color cor,
-  ) {
+  Widget _buildBotaoAcao(BuildContext context, IconData icon, String label, Color cor, {required bool isPorAssunto}) {
     return SizedBox(
-      width: double.infinity,
       height: 48,
       child: ElevatedButton.icon(
-        icon: Icon(icon),
-        label: Text(label, style: const TextStyle(fontWeight: FontWeight.bold)),
+        icon: Icon(icon, size: 18),
+        label: Text(label, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
         style: ElevatedButton.styleFrom(
           backgroundColor: cor,
           foregroundColor: Colors.white,
+          elevation: 0,
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
         ),
         onPressed: () async {
           if (label.contains('Certificado')) {
             final usuarioAtual = FirebaseAuth.instance.currentUser;
-            final String nomeAtualizado =
-                usuarioAtual?.displayName ?? nomeDoAluno;
+            final String nomeAtualizado = usuarioAtual?.displayName ?? nomeDoAluno;
+
             await CertificadoService.gerarEImprimirCertificado(
               tituloProva: tituloSimulado,
               acertos: acertos,
@@ -357,13 +313,9 @@ class ResultadoSimuladoPage extends ConsumerWidget {
               nomeAluno: nomeAtualizado,
               nomeInstiticao: instituicaoDoAluno,
               logoUrl: logoUrl,
+              isPorAssunto: isPorAssunto, // <-- Passado corretamente para omitir Ponto de Prova no PDF se for por assunto
             );
           } else if (label.contains('Inspecionar') || label.contains('Prova')) {
-            for (var rev in revisaoQuestoes) {
-              print(
-                'Questão ID: ${rev.questao.id} | Escolhida: ${rev.opcaoEscolhidaIndex} | Correta: ${rev.questao.respostaCorretaIndex}',
-              );
-            }
             Navigator.push(
               context,
               MaterialPageRoute(
@@ -381,17 +333,14 @@ class ResultadoSimuladoPage extends ConsumerWidget {
 
   Widget _buildBotaoVoltar(BuildContext context, Color corInstitucional) {
     return SizedBox(
-      width: double.infinity,
       height: 48,
       child: OutlinedButton.icon(
-        icon: const Icon(Icons.history),
-        label: const Text(
-          'Voltar ao Histórico',
-          style: TextStyle(fontWeight: FontWeight.bold),
-        ),
+        icon: const Icon(Icons.arrow_back, size: 18),
+        label: const Text('Voltar para o Histórico de Prova', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
         style: OutlinedButton.styleFrom(
-          side: BorderSide(color: corInstitucional),
-          foregroundColor: corInstitucional,
+          side: BorderSide(color: Colors.grey.shade300),
+          foregroundColor: const Color(0xFF4B5563),
+          backgroundColor: Colors.white,
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
         ),
         onPressed: () => context.go('/historico'),
@@ -399,35 +348,22 @@ class ResultadoSimuladoPage extends ConsumerWidget {
     );
   }
 
-  Widget _buildCardResumo(String titulo, String valor, Color cor) {
+  Widget _buildCardResumoLarguraMutavel(String titulo, String valor, Color corTexto, Color corFundo, double larguraDisponivel) {
+    final double larguraCard = larguraDisponivel > 600 ? (larguraDisponivel - 80) / 3 : (larguraDisponivel - 64) / 2;
     return Container(
-      padding: const EdgeInsets.all(12),
+      width: larguraCard,
+      padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: cor.withValues(alpha: 0.08),
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: cor.withValues(alpha: 0.3)),
+        color: corFundo,
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: corTexto.withValues(alpha: 0.15)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
-        mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Text(
-            titulo,
-            style: TextStyle(
-              fontSize: 12,
-              color: Colors.grey.shade700,
-              fontWeight: FontWeight.w500,
-            ),
-          ),
-          const SizedBox(height: 2),
-          Text(
-            valor,
-            style: TextStyle(
-              fontSize: 18,
-              fontWeight: FontWeight.bold,
-              color: cor,
-            ),
-          ),
+          Text(titulo, maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(fontSize: 12, color: Colors.grey.shade600, fontWeight: FontWeight.w600)),
+          const SizedBox(height: 4),
+          Text(valor, style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: corTexto)),
         ],
       ),
     );

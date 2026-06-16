@@ -15,6 +15,8 @@ class CertificadoService {
     required String nomeAluno,
     required String nomeInstiticao,
     String? logoUrl,
+    required bool
+    isPorAssunto, // 🔥 Nova flag necessária para cumprir a regra de negócio do TCC
   }) async {
     final pdf = pw.Document();
     final aproveitamento = totalQuestoes > 0
@@ -151,7 +153,7 @@ class CertificadoService {
                     ),
                   ),
 
-                  // Seção de Métricas
+                  // Seção de Métricas (Ajustada com a Regra do TCC)
                   pw.Container(
                     padding: const pw.EdgeInsets.symmetric(
                       vertical: 10,
@@ -167,10 +169,12 @@ class CertificadoService {
                           'Acertos',
                           '$acertos / $totalQuestoes',
                         ),
-                        _buildMetricaPdf(
-                          'Nota Obtida',
-                          '${notaObtida.toStringAsFixed(1)} / ${notaMaxima.toStringAsFixed(1)}',
-                        ),
+                        // 🔥 Regra estrita: Se for por assunto, Oculta a nota numérica
+                        if (!isPorAssunto)
+                          _buildMetricaPdf(
+                            'Nota Obtida',
+                            '${notaObtida.toStringAsFixed(1)} / ${notaMaxima.toStringAsFixed(1)}',
+                          ),
                         _buildMetricaPdf(
                           'Aproveitamento',
                           '${aproveitamento.toStringAsFixed(0)}%',
