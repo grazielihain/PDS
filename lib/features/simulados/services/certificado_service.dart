@@ -133,7 +133,7 @@ class CertificadoService {
                             ),
                           ),
                           const pw.TextSpan(
-                            text: ' concluiu com êxito o simulado ',
+                            text: ' concluiu com exito o simulado ',
                           ),
                           pw.TextSpan(
                             text: tituloProva,
