@@ -1,3 +1,5 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -53,8 +55,9 @@ class _LoginPageState extends ConsumerState<LoginPage> {
                     hintText: 'exemplo@escola.com',
                   ),
                   validator: (value) {
-                    if (value == null || value.isEmpty)
+                    if (value == null || value.isEmpty) {
                       return 'Por favor, insira seu e-mail';
+                    }
                     if (!value.contains('@')) return 'Insira um e-mail válido';
                     return null;
                   },
@@ -161,54 +164,74 @@ class _LoginPageState extends ConsumerState<LoginPage> {
                   ),
                   const SizedBox(height: 24),
                   ElevatedButton(
-                    onPressed: () async {
-                      if (_formKey.currentState!.validate()) {
-                        try {
-                          // 1. Executa o login real chamando o repositório através do DataSource
-                          // (Isso valida se o e-mail e senha existem no Firebase)
-                          final userModel = await ref
-                              .read(authDataSourceProvider)
-                              .loginWithEmailAndPassword(
-                                _emailController.text.trim(),
-                                _senhaController.text.trim(),
-                              );
+  onPressed: () async {
+    if (_formKey.currentState!.validate()) {
+      try {
+        // 1. Executa o login real chamando o repositório através do DataSource
+        final dynamic userModel = await ref
+            .read(authDataSourceProvider)
+            .loginWithEmailAndPassword(
+              _emailController.text.trim(),
+              _senhaController.text.trim(),
+            );
 
-                          // 2. Se o login deu certo, dispara o Log de Auditoria obrigatoriamente
-                          await ref
-                              .read(whiteLabelProvider.notifier)
-                              .inicializarIdentidade(
-                                userModel.institutionId,
-                                '',
-                              );
-                          // 3. Direciona o utilizador com base no perfil (Role)
-                          if (context.mounted) {
-                            if (userModel.role == 'Master' ||
-                                userModel.role == 'Admin') {
-                              context.go('/admin');
-                            } else {
-                              context.go('/quiz-selection');
-                            }
-                          }
-                        } catch (e) {
-                          // Se a senha estiver errada ou o usuário não existir, mostra o erro na tela
-                          if (context.mounted) {
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              SnackBar(
-                                content: Text(
-                                  e.toString().replaceAll('Exception: ', ''),
-                                ),
-                                backgroundColor: Colors.red,
-                              ),
-                            );
-                          }
-                        }
-                      }
-                    },
-                    style: ElevatedButton.styleFrom(
-                      padding: const EdgeInsets.symmetric(vertical: 16),
-                    ),
-                    child: const Text('Entrar', style: TextStyle(fontSize: 16)),
-                  ),
+        // 2. Se o login deu certo, dispara o Log de Auditoria obrigatoriamente
+        await ref
+            .read(whiteLabelProvider.notifier)
+            .inicializarIdentidade(
+              userModel.institutionId,
+              '',
+            );
+
+        // 3. Direciona o utilizador com base no perfil (Role) de forma dinâmica
+        if (context.mounted) {
+          final String roleLimpa = userModel.role.toString().trim().toLowerCase();
+
+          // 👑 SUBTAREFA 1.2: Redireciona o Master corretamente para o seu painel macro exclusivo
+          if (roleLimpa == 'master') {
+            context.go('/master-home');
+          } 
+          else if (roleLimpa == 'admin' || roleLimpa == 'acess2') {
+            context.go('/admin-painel', extra: {'instituicaoId': userModel.institutionId});
+          } 
+          else {
+            // 🎯 SUBTAREFA 1.3: Interceptação de cadastro (Acess3)
+            // Se o modelo do usuário trouxer a flag de primeiro login ativa, tratamos aqui
+            try {
+              final bool primeiroLogin = userModel.primeiroLogin ?? false;
+              if (primeiroLogin) {
+                // Atualiza o documento no Firestore de forma isolada mudando a flag para false
+                await FirebaseFirestore.instance
+                    .collection('usuarios')
+                    .doc(FirebaseAuth.instance.currentUser?.uid)
+                    .update({'primeiroLogin': false});
+              }
+            } catch (_) {}
+
+            // Vai direto para os simulados sem passar por telas intermediárias
+            context.go('/quiz-selection');
+          }
+        }
+      } catch (e) {
+        // Se a senha estiver errada ou o usuário não existir, mostra o erro na tela
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(
+                e.toString().replaceAll('Exception: ', ''),
+              ),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
+      }
+    }
+  },
+  style: ElevatedButton.styleFrom(
+    padding: const EdgeInsets.symmetric(vertical: 16),
+  ),
+  child: const Text('Entrar', style: TextStyle(fontSize: 16)),
+),
                 ],
               ),
             ),

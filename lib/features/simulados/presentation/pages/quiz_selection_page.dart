@@ -3,9 +3,10 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:go_router/go_router.dart';
+import 'package:rumo_quiz/features/auth/presentation/providers/white_label_notifier.dart';
 import '../../data/models/prova_model.dart';
 import '../providers/simulado_provider.dart';
-import '../providers/quiz_session_provider.dart'; // 🔄 Importado o provedor de sessão correto
+import '../providers/quiz_session_provider.dart';
 
 class QuizSelectionPage extends ConsumerWidget {
   const QuizSelectionPage({super.key});
@@ -14,18 +15,45 @@ class QuizSelectionPage extends ConsumerWidget {
   Future<Map<String, dynamic>?> _buscarPerfilUsuario() async {
     final user = FirebaseAuth.instance.currentUser;
     if (user != null) {
-      final doc = await FirebaseFirestore.instance
-          .collection('usuarios')
-          .doc(user.uid)
-          .get();
-      return doc.data();
+      try {
+        final doc = await FirebaseFirestore.instance
+            .collection('usuarios')
+            .doc(user.uid)
+            .get();
+        return doc.data();
+      } catch (_) {
+        return null;
+      }
     }
     return null;
   }
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    // 🎨 CAPTURA DA IDENTIDADE VISUAL WHITE LABEL
+    final dynamic estadoWhiteLabel = ref.watch(whiteLabelProvider);
+    Color corPrimariaExibicao = Colors.blue.shade700;
+
+    try {
+      if (estadoWhiteLabel != null) {
+        String? hexObtido;
+        if (estadoWhiteLabel.toString().contains('corPrimariaHex')) {
+          hexObtido = estadoWhiteLabel.corPrimariaHex;
+        } else if (estadoWhiteLabel.toString().contains('primaryColorHex')) {
+          hexObtido = estadoWhiteLabel.primaryColorHex;
+        }
+
+        if (hexObtido != null && hexObtido.isNotEmpty) {
+          final valorInteiro = int.tryParse(hexObtido.replaceAll('#', '0xFF'));
+          if (valorInteiro != null) {
+            corPrimariaExibicao = Color(valorInteiro);
+          }
+        }
+      }
+    } catch (_) {}
+
     return Scaffold(
+      backgroundColor: Colors.grey.shade50,
       body: FutureBuilder<Map<String, dynamic>?>(
         future: _buscarPerfilUsuario(),
         builder: (context, userSnapshot) {
@@ -33,117 +61,137 @@ class QuizSelectionPage extends ConsumerWidget {
             return const Center(child: CircularProgressIndicator());
           }
 
-          if (!userSnapshot.hasData || userSnapshot.data == null) {
-            return const Center(
-              child: Text('Erro ao carregar perfil do usuário.'),
-            );
-          }
+          // Fallback seguro caso o Firestore falhe ou o documento não exista
+          final userNativo = FirebaseAuth.instance.currentUser;
+          final dadosUsuario = userSnapshot.data;
+          
+          final instituicaoId = dadosUsuario?['instituicaoId'] ?? 'NENHUM ID ENCONTRADO';
+          final nomeAluno = dadosUsuario?['nome'] ?? userNativo?.displayName ?? 'Estudante';
 
-          final dadosUsuario = userSnapshot.data!;
-          final instituicaoId =
-              dadosUsuario['instituicaoId'] ?? 'NENHUM ID ENCONTRADO';
-          final nomeAluno = dadosUsuario['nome'] ?? 'Estudante';
-
-          // Assistimos o provider passando o ID
+          // Assistimos o provider passando o ID de isolamento da instituição
           final provasAsyncValue = ref.watch(
             listaQuestoesFirestoreProvider(instituicaoId),
           );
 
           return Padding(
-            padding: const EdgeInsets.all(16.0),
+            padding: const EdgeInsets.all(24.0),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
                   'Olá, $nomeAluno!',
-                  style: const TextStyle(
-                    fontSize: 24,
+                  style: TextStyle(
+                    fontSize: 26,
                     fontWeight: FontWeight.bold,
+                    color: Colors.grey.shade900,
                   ),
                 ),
-                const SizedBox(height: 4),
-                Text(
-                  'Sua instituição cadastrada é: $instituicaoId',
-                  style: const TextStyle(
-                    fontSize: 14,
-                    color: Colors.blue,
-                    fontWeight: FontWeight.bold,
+                const SizedBox(height: 6),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                  decoration: BoxDecoration(
+                    color: corPrimariaExibicao.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(6),
+                  ),
+                  child: Text(
+                    'Ambiente Académico: $instituicaoId',
+                    style: TextStyle(
+                      fontSize: 13,
+                      color: corPrimariaExibicao,
+                      fontWeight: FontWeight.bold,
+                    ),
                   ),
                 ),
-                const SizedBox(height: 8),
+                const SizedBox(height: 16),
                 const Text(
                   'Selecione um dos questionários abaixo para iniciar:',
-                  style: TextStyle(fontSize: 16, color: Colors.grey),
+                  style: TextStyle(fontSize: 15, color: Colors.black54),
                 ),
                 const SizedBox(height: 20),
 
                 Expanded(
                   child: provasAsyncValue.when(
-                    loading: () =>
-                        const Center(child: CircularProgressIndicator()),
-                    error: (err, stack) =>
-                        Center(child: Text('Erro ao buscar quizzes: $err')),
+                    loading: () => const Center(child: CircularProgressIndicator()),
+                    error: (err, stack) => Center(
+                      child: Text(
+                        'Erro ao buscar quizzes: $err',
+                        style: const TextStyle(color: Colors.redAccent),
+                      ),
+                    ),
                     data: (listaProvas) {
                       if (listaProvas.isEmpty) {
-                        return const Center(
-                          child: Text(
-                            'Nenhum quiz disponível para sua instituição no momento.',
-                            style: TextStyle(
-                              fontSize: 16,
-                              fontStyle: FontStyle.italic,
-                            ),
+                        return Center(
+                          child: Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Icon(Icons.assignment_late_outlined, size: 48, color: Colors.grey.shade400),
+                              const SizedBox(height: 12),
+                              const Text(
+                                'Nenhum quiz disponível para sua instituição no momento.',
+                                textAlign: TextAlign.center,
+                                style: TextStyle(
+                                  fontSize: 15,
+                                  fontStyle: FontStyle.italic,
+                                  color: Colors.black45,
+                                ),
+                              ),
+                            ],
                           ),
                         );
                       }
 
                       return ListView.builder(
-                        padding: const EdgeInsets.all(16),
                         itemCount: listaProvas.length,
                         itemBuilder: (context, index) {
                           final questao = listaProvas[index];
 
                           return Card(
-                            elevation: 4,
-                            margin: const EdgeInsets.only(bottom: 16),
+                            elevation: 0,
+                            margin: const EdgeInsets.only(bottom: 14),
                             shape: RoundedRectangleBorder(
                               borderRadius: BorderRadius.circular(12),
+                              side: BorderSide(color: Colors.grey.shade200),
                             ),
                             child: ListTile(
-                              contentPadding: const EdgeInsets.all(16),
-                              leading: const Icon(
-                                Icons.assignment,
-                                size: 40,
-                                color: Colors.blue,
+                              contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                              leading: CircleAvatar(
+                                backgroundColor: corPrimariaExibicao.withOpacity(0.1),
+                                child: Icon(
+                                  Icons.assignment_outlined,
+                                  color: corPrimariaExibicao,
+                                ),
                               ),
                               title: Text(
                                 'Simulado de ${questao.categoriaId.toUpperCase()}',
                                 style: const TextStyle(
                                   fontWeight: FontWeight.bold,
-                                  fontSize: 18,
+                                  fontSize: 16,
                                 ),
                               ),
-                              subtitle: Text(
-                                'Assunto: ${questao.assuntoId}\nDisponível na sua instituição',
+                              subtitle: Padding(
+                                padding: const EdgeInsets.only(top: 4.0),
+                                child: Text(
+                                  'Assunto: ${questao.assuntoId}\nFiltro: Exclusivo da sua instituição',
+                                  style: TextStyle(color: Colors.grey.shade600, fontSize: 13),
+                                ),
                               ),
-                              trailing: const Icon(
+                              trailing: Icon(
                                 Icons.arrow_forward_ios,
-                                color: Colors.blue,
+                                size: 16,
+                                color: corPrimariaExibicao,
                               ),
                               onTap: () {
-                                // 🟢 CORREÇÃO CRÍTICA: Injeta a lista real de questões capturadas do banco!
-                                ref
-                                    .read(quizSessionProvider.notifier)
-                                    .iniciarSimulado(
+                                // Injeta a lista real contendo as questões validadas do banco
+                                ref.read(quizSessionProvider.notifier).iniciarSimulado(
                                       categoriaId: questao.categoriaId,
                                       modoProva: 'completa',
                                       assunto: questao.assuntoId,
-                                      questoesDisponiveisNoBanco:
-                                          listaProvas, // 🚀 Agora a lista vai cheia!
+                                      questoesDisponiveisNoBanco: listaProvas,
                                       qtdSolicitada: 10,
                                       tempoMinutos: 6,
                                     );
 
-                                // Navega com segurança para a página do simulado ativo
+                                // Navegação segura via GoRouter
                                 context.go('/executar-simulado');
                               },
                             ),

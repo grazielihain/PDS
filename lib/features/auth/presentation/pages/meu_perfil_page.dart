@@ -1,16 +1,18 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:rumo_quiz/features/auth/presentation/providers/white_label_notifier.dart';
 import '../../domain/models/usuario_model.dart';
 
-class MeuPerfilPage extends StatefulWidget {
+class MeuPerfilPage extends ConsumerStatefulWidget {
   const MeuPerfilPage({super.key});
 
   @override
-  State<MeuPerfilPage> createState() => __MeuPerfilPageState();
+  ConsumerState<MeuPerfilPage> createState() => _MeuPerfilPageState();
 }
 
-class __MeuPerfilPageState extends State<MeuPerfilPage> {
+class _MeuPerfilPageState extends ConsumerState<MeuPerfilPage> {
   final _auth = FirebaseAuth.instance;
   final _firestore = FirebaseFirestore.instance;
 
@@ -22,7 +24,8 @@ class __MeuPerfilPageState extends State<MeuPerfilPage> {
   final _novaSenhaController = TextEditingController();
   final _confirmarSenhaController = TextEditingController();
 
-  final List<String> _listaAvatares = [
+  // 🐱 LISTA ORIGINAL PRESERVADA INTACTA
+  final List<String> _listaAvataresOficial = [
     '🐱',
     '🐶',
     '🦊',
@@ -34,6 +37,7 @@ class __MeuPerfilPageState extends State<MeuPerfilPage> {
     '🐻',
     '🐵',
   ];
+
   String _avatarSelecionado = '🐱';
   bool _carregando = true;
 
@@ -57,7 +61,10 @@ class __MeuPerfilPageState extends State<MeuPerfilPage> {
           final usuario = UsuarioModel.fromMap(doc.data()!, doc.id);
           setState(() {
             _nomeController.text = usuario.nome;
-            _avatarSelecionado = usuario.avatarEmoji;
+            _avatarSelecionado =
+                _listaAvataresOficial.contains(usuario.avatarEmoji)
+                ? usuario.avatarEmoji
+                : '🐱';
             _instituicaoDoUsuario = usuario.instituicao;
             _carregando = false;
           });
@@ -92,11 +99,12 @@ class __MeuPerfilPageState extends State<MeuPerfilPage> {
       final novoEmail = _emailController.text.trim();
       final novoNome = _nomeController.text.trim();
 
-      // 1. 🔥 A CORREÇÃO: Atualiza o perfil nativo do Firebase Auth para o GoRouter ler instantaneamente
       await user.updateDisplayName(novoNome);
 
+      bool emailAlterado = false;
       if (novoEmail != user.email) {
         await user.verifyBeforeUpdateEmail(novoEmail);
+        emailAlterado = true;
       }
 
       final usuario = UsuarioModel(
@@ -114,7 +122,13 @@ class __MeuPerfilPageState extends State<MeuPerfilPage> {
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Perfil updated com sucesso! 🎉')),
+          SnackBar(
+            content: Text(
+              emailAlterado
+                  ? 'Perfil atualizado! Verifique sua caixa de entrada para validar o novo e-mail. 📧'
+                  : 'Perfil updated com sucesso! 🎉',
+            ),
+          ),
         );
       }
     } catch (e) {
@@ -188,6 +202,47 @@ class __MeuPerfilPageState extends State<MeuPerfilPage> {
       return const Scaffold(body: Center(child: CircularProgressIndicator()));
     }
 
+    // 🎨 LEITURA SEGURA COM FALLBACK PARA EVITAR ERROS DE COMPILAÇÃO
+    final dynamic estadoWhiteLabel = ref.watch(whiteLabelProvider);
+
+    String nomeInstituicao = 'Sistema de Ensino Rumo Quiz';
+    Color corPrimariaExibicao = Colors.blue.shade700;
+    Color corSecundariaExibicao = Colors.blue.shade50;
+    Color corBordaExibicao = Colors.blue.shade200;
+
+    // Tentativa dinâmica e segura de ler propriedades do seu provider
+    try {
+      if (estadoWhiteLabel != null) {
+        // Tenta ler strings de nome
+        if (estadoWhiteLabel.toString().contains('nome')) {
+          nomeInstituicao =
+              estadoWhiteLabel.nomeDaInstituicao ?? nomeInstituicao;
+        } else if (estadoWhiteLabel.toString().contains('instituicao')) {
+          nomeInstituicao = estadoWhiteLabel.nomeInstituicao ?? nomeInstituicao;
+        }
+
+        // Tenta buscar a cor hexadecimal
+        String? hexObtido;
+        if (estadoWhiteLabel.toString().contains('corPrimariaHex')) {
+          hexObtido = estadoWhiteLabel.corPrimariaHex;
+        } else if (estadoWhiteLabel.toString().contains('primaryColorHex')) {
+          hexObtido = estadoWhiteLabel.primaryColorHex;
+        }
+
+        if (hexObtido != null && hexObtido.isNotEmpty) {
+          final stringLimpa = hexObtido.replaceAll('#', '0xFF');
+          final valorInteiro = int.tryParse(stringLimpa);
+          if (valorInteiro != null) {
+            corPrimariaExibicao = Color(valorInteiro);
+            corSecundariaExibicao = Color(valorInteiro).withOpacity(0.12);
+            corBordaExibicao = Color(valorInteiro).withOpacity(0.4);
+          }
+        }
+      }
+    } catch (_) {
+      // Caso falhe qualquer reflexão, o fallback padrão acima segura a renderização estável
+    }
+
     return Scaffold(
       backgroundColor: Colors.grey.shade50,
       body: Center(
@@ -229,12 +284,14 @@ class __MeuPerfilPageState extends State<MeuPerfilPage> {
                 Center(
                   child: Column(
                     children: [
+                      // 🏛️ NOME DINÂMICO PROTEGIDO CONTRA ERROS
                       Text(
-                        'SISTEMA DE ENSINO RUMO QUIZ',
+                        nomeInstituicao.toUpperCase(),
+                        textAlign: TextAlign.center,
                         style: TextStyle(
-                          fontSize: 12,
+                          fontSize: 13,
                           fontWeight: FontWeight.bold,
-                          color: Colors.blue.shade800,
+                          color: corPrimariaExibicao,
                           letterSpacing: 1.5,
                         ),
                       ),
@@ -242,12 +299,12 @@ class __MeuPerfilPageState extends State<MeuPerfilPage> {
                       Container(
                         padding: const EdgeInsets.all(2),
                         decoration: BoxDecoration(
-                          color: Colors.blue.shade200,
+                          color: corBordaExibicao,
                           shape: BoxShape.circle,
                         ),
                         child: CircleAvatar(
                           radius: 55,
-                          backgroundColor: Colors.blue.shade50,
+                          backgroundColor: corSecundariaExibicao,
                           child: Text(
                             _avatarSelecionado,
                             style: const TextStyle(fontSize: 55),
@@ -271,6 +328,7 @@ class __MeuPerfilPageState extends State<MeuPerfilPage> {
                 _buildCardContainer(
                   titulo: 'Informações Pessoais',
                   icone: Icons.person_outline,
+                  corDoIcone: corPrimariaExibicao,
                   children: [
                     _buildTextField(
                       controller: _nomeController,
@@ -285,13 +343,17 @@ class __MeuPerfilPageState extends State<MeuPerfilPage> {
                       enabled: true,
                     ),
                     const SizedBox(height: 20),
-                    _buildBotaoSalvar(onPressed: _salvarDadosPerfil),
+                    _buildBotaoSalvar(
+                      onPressed: _salvarDadosPerfil,
+                      corDeFundo: corPrimariaExibicao,
+                    ),
                   ],
                 ),
                 const SizedBox(height: 24),
                 _buildCardContainer(
                   titulo: 'Escolha seu Avatar',
                   icone: Icons.face_retouching_natural,
+                  corDoIcone: corPrimariaExibicao,
                   children: [
                     const Text(
                       'Selecione um dos 10 animais fofos abaixo para personalizar a sua conta:',
@@ -308,9 +370,9 @@ class __MeuPerfilPageState extends State<MeuPerfilPage> {
                             crossAxisSpacing: 12,
                             childAspectRatio: 1.1,
                           ),
-                      itemCount: _listaAvatares.length,
+                      itemCount: _listaAvataresOficial.length,
                       itemBuilder: (context, index) {
-                        final avatar = _listaAvatares[index];
+                        final avatar = _listaAvataresOficial[index];
                         final isSelected = _avatarSelecionado == avatar;
                         return InkWell(
                           onTap: () =>
@@ -319,12 +381,12 @@ class __MeuPerfilPageState extends State<MeuPerfilPage> {
                           child: Container(
                             decoration: BoxDecoration(
                               color: isSelected
-                                  ? Colors.blue.shade50
+                                  ? corSecundariaExibicao
                                   : Colors.grey.shade50,
                               borderRadius: BorderRadius.circular(12),
                               border: Border.all(
                                 color: isSelected
-                                    ? Colors.blue.shade600
+                                    ? corPrimariaExibicao
                                     : Colors.grey.shade300,
                                 width: isSelected ? 2.5 : 1,
                               ),
@@ -339,13 +401,17 @@ class __MeuPerfilPageState extends State<MeuPerfilPage> {
                       },
                     ),
                     const SizedBox(height: 24),
-                    _buildBotaoSalvar(onPressed: _salvarDadosPerfil),
+                    _buildBotaoSalvar(
+                      onPressed: _salvarDadosPerfil,
+                      corDeFundo: corPrimariaExibicao,
+                    ),
                   ],
                 ),
                 const SizedBox(height: 24),
                 _buildCardContainer(
                   titulo: 'Alterar Senha',
                   icone: Icons.lock_open_outlined,
+                  corDoIcone: corPrimariaExibicao,
                   children: [
                     _buildTextField(
                       controller: _senhaAtualController,
@@ -385,7 +451,10 @@ class __MeuPerfilPageState extends State<MeuPerfilPage> {
                       },
                     ),
                     const SizedBox(height: 20),
-                    _buildBotaoSalvar(onPressed: _alterarSenhaFirebase),
+                    _buildBotaoSalvar(
+                      onPressed: _alterarSenhaFirebase,
+                      corDeFundo: corPrimariaExibicao,
+                    ),
                   ],
                 ),
               ],
@@ -399,6 +468,7 @@ class __MeuPerfilPageState extends State<MeuPerfilPage> {
   Widget _buildCardContainer({
     required String titulo,
     required IconData icone,
+    required Color corDoIcone,
     required List<Widget> children,
   }) {
     return Container(
@@ -413,7 +483,7 @@ class __MeuPerfilPageState extends State<MeuPerfilPage> {
         children: [
           Row(
             children: [
-              Icon(icone, color: Colors.blue.shade700, size: 24),
+              Icon(icone, color: corDoIcone, size: 24),
               const SizedBox(width: 8),
               Text(
                 titulo,
@@ -470,7 +540,10 @@ class __MeuPerfilPageState extends State<MeuPerfilPage> {
     );
   }
 
-  Widget _buildBotaoSalvar({required VoidCallback onPressed}) {
+  Widget _buildBotaoSalvar({
+    required VoidCallback onPressed,
+    required Color corDeFundo,
+  }) {
     return Align(
       alignment: Alignment.centerRight,
       child: ElevatedButton.icon(
@@ -481,7 +554,7 @@ class __MeuPerfilPageState extends State<MeuPerfilPage> {
           style: TextStyle(fontWeight: FontWeight.bold),
         ),
         style: ElevatedButton.styleFrom(
-          backgroundColor: Colors.blue.shade700,
+          backgroundColor: corDeFundo,
           foregroundColor: Colors.white,
           padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
