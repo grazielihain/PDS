@@ -28,15 +28,53 @@ class _PainelAdminPageState extends State<PainelAdminPage>
   final _nomeUsuarioController = TextEditingController();
   final _emailUsuarioController = TextEditingController();
   final _senhaUsuarioController = TextEditingController();
-  String _roleSelecionada = 'Acess3'; // Mantido padrão Aluno
+  String _roleSelecionada = 'Acess3';
   bool _ocultarSenha = true;
   bool _salvandoUsuario = false;
+
+  // Estados para Controle Master (Subtarefa 1.3)
+  final _nomeNovaInstituicaoController = TextEditingController();
+  final _corNovaInstituicaoController = TextEditingController();
+
+  String _currentRole = 'Acess2';
+  bool _loadingRole = true;
 
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 4, vsync: this);
+    _determinarRoleEInicializarTabs();
     _carregarDadosIdentidadeVisual();
+  }
+
+  Future<void> _determinarRoleEInicializarTabs() async {
+    try {
+      final doc = await _firestore
+          .collection('usuarios')
+          .doc(FirebaseAuth.instance.currentUser?.uid)
+          .get();
+      if (doc.exists && mounted) {
+        setState(() {
+          _currentRole = (doc.data()?['role'] ?? 'Acess2').toString().trim();
+          // Se for Master, ganha 3 abas extras de gerenciamento macro (Total 7)
+          int abasCount = _currentRole == 'Master' ? 7 : 4;
+          _tabController = TabController(length: abasCount, vsync: this);
+          _loadingRole = false;
+        });
+      } else {
+        _inicializarAbasPadrao();
+      }
+    } catch (e) {
+      _inicializarAbasPadrao();
+    }
+  }
+
+  void _inicializarAbasPadrao() {
+    if (mounted) {
+      setState(() {
+        _tabController = TabController(length: 4, vsync: this);
+        _loadingRole = false;
+      });
+    }
   }
 
   @override
@@ -47,6 +85,8 @@ class _PainelAdminPageState extends State<PainelAdminPage>
     _nomeUsuarioController.dispose();
     _emailUsuarioController.dispose();
     _senhaUsuarioController.dispose();
+    _nomeNovaInstituicaoController.dispose();
+    _corNovaInstituicaoController.dispose();
     super.dispose();
   }
 
@@ -190,52 +230,434 @@ class _PainelAdminPageState extends State<PainelAdminPage>
     }
   }
 
-  @override
-  Widget build(BuildContext context) {
-    return FutureBuilder<DocumentSnapshot>(
-      future: _firestore
-          .collection('usuarios')
-          .doc(FirebaseAuth.instance.currentUser?.uid)
-          .get(),
-      builder: (context, snapshot) {
-        String roleCriador = 'Acess2';
-        if (snapshot.hasData && snapshot.data!.exists) {
-          roleCriador = (snapshot.data!['role'] ?? 'Acess2').toString().trim();
-        }
+  // --- MÉTODOS COMPLEMENTARES MASTER (SUBTAREFAS 1.1, 1.2, 1.3) ---
 
-        return Scaffold(
-          appBar: TabBar(
-            controller: _tabController,
-            isScrollable: true,
-            labelColor: Theme.of(context).primaryColor,
-            unselectedLabelColor: Colors.grey,
-            tabs: const [
-              Tab(
-                icon: Icon(Icons.analytics_outlined),
-                text: 'Home / Relatórios',
+  Widget _buildHomeMaster() {
+    return StreamBuilder<QuerySnapshot>(
+      stream: _firestore.collection('instituicoes').snapshots(),
+      builder: (context, snapInst) {
+        return StreamBuilder<QuerySnapshot>(
+          stream: _firestore.collection('usuarios').snapshots(),
+          builder: (context, snapUser) {
+            int totalInst = snapInst.hasData ? snapInst.data!.docs.length : 0;
+            int totalAcess2 = 0;
+            int totalAcess3 = 0;
+
+            if (snapUser.hasData) {
+              for (var doc in snapUser.data!.docs) {
+                String r = (doc.data() as Map<String, dynamic>)['role'] ?? '';
+                if (r == 'Acess2') totalAcess2++;
+                if (r == 'Acess3') totalAcess3++;
+              }
+            }
+
+            return SingleChildScrollView(
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    'Visão Macro do Ecossistema',
+                    style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
+                  ),
+                  const Text(
+                    'Métricas gerais consolidadas em tempo real.',
+                    style: TextStyle(color: Colors.grey),
+                  ),
+                  const SizedBox(height: 20),
+                  LayoutBuilder(
+                    builder: (context, constraints) {
+                      final isMobile = constraints.maxWidth < 600;
+                      return Wrap(
+                        spacing: 16,
+                        runSpacing: 16,
+                        children: [
+                          _buildMetricCard(
+                            title: 'Instituições Ativas',
+                            value: totalInst.toString(),
+                            icon: Icons.business_outlined,
+                            color: Colors.blue,
+                            width: isMobile ? constraints.maxWidth : 220,
+                          ),
+                          _buildMetricCard(
+                            title: 'Gestores (Acess2)',
+                            value: totalAcess2.toString(),
+                            icon: Icons.manage_accounts_outlined,
+                            color: Colors.orange,
+                            width: isMobile ? constraints.maxWidth : 220,
+                          ),
+                          _buildMetricCard(
+                            title: 'Alunos (Acess3)',
+                            value: totalAcess3.toString(),
+                            icon: Icons.school_outlined,
+                            color: Colors.green,
+                            width: isMobile ? constraints.maxWidth : 220,
+                          ),
+                        ],
+                      );
+                    },
+                  ),
+                ],
               ),
-              Tab(
-                icon: Icon(Icons.palette_outlined),
-                text: 'Painel Administrativo',
-              ),
-              Tab(icon: Icon(Icons.gavel_outlined), text: 'Auditoria Interna'),
-              Tab(
-                icon: Icon(Icons.person_add_alt_1_outlined),
-                text: 'Novos Usuários',
-              ),
-            ],
-          ),
-          body: TabBarView(
-            controller: _tabController,
-            children: [
-              _buildHomeRelatorios(roleCriador),
-              _buildPainelAdministrativo(roleCriador),
-              _buildAuditoriaInterna(),
-              _buildCadastroUsuarios(roleCriador),
-            ],
-          ),
+            );
+          },
         );
       },
+    );
+  }
+
+  Widget _buildControladoriaMaster() {
+    return StreamBuilder<QuerySnapshot>(
+      stream: _firestore
+          .collection('auditoria')
+          .orderBy('dataHora', descending: true)
+          .limit(100)
+          .snapshots(),
+      builder: (context, snapshot) {
+        if (!snapshot.hasData)
+          return const Center(child: CircularProgressIndicator());
+
+        Map<String, int> consumoPorUser = {};
+        for (var doc in snapshot.data!.docs) {
+          var d = doc.data() as Map<String, dynamic>;
+          String u = d['userName'] ?? 'Desconhecido';
+          consumoPorUser[u] = (consumoPorUser[u] ?? 0) + 1;
+        }
+
+        return ListView(
+          padding: const EdgeInsets.all(16),
+          children: [
+            const Text(
+              'Consumo de Requisições de Escrita/Leitura (Auditoria)',
+              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+            ),
+            const Text(
+              'Ações monitoradas nas coleções ativas para proteção da cota grátis.',
+              style: TextStyle(color: Colors.grey),
+            ),
+            const SizedBox(height: 16),
+            ...consumoPorUser.entries.map(
+              (e) => Card(
+                child: ListTile(
+                  leading: const CircleAvatar(
+                    child: Icon(Icons.analytics_outlined),
+                  ),
+                  title: Text(e.key),
+                  subtitle: Text(
+                    'Operações persistidas na sessão corrente: ${e.value} requisições',
+                  ),
+                  trailing: Text(
+                    '${(e.value * 100 / snapshot.data!.docs.length).toStringAsFixed(1)}% do uso',
+                    style: const TextStyle(fontWeight: FontWeight.bold),
+                  ),
+                ),
+              ),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  Widget _buildGerenciamentoInstituicoes() {
+    return Column(
+      children: [
+        Padding(
+          padding: const EdgeInsets.all(16),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              const Text(
+                'Árvore de Instituições Vinculadas',
+                style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+              ),
+              ElevatedButton.icon(
+                onPressed: _abrirModalCriarInstituicao,
+                icon: const Icon(Icons.add),
+                label: const Text('Nova Escola'),
+              ),
+            ],
+          ),
+        ),
+        Expanded(
+          child: StreamBuilder<QuerySnapshot>(
+            stream: _firestore.collection('instituicoes').snapshots(),
+            builder: (context, snapshot) {
+              if (!snapshot.hasData)
+                return const Center(child: CircularProgressIndicator());
+              final docs = snapshot.data!.docs;
+
+              return ListView.builder(
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+                itemCount: docs.length,
+                itemBuilder: (context, idx) {
+                  final inst = docs[idx].data() as Map<String, dynamic>;
+                  final id = docs[idx].id;
+
+                  return Card(
+                    margin: const EdgeInsets.symmetric(vertical: 6),
+                    child: ExpansionTile(
+                      leading: CircleAvatar(
+                        backgroundColor: Color(
+                          int.parse(
+                            (inst['corHex'] ?? '#1E88E5').replaceAll(
+                              '#',
+                              '0xFF',
+                            ),
+                          ),
+                        ),
+                        child: const Icon(Icons.business, color: Colors.white),
+                      ),
+                      title: Text(inst['nome'] ?? 'Sem nome'),
+                      subtitle: Text('ID: $id'),
+                      children: [
+                        Padding(
+                          padding: const EdgeInsets.all(12),
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.end,
+                            children: [
+                              TextButton.icon(
+                                icon: const Icon(Icons.edit_outlined),
+                                label: const Text('Alterar Cadastro'),
+                                onPressed: () =>
+                                    _abrirModalEditarInstituicao(id, inst),
+                              ),
+                              const SizedBox(width: 12),
+                              TextButton.icon(
+                                icon: const Icon(
+                                  Icons.delete_outline,
+                                  color: Colors.red,
+                                ),
+                                label: const Text(
+                                  'Excluir',
+                                  style: TextStyle(color: Colors.red),
+                                ),
+                                onPressed: () => _verificarEExcluirInstituicao(
+                                  id,
+                                  inst['nome'] ?? '',
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                  );
+                },
+              );
+            },
+          ),
+        ),
+      ],
+    );
+  }
+
+  void _abrirModalCriarInstituicao() {
+    _nomeNovaInstituicaoController.clear();
+    _corNovaInstituicaoController.text = '#1E88E5';
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Adicionar Instituição'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            TextField(
+              controller: _nomeNovaInstituicaoController,
+              decoration: const InputDecoration(labelText: 'Nome da Escola'),
+            ),
+            TextField(
+              controller: _corNovaInstituicaoController,
+              decoration: const InputDecoration(labelText: 'Cor Hexadecimal'),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Cancelar'),
+          ),
+          ElevatedButton(
+            onPressed: () async {
+              if (_nomeNovaInstituicaoController.text.trim().isEmpty) return;
+              await _firestore.collection('instituicoes').add({
+                'nome': _nomeNovaInstituicaoController.text.trim(),
+                'corHex': _corNovaInstituicaoController.text.trim(),
+                'patrocinios': [],
+              });
+              if (mounted) Navigator.pop(ctx);
+            },
+            child: const Text('Salvar'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _abrirModalEditarInstituicao(String id, Map<String, dynamic> dados) {
+    _nomeNovaInstituicaoController.text = dados['nome'] ?? '';
+    _corNovaInstituicaoController.text = dados['corHex'] ?? '#1E88E5';
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Alterar Cadastro'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            TextField(
+              controller: _nomeNovaInstituicaoController,
+              decoration: const InputDecoration(labelText: 'Nome da Escola'),
+            ),
+            TextField(
+              controller: _corNovaInstituicaoController,
+              decoration: const InputDecoration(labelText: 'Cor Hexadecimal'),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Cancelar'),
+          ),
+          ElevatedButton(
+            onPressed: () async {
+              await _firestore.collection('instituicoes').doc(id).update({
+                'nome': _nomeNovaInstituicaoController.text.trim(),
+                'corHex': _corNovaInstituicaoController.text.trim(),
+              });
+              if (mounted) Navigator.pop(ctx);
+            },
+            child: const Text('Atualizar'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _verificarEExcluirInstituicao(String id, String nome) async {
+    final dependencias = await _firestore
+        .collection('usuarios')
+        .where('instituicaoId', isEqualTo: id)
+        .limit(1)
+        .get();
+
+    if (dependencias.docs.isNotEmpty && mounted) {
+      showDialog(
+        context: context,
+        builder: (ctx) => AlertDialog(
+          icon: const Icon(
+            Icons.warning_amber_rounded,
+            color: Colors.red,
+            size: 40,
+          ),
+          title: const Text('Operação Bloqueada'),
+          content: Text(
+            'A instituição "$nome" possui usuários filhos vinculados e não pode ser removida para evitar órfãos estruturais no ecossistema NoSQL.',
+          ),
+          actions: [
+            ElevatedButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: const Text('Compreendido'),
+            ),
+          ],
+        ),
+      );
+      return;
+    }
+
+    if (mounted) {
+      showDialog(
+        context: context,
+        builder: (ctx) => AlertDialog(
+          title: const Text('Confirmar Exclusão'),
+          content: Text(
+            'Deseja realmente remover permanentemente a instituição "$nome"? Esta ação não poderá ser desfeita.',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: const Text('Cancelar'),
+            ),
+            ElevatedButton(
+              style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+              onPressed: () async {
+                await _firestore.collection('instituicoes').doc(id).delete();
+                if (mounted) Navigator.pop(ctx);
+              },
+              child: const Text(
+                'Excluir de Vez',
+                style: TextStyle(color: Colors.white),
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+  }
+
+  // --- BUILD PRINCIPAL ---
+
+  @override
+  Widget build(BuildContext context) {
+    if (_loadingRole) {
+      return const Scaffold(body: Center(child: CircularProgressIndicator()));
+    }
+
+    final isMaster = _currentRole == 'Master';
+
+    return Scaffold(
+      appBar: AppBar(
+        title: Text(isMaster ? 'Painel Master Global' : 'Painel de Controle'),
+        bottom: TabBar(
+          controller: _tabController,
+          isScrollable: true,
+          labelColor: Theme.of(context).primaryColor,
+          unselectedLabelColor: Colors.grey,
+          tabs: [
+            if (isMaster) ...const [
+              Tab(
+                icon: Icon(Icons.admin_panel_settings_outlined),
+                text: 'Home Master',
+              ),
+              Tab(
+                icon: Icon(Icons.account_balance_outlined),
+                text: 'Controladoria',
+              ),
+              Tab(icon: Icon(Icons.lan_outlined), text: 'Instituições'),
+            ],
+            const Tab(
+              icon: Icon(Icons.analytics_outlined),
+              text: 'Home / Relatórios',
+            ),
+            const Tab(
+              icon: Icon(Icons.palette_outlined),
+              text: 'Painel Administrativo',
+            ),
+            const Tab(
+              icon: Icon(Icons.gavel_outlined),
+              text: 'Auditoria Interna',
+            ),
+            const Tab(
+              icon: Icon(Icons.person_add_alt_1_outlined),
+              text: 'Novos Usuários',
+            ),
+          ],
+        ),
+      ),
+      body: TabBarView(
+        controller: _tabController,
+        children: [
+          if (isMaster) ...[
+            _buildHomeMaster(),
+            _buildControladoriaMaster(),
+            _buildGerenciamentoInstituicoes(),
+          ],
+          _buildHomeRelatorios(_currentRole),
+          _buildPainelAdministrativo(_currentRole),
+          _buildAuditoriaInterna(),
+          _buildCadastroUsuarios(_currentRole),
+        ],
+      ),
     );
   }
 
@@ -335,9 +757,7 @@ class _PainelAdminPageState extends State<PainelAdminPage>
         borderRadius: BorderRadius.circular(12),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withAlpha(
-              12,
-            ), // ✅ CORRIGIDO: Substituído de withOpacity para comAlpha seguro
+            color: Colors.black.withAlpha(12),
             blurRadius: 6,
             offset: const Offset(0, 3),
           ),
@@ -347,9 +767,7 @@ class _PainelAdminPageState extends State<PainelAdminPage>
       child: Row(
         children: [
           CircleAvatar(
-            backgroundColor: color.withAlpha(
-              25,
-            ), // ✅ CORRIGIDO: Substituído de withOpacity para comAlpha seguro
+            backgroundColor: color.withAlpha(25),
             child: Icon(icon, color: color),
           ),
           const SizedBox(width: 12),
@@ -431,8 +849,7 @@ class _PainelAdminPageState extends State<PainelAdminPage>
             ),
             const SizedBox(height: 20),
             Row(
-              mainAxisAlignment: MainAxisAlignment
-                  .spaceBetween, // ✅ CORRIGIDO: Alterado de MainAxisAlignment.between para spaceBetween
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 Text(
                   'Patrocinadores no Rodapé (${_patrocinadoresUrls.length}/5)',
@@ -447,13 +864,11 @@ class _PainelAdminPageState extends State<PainelAdminPage>
                             ),
                           ),
                         )
-                      : () {
-                          setState(() {
-                            _patrocinadoresUrls.add(
-                              'https://picsum.photos/200/50?random=${_patrocinadoresUrls.length}',
-                            );
-                          });
-                        },
+                      : () => setState(
+                          () => _patrocinadoresUrls.add(
+                            'https://picsum.photos/200/50?random=${_patrocinadoresUrls.length}',
+                          ),
+                        ),
                   icon: const Icon(Icons.add_photo_alternate_outlined),
                   label: const Text('Anexar Logo (Até 2MB)'),
                 ),
@@ -524,13 +939,14 @@ class _PainelAdminPageState extends State<PainelAdminPage>
           );
         if (snapshot.connectionState == ConnectionState.waiting)
           return const Center(child: CircularProgressIndicator());
-        if (!snapshot.hasData || snapshot.data!.docs.isEmpty)
+        if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
           return const Center(
             child: Text(
               'Nenhuma atividade registrada nesta instituição.',
               style: TextStyle(color: Colors.grey),
             ),
           );
+        }
 
         return Scrollbar(
           thumbVisibility: true,
@@ -690,8 +1106,7 @@ class _PainelAdminPageState extends State<PainelAdminPage>
               const SizedBox(height: 12),
               if (roleCriador != 'Acess2') ...[
                 DropdownButtonFormField<String>(
-                  value:
-                      _roleSelecionada, // ✅ VALOR INICIAL ASSIGNADO COM SUPORTE EXATO ABAIXO
+                  value: _roleSelecionada,
                   decoration: const InputDecoration(
                     labelText: 'Nível de Acesso *',
                   ),
@@ -713,7 +1128,7 @@ class _PainelAdminPageState extends State<PainelAdminPage>
                 const Padding(
                   padding: EdgeInsets.symmetric(vertical: 8.0),
                   child: Text(
-                    'Nível de acesso configurado automaticamente como: ACESS3 (Aluno)',
+                    'Nivel de acesso configurado automaticamente como: ACESS3 (Aluno)',
                     style: TextStyle(
                       color: Colors.blue,
                       fontWeight: FontWeight.w500,
@@ -759,11 +1174,12 @@ class _PainelAdminPageState extends State<PainelAdminPage>
                   if (!snapshot.hasData)
                     return const Center(child: CircularProgressIndicator());
                   final docs = snapshot.data!.docs;
-                  if (docs.isEmpty)
+                  if (docs.isEmpty) {
                     return const Text(
                       'Nenhum usuário cadastrado até o momento.',
                       style: TextStyle(color: Colors.grey, fontSize: 12),
                     );
+                  }
 
                   return ListView.builder(
                     itemCount: docs.length,

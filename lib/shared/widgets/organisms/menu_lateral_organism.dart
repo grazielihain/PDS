@@ -1,28 +1,46 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
-class MenuLateralOrganism extends StatelessWidget {
+// ✨ PROVIDER REATIVO VIA MAP: Entrega as atualizações do banco em tempo real
+final usuarioStreamProvider = StreamProvider<Map<String, dynamic>?>((ref) {
+  final user = FirebaseAuth.instance.currentUser;
+  if (user == null) return Stream.value(null);
+  
+  return FirebaseFirestore.instance
+      .collection('usuarios')
+      .doc(user.uid)
+      .snapshots()
+      .map((doc) => doc.exists ? doc.data() : null);
+});
+
+class MenuLateralOrganism extends ConsumerWidget {
   final bool isWebMode;
   final bool isExpanded;
-  final String avatarEmoji;
-  final String nomeAluno;
 
   const MenuLateralOrganism({
     super.key,
     this.isWebMode = false,
     this.isExpanded = true,
-    required this.avatarEmoji,
-    required this.nomeAluno,
   });
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final mostrarTexto = !isWebMode || isExpanded;
+
+    // ✨ ESCUTANDO O STREAM DO USUÁRIO
+    final usuarioAsync = ref.watch(usuarioStreamProvider);
+    final dadosUsuario = usuarioAsync.value as Map<String, dynamic>?;
+
+    // 🔒 MANUTENÇÃO INTEGRA: Preservando os avatares e nomes reativos do início
+    final String avatarEmoji = dadosUsuario?['avatarEmoji'] ?? '🐱';
+    final String nomeAluno = dadosUsuario?['nome'] ?? 'Estudante';
+    final String role = dadosUsuario?['role'] ?? 'Acess3';
 
     Widget conteudoMenu = Column(
       children: [
-        // CABEÇALHO DO MENU: Sincronizado instantaneamente via construtor
         if (mostrarTexto)
           DrawerHeader(
             decoration: BoxDecoration(color: Colors.blue.shade700),
@@ -42,9 +60,9 @@ class MenuLateralOrganism extends StatelessWidget {
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                   ),
-                  const Text(
-                    'Portal do Aluno',
-                    style: TextStyle(color: Colors.white70, fontSize: 13),
+                  Text(
+                    'Nível: $role',
+                    style: const TextStyle(color: Colors.white70, fontSize: 13),
                   ),
                 ],
               ),
@@ -53,55 +71,95 @@ class MenuLateralOrganism extends StatelessWidget {
         else
           const SizedBox(height: 20),
 
-        // 1. ABA: HOME / DASHBOARD
-        _buildItemMenu(
-          context: context,
-          icon: Icons.dashboard_outlined,
-          label: 'Home / Dashboard',
-          route: '/quiz-selection',
-          mostrarTexto: mostrarTexto,
+        Expanded(
+          child: ListView(
+            padding: EdgeInsets.zero,
+            children: [
+              // 🌐 ABAS COMUNS (Todos os níveis enxergam)
+              _buildItemMenu(
+                context: context,
+                icon: Icons.play_lesson_outlined,
+                label: 'Fazer Quiz / Simulados',
+                route: '/quiz-selection',
+                mostrarTexto: mostrarTexto,
+              ),
+              _buildItemMenu(
+                context: context,
+                icon: Icons.history,
+                label: 'Histórico de Provas',
+                route: '/historico',
+                mostrarTexto: mostrarTexto,
+              ),
+              _buildItemMenu(
+                context: context,
+                icon: Icons.person_outline,
+                label: 'Meu Perfil',
+                route: '/perfil',
+                mostrarTexto: mostrarTexto,
+              ),
+
+              // 👑 ABAS EXCLUSIVAS: ADMIN E MASTER
+              if (role == 'Admin' || role == 'Master') ...[
+                const Padding(
+                  padding: EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
+                  child: Divider(),
+                ),
+                _buildItemMenu(
+                  context: context,
+                  icon: Icons.admin_panel_settings_outlined,
+                  label: 'Painel Conteúdo (Admin)',
+                  route: '/admin',
+                  mostrarTexto: mostrarTexto,
+                ),
+                _buildItemMenu(
+                  context: context,
+                  icon: Icons.person_add_alt_1_outlined,
+                  label: 'Cadastrar Usuários',
+                  route: '/cadastro-usuarios',
+                  mostrarTexto: mostrarTexto,
+                ),
+                _buildItemMenu(
+                  context: context,
+                  icon: Icons.analytics_outlined,
+                  label: 'Dashboard Analítico',
+                  route: '/dashboard-analitico',
+                  mostrarTexto: mostrarTexto,
+                ),
+              ],
+
+              // 🔴 ABAS EXCLUSIVAS: SOMENTE MASTER
+              if (role == 'Master') ...[
+                const Padding(
+                  padding: EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
+                  child: Divider(),
+                ),
+                _buildItemMenu(
+                  context: context,
+                  icon: Icons.gavel_outlined,
+                  label: 'Controladoria Master',
+                  route: '/master-home',
+                  mostrarTexto: mostrarTexto,
+                ),
+                _buildItemMenu(
+                  context: context,
+                  icon: Icons.lock_clock_outlined,
+                  label: 'Logs e Auditoria',
+                  route: '/auditoria-master',
+                  mostrarTexto: mostrarTexto,
+                ),
+                _buildItemMenu(
+                  context: context,
+                  icon: Icons.sports_esports_outlined,
+                  label: 'Configurar Recompensas',
+                  route: '/configuracao-gamificacao',
+                  mostrarTexto: mostrarTexto,
+                ),
+              ],
+            ],
+          ),
         ),
 
-        // 2. ABA: FAZER QUIZ / SIMULADOS
-        _buildItemMenu(
-          context: context,
-          icon: Icons.play_lesson_outlined,
-          label: 'Fazer Quiz / Simulados',
-          route: '/quiz-selection',
-          mostrarTexto: mostrarTexto,
-        ),
-
-        // 3. ABA: MEUS RESULTADOS
-        _buildItemMenu(
-          context: context,
-          icon: Icons.bar_chart_outlined,
-          label: 'Meus Resultados',
-          route: '/historico',
-          mostrarTexto: mostrarTexto,
-        ),
-
-        // 4. ABA: HISTÓRICO DE PROVAS
-        _buildItemMenu(
-          context: context,
-          icon: Icons.history,
-          label: 'Histórico de Provas',
-          route: '/historico',
-          mostrarTexto: mostrarTexto,
-        ),
-
-        // 5. ABA: MEU PERFIL
-        _buildItemMenu(
-          context: context,
-          icon: Icons.person_outline,
-          label: 'Meu Perfil',
-          route: '/perfil',
-          mostrarTexto: mostrarTexto,
-        ),
-
-        const Spacer(),
         const Divider(),
-
-        // BOTÃO SAIR DO APP
         Tooltip(
           message: mostrarTexto ? '' : 'Sair do Aplicativo',
           child: ListTile(

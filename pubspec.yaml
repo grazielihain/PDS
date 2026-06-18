@@ -55,6 +55,12 @@ dependencies:
   firebase_auth: ^5.7.0
   intl: ^0.20.2
 
+  # Biblioteca para selecionar arquivos do dispositivo
+  file_picker: ^6.1.1
+
+  # Biblioteca para exibir gráficos e visualizações de dados
+  fl_chart: ^0.66.0
+
 dev_dependencies:
   flutter_test:
     sdk: flutter

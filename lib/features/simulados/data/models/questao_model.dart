@@ -5,9 +5,9 @@ class QuestaoModel {
   final String pergunta;
   final List<String> opcoes;
   final int respostaCorretaIndex;
-  final String instituicaoId; 
-  final String categoriaId;   
-  final String assuntoId;     
+  final String instituicaoId;
+  final String categoriaId;
+  final String assuntoId;
 
   QuestaoModel({
     required this.id,
@@ -19,19 +19,40 @@ class QuestaoModel {
     required this.assuntoId,
   });
 
-  factory QuestaoModel.fromFirestore(DocumentSnapshot doc) {
-    final data = doc.data() as Map<String, dynamic>? ?? {};
-    final List<dynamic> opcoesRaw = data['opcoes'] ?? [];
-    final List<String> opcoesLista = opcoesRaw.map((e) => e.toString()).toList();
+  // 1️⃣ MÉTODO ADICIONADO: Necessário para o RevisaoQuestaoModel conseguir salvar a questão no Firestore
+  Map<String, dynamic> toMap() {
+    return <String, dynamic>{
+      'id': id,
+      'pergunta': pergunta,
+      'opcoes': opcoes,
+      'respostaCorretaIndex': respostaCorretaIndex,
+      'instituicaoId': instituicaoId,
+      'categoriaId': categoriaId,
+      'assuntoId': assuntoId,
+    };
+  }
+
+  // 2️⃣ CONSTRUTOR ADICIONADO: Permite criar o objeto a partir de um Map puro (usado no fromMap da revisão e do perfil)
+  factory QuestaoModel.fromMap(Map<String, dynamic> map, String docId) {
+    final List<dynamic> opcoesRaw = map['opcoes'] ?? [];
+    final List<String> opcoesLista = opcoesRaw
+        .map((e) => e.toString())
+        .toList();
 
     return QuestaoModel(
-      id: doc.id,
-      pergunta: data['pergunta'] ?? '',
+      id: map['id'] ?? docId,
+      pergunta: map['pergunta'] ?? '',
       opcoes: opcoesLista,
-      respostaCorretaIndex: (data['respostaCorretaIndex'] as num?)?.toInt() ?? 0,
-      instituicaoId: data['instituicaoId'] ?? '',
-      categoriaId: data['categoriaId'] ?? '',
-      assuntoId: data['assuntoId'] ?? '',
+      respostaCorretaIndex: (map['respostaCorretaIndex'] as num?)?.toInt() ?? 0,
+      instituicaoId: map['instituicaoId'] ?? '',
+      categoriaId: map['categoriaId'] ?? '',
+      assuntoId: map['assuntoId'] ?? '',
     );
+  }
+
+  // Mantido seu método original do Firestore (ele agora pode até reaproveitar o fromMap internamente)
+  factory QuestaoModel.fromFirestore(DocumentSnapshot doc) {
+    final data = doc.data() as Map<String, dynamic>? ?? {};
+    return QuestaoModel.fromMap(data, doc.id);
   }
 }

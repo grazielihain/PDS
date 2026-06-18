@@ -20,42 +20,6 @@ class MainLayoutShell extends ConsumerStatefulWidget {
 
 class _MainLayoutShellState extends ConsumerState<MainLayoutShell> {
   bool _menuWebExpandido = true;
-  Map<String, dynamic>? _dadosUsuario;
-  bool _carregandoUsuario = true;
-
-  @override
-  void initState() {
-    super.initState();
-    _carregarDadosUsuarioUmaVez(); // 🛡️ Substituído snapshots() por leitura única
-  }
-
-  /// 💰 PROTEÇÃO DO PLANO GRATUITO: Faz um único get() e guarda em cache local
-  Future<void> _carregarDadosUsuarioUmaVez() async {
-    final user = FirebaseAuth.instance.currentUser;
-    if (user == null) {
-      if (mounted) context.go('/login');
-      return;
-    }
-
-    try {
-      final doc = await FirebaseFirestore.instance
-          .collection('usuarios')
-          .doc(user.uid)
-          .get();
-
-      if (mounted && doc.exists) {
-        setState(() {
-          _dadosUsuario = doc.data();
-          _carregandoUsuario = false;
-        });
-      } else {
-        if (mounted) setState(() => _carregandoUsuario = false);
-      }
-    } catch (e) {
-      debugPrint('Erro ao ler usuário: $e');
-      if (mounted) setState(() => _carregandoUsuario = false);
-    }
-  }
 
   Color _converterHexParaCor(String? hex) {
     if (hex == null || hex.isEmpty) return Colors.blue.shade700;
@@ -69,16 +33,32 @@ class _MainLayoutShellState extends ConsumerState<MainLayoutShell> {
 
   @override
   Widget build(BuildContext context) {
-    if (_carregandoUsuario) {
+    // ✨ ESCUTA EM TEMPO REAL: Monitora o canal de dados do usuário
+    final usuarioAsync = ref.watch(usuarioStreamProvider);
+
+    // Exibe o carregamento inicial caso os dados ainda estejam vindo do Firestore
+    if (usuarioAsync.isLoading && !usuarioAsync.hasValue) {
+      return const Scaffold(body: Center(child: CircularProgressIndicator()));
+    }
+
+    // 🛡️ CAST CORRIGIDO: Garante ao Dart que o retorno é um mapa válido
+    final dadosUsuario = usuarioAsync.value as Map<String, dynamic>?;
+
+    // Redireciona de forma segura caso o estado seja nulo (deslogado)
+    if (dadosUsuario == null && !usuarioAsync.isLoading) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) context.go('/login');
+      });
       return const Scaffold(body: Center(child: CircularProgressIndicator()));
     }
 
     // 🎨 SUBTAREFA 2.2: Lendo dados dinâmicos do Estado Global White Label (Riverpod)
     final estadoWhiteLabel = ref.watch(whiteLabelProvider);
 
-    final String avatar = _dadosUsuario?['avatarEmoji'] ?? '👨‍🎓';
-    final String nomeAluno = _dadosUsuario?['nome'] ?? 'Estudante';
-    final String tipoAcesso = (_dadosUsuario?['role'] ?? 'Acesso')
+    // 🛡️ ACESSO VIA MAPA: Sincronizado dinamicamente
+    final String avatar = dadosUsuario?['avatarEmoji'] ?? '👨‍🎓';
+    final String nomeAluno = dadosUsuario?['nome'] ?? 'Estudante';
+    final String tipoAcesso = (dadosUsuario?['role'] ?? 'Acesso')
         .toString()
         .trim();
 
@@ -89,7 +69,6 @@ class _MainLayoutShellState extends ConsumerState<MainLayoutShell> {
 
     if (estadoWhiteLabel != null) {
       try {
-        // Mapeia de forma flexível dependendo de como as propriedades estão nomeadas no seu modelo
         corHexDoBanco = estadoWhiteLabel.toString().contains('corPrimariaHex')
             ? (estadoWhiteLabel as dynamic).corPrimariaHex
             : (estadoWhiteLabel as dynamic).primaryColorHex;
@@ -107,11 +86,11 @@ class _MainLayoutShellState extends ConsumerState<MainLayoutShell> {
     }
 
     // Fallbacks visuais automáticos pedidos na especificação técnica
-    final String iNstituicaoNome = _dadosUsuario?['instituicao'] ?? 'Rumo Quiz';
+    final String iNstituicaoNome = dadosUsuario?['instituicao'] ?? 'Rumo Quiz';
     final String? logoInstituicao =
-        logoDoBanco ?? _dadosUsuario?['logoInstituicao'];
+        logoDoBanco ?? dadosUsuario?['logoInstituicao'];
 
-    // 🛡️ TRAVA DE SEGURANÇA: Limitado a no máximo 5 itens com Fallback para lista vazia (controlada pelo carrossel)
+    // 🛡️ TRAVA DE SEGURANÇA: Limitado a no máximo 5 itens com Fallback para lista vazia
     final List<String> patrocinadoresUrls = patrocinadoresBrutos
         .take(5)
         .toList();
@@ -119,7 +98,7 @@ class _MainLayoutShellState extends ConsumerState<MainLayoutShell> {
     final Color corPrimaria = (tipoAcesso == 'Admin')
         ? Colors.indigo.shade50
         : _converterHexParaCor(
-            corHexDoBanco ?? _dadosUsuario?['corCustomizada'],
+            corHexDoBanco ?? dadosUsuario?['corCustomizada'],
           );
 
     return LayoutBuilder(
@@ -129,12 +108,7 @@ class _MainLayoutShellState extends ConsumerState<MainLayoutShell> {
         return Scaffold(
           drawer: isWeb
               ? null
-              : MenuLateralOrganism(
-                  isWebMode: false,
-                  isExpanded: true,
-                  avatarEmoji: avatar,
-                  nomeAluno: nomeAluno,
-                ),
+              : const MenuLateralOrganism(isWebMode: false, isExpanded: true),
           appBar: AppBar(
             backgroundColor: corPrimaria,
             foregroundColor: (tipoAcesso == 'Admin')
@@ -240,11 +214,10 @@ class _MainLayoutShellState extends ConsumerState<MainLayoutShell> {
                 AnimatedContainer(
                   duration: const Duration(milliseconds: 200),
                   width: _menuWebExpandido ? 260 : 70,
+                  // 🛡️ CORRIGIDO: O prefixo 'const' foi removido aqui para permitir os dados dinâmicos do menu
                   child: MenuLateralOrganism(
                     isWebMode: true,
                     isExpanded: _menuWebExpandido,
-                    avatarEmoji: avatar,
-                    nomeAluno: nomeAluno,
                   ),
                 ),
               if (isWeb) VerticalDivider(width: 1, color: Colors.grey.shade300),
@@ -252,8 +225,7 @@ class _MainLayoutShellState extends ConsumerState<MainLayoutShell> {
             ],
           ),
           bottomNavigationBar: CarrosselPatrocinadores(
-            logosUrls:
-                patrocinadoresUrls, // Injeta a lista blindada de até 5 itens
+            logosUrls: patrocinadoresUrls,
             corCustomizadaInstituicao: corPrimaria,
           ),
         );

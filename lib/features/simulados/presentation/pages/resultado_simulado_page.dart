@@ -2,7 +2,6 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:rumo_quiz/features/simulados/presentation/pages/inspecionar_simulado_page.dart';
 import 'package:rumo_quiz/features/simulados/presentation/providers/quiz_session_provider.dart';
 import 'package:rumo_quiz/features/simulados/services/certificado_service.dart';
 import 'package:rumo_quiz/features/simulados/data/models/revisao_questao_model.dart';
@@ -66,7 +65,6 @@ class ResultadoSimuladoPage extends ConsumerWidget {
     final double larguraTela = MediaQuery.of(context).size.width;
     final bool isMobile = larguraTela < 600;
 
-    // 🎨 Cores Oficiais da Identidade Rumo Quiz (Verde Esmeralda e Laranja Claro)
     final Color verdeEsmeralda = const Color(0xFF10B981);
     final Color laranjaClaro = const Color(0xFFF97316);
 
@@ -194,7 +192,7 @@ class ResultadoSimuladoPage extends ConsumerWidget {
                   const Divider(height: 1, color: Color(0xFFE5E7EB)),
                   const SizedBox(height: 28),
 
-                  // SEÇÃO 3: RESUMO METRIFICADO (REGRAS VINCULADAS AO TIPO DE PROVA)
+                  // SEÇÃO 3: RESUMO METRIFICADO
                   const Text(
                     'Resumo do Desempenho',
                     style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Color(0xFF1F2937)),
@@ -208,11 +206,9 @@ class ResultadoSimuladoPage extends ConsumerWidget {
                       _buildCardResumoLarguraMutavel('Acertos', '$acertos', verdeEsmeralda, verdeEsmeralda.withValues(alpha: 0.08), larguraTela),
                       _buildCardResumoLarguraMutavel('Erros', '$erros', laranjaClaro, laranjaClaro.withValues(alpha: 0.08), larguraTela),
                       
-                      // ✅ REGRA: Ponto de Prova só aparece no Resumo se for Prova Completa (!provaPorAssunto)
                       if (!provaPorAssunto)
                         _buildCardResumoLarguraMutavel('Pontos de Prova', '${notaObtida.toStringAsFixed(1)} / $notaMaxima', corInstitucional, corInstitucional.withValues(alpha: 0.04), larguraTela),
                       
-                      // ✅ REGRA: Pontuação Acumulada (Gamificação) sempre aparece no Resumo de Prova
                       _buildCardResumoLarguraMutavel('Pontuação Acumulada', '+$pontosGamificacao XP', Colors.amber.shade900, Colors.amber.shade50, larguraTela),
                       
                       _buildCardResumoLarguraMutavel('Tempo Decorrido', _formatarTempo(tempoUtilizadoSegundos), Colors.teal.shade700, Colors.teal.shade50, larguraTela),
@@ -313,18 +309,15 @@ class ResultadoSimuladoPage extends ConsumerWidget {
               nomeAluno: nomeAtualizado,
               nomeInstiticao: instituicaoDoAluno,
               logoUrl: logoUrl,
-              isPorAssunto: isPorAssunto, // <-- Passado corretamente para omitir Ponto de Prova no PDF se for por assunto
+              isPorAssunto: isPorAssunto,
             );
           } else if (label.contains('Inspecionar') || label.contains('Prova')) {
-            Navigator.push(
-              context,
-              MaterialPageRoute(
-                builder: (context) => InspecionarSimuladoPage(
-                  tituloSimulado: tituloSimulado,
-                  revisaoQuestoes: revisaoQuestoes,
-                ),
-              ),
-            );
+            // Navegação limpa usando GoRouter!
+            // Passamos os dados necessários via extra através de um Map
+            context.push('/inspecionar', extra: {
+              'tituloSimulado': tituloSimulado,
+              'revisaoQuestoes': revisaoQuestoes,
+            });
           }
         },
       ),
