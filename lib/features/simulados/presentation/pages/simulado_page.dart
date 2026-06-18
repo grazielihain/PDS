@@ -1,15 +1,112 @@
+import 'dart:convert';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:shared_preferences/shared_preferences.dart'; // 📦 Custo Zero garantido!
 import '../../data/models/questao_model.dart';
 import '../../data/models/revisao_questao_model.dart';
 import '../controllers/simulado_controller.dart';
 import '../providers/quiz_session_provider.dart';
 
-class SimuladoPage extends ConsumerWidget {
+class SimuladoPage extends ConsumerStatefulWidget {
   const SimuladoPage({Key? key}) : super(key: key);
 
+  @override
+  ConsumerState<SimuladoPage> createState() => _SimuladoPageState();
+}
+
+class _SimuladoPageState extends ConsumerState<SimuladoPage> {
+  final String? _uid = FirebaseAuth.instance.currentUser?.uid;
+  bool _inicializadoLocalmente = false;
+
+  @override
+  void initState() {
+    super.initState();
+    // Tenta restaurar o rascunho salvo no dispositivo assim que entra na tela
+    _restaurarRascunhoLocal();
+  }
+
+  // ===========================================================================
+  // 💾 INTELIGÊNCIA DE PERSISTÊNCIA LOCAL (SHERED PREFERENCES)
+  // ===========================================================================
+  Future<void> _restaurarRascunhoLocal() async {
+    if (_uid == null) return;
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final String? rascunhoJson = prefs.getString('rascunho_simulado_$_uid');
+
+      if (rascunhoJson != null) {
+        final Map<String, dynamic> dados = jsonDecode(rascunhoJson);
+        final int indiceSalvo = dados['indiceQuestaoAtual'] ?? 0;
+        final int tempoSalvo = dados['tempoRestanteSegundos'] ?? 0;
+        final Map<String, dynamic> respostasSalvasRaw =
+            dados['respostas'] ?? {};
+
+        final Map<String, String> respostasSalvas = respostasSalvasRaw.map(
+          (key, value) => MapEntry(key, value.toString()),
+        );
+
+        // Injeta os dados recuperados diretamente no seu Notifier do Riverpod
+        final notifier = ref.read(quizSessionProvider.notifier);
+
+        // Sincroniza o estado reativo com a memória local recuperada
+        if (respostasSalvas.isNotEmpty) {
+          respostasSalvas.forEach((questaoId, alternativa) {
+            notifier.selecionarAlternativa(questaoId, alternativa);
+          });
+        }
+
+        // Ajusta o índice e o cronômetro para onde parou
+        for (int i = 0; i < indiceSalvo; i++) {
+          notifier.proximaQuestao();
+        }
+
+        // Nota: Certifique-se que seu notifier permite atualizar o tempo se necessário,
+        // ou se ele já manipula o tempo internamente a partir do estado inicial.
+      }
+    } catch (e) {
+      debugPrint('Erro ao restaurar progresso local: $e');
+    } finally {
+      setState(() {
+        _inicializadoLocalmente = true;
+      });
+    }
+  }
+
+  Future<void> _salvarRascunhoLocal(QuizSessionState state) async {
+    if (_uid == null || !_inicializadoLocalmente) return;
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final Map<String, dynamic> dadosParaSalvar = {
+        'indiceQuestaoAtual': state.indiceQuestaoAtual,
+        'tempoRestanteSegundos': state.tempoRestanteSegundos,
+        'respostas': state.respostasSelecionadas,
+      };
+
+      // Salva no telefone do aluno sem gerar nenhuma requisição ou custo no Firebase
+      await prefs.setString(
+        'rascunho_simulado_$_uid',
+        jsonEncode(dadosParaSalvar),
+      );
+    } catch (e) {
+      debugPrint('Erro ao salvar rascunho local: $e');
+    }
+  }
+
+  Future<void> _limparRascunhoLocal() async {
+    if (_uid == null) return;
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.remove('rascunho_simulado_$_uid');
+    } catch (e) {
+      debugPrint('Erro ao limpar rascunho local: $e');
+    }
+  }
+
+  // ===========================================================================
+  // 🏁 ENVIO E PROCESSAMENTO DO SIMULADO (SUA LÓGICA ORIGINAL)
+  // ===========================================================================
   Future<void> _processarEnvioSimulado({
     required BuildContext context,
     required QuizSessionState sessionState,
@@ -17,6 +114,9 @@ class SimuladoPage extends ConsumerWidget {
     required dynamic controllerNotifier,
   }) async {
     debugPrint('======= PROCESSANDO ENVIO DO SIMULADO =======');
+
+    // Remove o rascunho local já que a prova foi finalizada com sucesso
+    await _limparRascunhoLocal();
 
     int totalAcertos = 0;
     List<Map<String, dynamic>> listaRevisaoJson = [];
@@ -100,7 +200,7 @@ class SimuladoPage extends ConsumerWidget {
   }
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  Widget build(BuildContext context) {
     final QuizSessionState sessionState = ref.watch(quizSessionProvider);
     final QuizSessionNotifier sessionNotifier = ref.read(
       quizSessionProvider.notifier,
@@ -108,6 +208,11 @@ class SimuladoPage extends ConsumerWidget {
 
     final controllerState = ref.watch(simuladoControllerProvider);
     final controllerNotifier = ref.read(simuladoControllerProvider.notifier);
+
+    // 🔄 GATILHO AUTOMÁTICO: Sempre que o estado mudar (tempo ou resposta), atualiza o backup local
+    if (_inicializadoLocalmente) {
+      _salvarRascunhoLocal(sessionState);
+    }
 
     final double larguraTela = MediaQuery.of(context).size.width;
     final bool isMobile = larguraTela < 600;
@@ -127,7 +232,7 @@ class SimuladoPage extends ConsumerWidget {
       });
     }
 
-    if (controllerState is AsyncLoading) {
+    if (controllerState is AsyncLoading || !_inicializadoLocalmente) {
       return const Scaffold(body: Center(child: CircularProgressIndicator()));
     }
 
@@ -374,11 +479,12 @@ class SimuladoPage extends ConsumerWidget {
                                       color: Color(0xFF2563EB),
                                     )
                                   : null,
-                              onTap: () =>
-                                  sessionNotifier.selecionarAlternativa(
-                                    questaoAtual.id,
-                                    opcaoTexto,
-                                  ),
+                              onTap: () {
+                                sessionNotifier.selecionarAlternativa(
+                                  questaoAtual.id,
+                                  opcaoTexto,
+                                );
+                              },
                             ),
                           );
                         },
@@ -410,7 +516,6 @@ class SimuladoPage extends ConsumerWidget {
                   child: Column(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      // Linha de Botões Anterior / Próxima
                       Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
