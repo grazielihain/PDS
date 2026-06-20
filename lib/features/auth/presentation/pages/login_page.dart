@@ -18,6 +18,7 @@ class _LoginPageState extends ConsumerState<LoginPage> {
   final _emailController = TextEditingController();
   final _senhaController = TextEditingController();
   bool _ocultarSenha = true;
+  bool _isLoading = false;
 
   @override
   void dispose() {
@@ -150,88 +151,99 @@ class _LoginPageState extends ConsumerState<LoginPage> {
                         : null,
                   ),
                   const SizedBox(height: 8),
-
-                  // 🟢 LOCAL DE ENCAIXE DO CLIQUE: Associado à nossa nova função
                   Align(
                     alignment: Alignment.centerRight,
                     child: TextButton(
-                      onPressed: () => _exibirModalRecuperarSenha(
-                        context,
-                        ref,
-                      ), // 👈 Chamando o Modal aqui!
+                      onPressed: () => _exibirModalRecuperarSenha(context, ref),
                       child: const Text('Esqueci minha senha'),
                     ),
                   ),
                   const SizedBox(height: 24),
                   ElevatedButton(
-  onPressed: () async {
-    if (_formKey.currentState!.validate()) {
-      try {
-        // 1. Executa o login real chamando o repositório através do DataSource
-        final dynamic userModel = await ref
-            .read(authDataSourceProvider)
-            .loginWithEmailAndPassword(
-              _emailController.text.trim(),
-              _senhaController.text.trim(),
-            );
+                    onPressed: _isLoading ? null : () async {
+                      if (_formKey.currentState!.validate()) {
+                        setState(() => _isLoading = true);
+                        try {
+                          // 1. Executa o login real de forma segura usando FirebaseAuth
+                          final UserCredential credential = await FirebaseAuth.instance
+                              .signInWithEmailAndPassword(
+                            email: _emailController.text.trim(),
+                            password: _senhaController.text.trim(),
+                          );
 
-        // 2. Se o login deu certo, dispara o Log de Auditoria obrigatoriamente
-        await ref
-            .read(whiteLabelProvider.notifier)
-            .inicializarIdentidade(
-              userModel.institutionId,
-              '',
-            );
+                          final User? user = credential.user;
+                          if (user == null) throw Exception("Falha ao autenticar usuário.");
 
-        // 3. Direciona o utilizador com base no perfil (Role) de forma dinâmica
-        if (context.mounted) {
-          final String roleLimpa = userModel.role.toString().trim().toLowerCase();
+                          // Captura o documento do usuário no Firestore
+                          final docUser = await FirebaseFirestore.instance
+                              .collection('usuarios')
+                              .doc(user.uid)
+                              .get();
 
-          // 👑 SUBTAREFA 1.2: Redireciona o Master corretamente para o seu painel macro exclusivo
-          if (roleLimpa == 'master') {
-            context.go('/master-home');
-          } 
-          else if (roleLimpa == 'admin' || roleLimpa == 'acess2') {
-            context.go('/admin-painel', extra: {'instituicaoId': userModel.institutionId});
-          } 
-          else {
-            // 🎯 SUBTAREFA 1.3: Interceptação de cadastro (Acess3)
-            // Se o modelo do usuário trouxer a flag de primeiro login ativa, tratamos aqui
-            try {
-              final bool primeiroLogin = userModel.primeiroLogin ?? false;
-              if (primeiroLogin) {
-                // Atualiza o documento no Firestore de forma isolada mudando a flag para false
-                await FirebaseFirestore.instance
-                    .collection('usuarios')
-                    .doc(FirebaseAuth.instance.currentUser?.uid)
-                    .update({'primeiroLogin': false});
-              }
-            } catch (_) {}
+                          if (!docUser.exists) throw Exception("Cadastro não encontrado no banco de dados.");
+                          final dadosUsuario = docUser.data() ?? {};
 
-            // Vai direto para os simulados sem passar por telas intermediárias
-            context.go('/quiz-selection');
-          }
-        }
-      } catch (e) {
-        // Se a senha estiver errada ou o usuário não existir, mostra o erro na tela
-        if (context.mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text(
-                e.toString().replaceAll('Exception: ', ''),
-              ),
-              backgroundColor: Colors.red,
-            ),
-          );
-        }
-      }
-    }
-  },
-  style: ElevatedButton.styleFrom(
-    padding: const EdgeInsets.symmetric(vertical: 16),
-  ),
-  child: const Text('Entrar', style: TextStyle(fontSize: 16)),
-),
+                          final String instituicaoId = dadosUsuario['instituicaoId'] ?? 'ulbra-01';
+                          final String roleLimpa = (dadosUsuario['role'] ?? 'Acess3').toString().trim().toLowerCase();
+
+                          // 2. Dispara o Log de Auditoria obrigatório na coleção histórica
+                          await FirebaseFirestore.instance.collection('login_logs').add({
+                            'usuarioId': user.uid,
+                            'email': user.email,
+                            'role': roleLimpa,
+                            'instituicaoId': instituicaoId,
+                            'timestamp': FieldValue.serverTimestamp(),
+                            'platform': 'Flutter Application',
+                          });
+
+                          // Inicializa as propriedades visuais da instituição na memória RAM do app
+                          await ref
+                              .read(whiteLabelProvider.notifier)
+                              .inicializarIdentidade(instituicaoId, '');
+
+                          // 3. Redirecionamento dinâmico baseado em papéis e tratamento de primeiro login
+                          if (context.mounted) {
+                            if (roleLimpa == 'master') {
+                              context.go('/master-home');
+                            } 
+                            else if (roleLimpa == 'admin' || roleLimpa == 'acess2') {
+                              context.go('/admin'); // Corrigido para bater com app_router.dart
+                            } 
+                            else {
+                              // Interceptação de primeiro login para contas Acess3 (Alunos)
+                              final bool primeiroLogin = dadosUsuario['primeiroLogin'] ?? false;
+                              if (primeiroLogin) {
+                                await FirebaseFirestore.instance
+                                    .collection('usuarios')
+                                    .doc(user.uid)
+                                    .update({'primeiroLogin': false});
+                              }
+                              context.go('/quiz-selection');
+                            }
+                          }
+                        } catch (e) {
+                          if (context.mounted) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(
+                                content: Text(
+                                  e.toString().replaceAll('Exception: ', ''),
+                                ),
+                                backgroundColor: Colors.red,
+                              ),
+                            );
+                          }
+                        } finally {
+                          if (mounted) setState(() => _isLoading = false);
+                        }
+                      }
+                    },
+                    style: ElevatedButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(vertical: 16),
+                    ),
+                    child: _isLoading 
+                      ? const SizedBox(height: 20, width: 20, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
+                      : const Text('Entrar', style: TextStyle(fontSize: 16)),
+                  ),
                 ],
               ),
             ),

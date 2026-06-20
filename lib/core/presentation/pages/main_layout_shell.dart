@@ -1,13 +1,11 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart'; // 📦 Injetado Riverpod
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../../shared/widgets/organisms/menu_lateral_organism.dart';
 import 'package:rumo_quiz/shared/widgets/organisms/carrossel_patrocinadores.dart';
-// 🔥 Importamos o provedor White Label para usar o cache de memória gratuito
 import 'package:rumo_quiz/features/auth/presentation/providers/white_label_notifier.dart';
 
 class MainLayoutShell extends ConsumerStatefulWidget {
@@ -33,18 +31,14 @@ class _MainLayoutShellState extends ConsumerState<MainLayoutShell> {
 
   @override
   Widget build(BuildContext context) {
-    // ✨ ESCUTA EM TEMPO REAL: Monitora o canal de dados do usuário
     final usuarioAsync = ref.watch(usuarioStreamProvider);
 
-    // Exibe o carregamento inicial caso os dados ainda estejam vindo do Firestore
     if (usuarioAsync.isLoading && !usuarioAsync.hasValue) {
       return const Scaffold(body: Center(child: CircularProgressIndicator()));
     }
 
-    // 🛡️ CAST CORRIGIDO: Garante ao Dart que o retorno é um mapa válido
-    final dadosUsuario = usuarioAsync.value as Map<String, dynamic>?;
+    final dadosUsuario = usuarioAsync.value;
 
-    // Redireciona de forma segura caso o estado seja nulo (deslogado)
     if (dadosUsuario == null && !usuarioAsync.isLoading) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (mounted) context.go('/login');
@@ -52,17 +46,14 @@ class _MainLayoutShellState extends ConsumerState<MainLayoutShell> {
       return const Scaffold(body: Center(child: CircularProgressIndicator()));
     }
 
-    // 🎨 SUBTAREFA 2.2: Lendo dados dinâmicos do Estado Global White Label (Riverpod)
     final estadoWhiteLabel = ref.watch(whiteLabelProvider);
 
-    // 🛡️ ACESSO VIA MAPA: Sincronizado dinamicamente
     final String avatar = dadosUsuario?['avatarEmoji'] ?? '👨‍🎓';
-    final String nomeAluno = dadosUsuario?['nome'] ?? 'Estudante';
-    final String tipoAcesso = (dadosUsuario?['role'] ?? 'Acesso')
+    final String nomeUsuario = dadosUsuario?['nome'] ?? 'Usuário';
+    final String tipoAcesso = (dadosUsuario?['role'] ?? 'Acess3')
         .toString()
         .trim();
 
-    // Captura segura de propriedades vindas do Provider Global White Label
     String? corHexDoBanco;
     String? logoDoBanco;
     List<String> patrocinadoresBrutos = [];
@@ -85,18 +76,16 @@ class _MainLayoutShellState extends ConsumerState<MainLayoutShell> {
       } catch (_) {}
     }
 
-    // Fallbacks visuais automáticos pedidos na especificação técnica
-    final String iNstituicaoNome = dadosUsuario?['instituicao'] ?? 'Rumo Quiz';
+    final String instituicaoNome = dadosUsuario?['instituicao'] ?? 'Rumo Quiz';
     final String? logoInstituicao =
         logoDoBanco ?? dadosUsuario?['logoInstituicao'];
-
-    // 🛡️ TRAVA DE SEGURANÇA: Limitado a no máximo 5 itens com Fallback para lista vazia
     final List<String> patrocinadoresUrls = patrocinadoresBrutos
         .take(5)
         .toList();
 
-    final Color corPrimaria = (tipoAcesso == 'Admin')
-        ? Colors.indigo.shade50
+    final bool isMaster = tipoAcesso.toLowerCase() == 'master';
+    final Color corPrimaria = isMaster
+        ? Colors.purple.shade800
         : _converterHexParaCor(
             corHexDoBanco ?? dadosUsuario?['corCustomizada'],
           );
@@ -108,12 +97,16 @@ class _MainLayoutShellState extends ConsumerState<MainLayoutShell> {
         return Scaffold(
           drawer: isWeb
               ? null
-              : const MenuLateralOrganism(isWebMode: false, isExpanded: true),
+              : MenuLateralOrganism(
+                  isWebMode: false,
+                  isExpanded: true,
+                  userName: nomeUsuario,
+                  userRole: tipoAcesso,
+                  logoInstituicao: logoInstituicao,
+                ),
           appBar: AppBar(
             backgroundColor: corPrimaria,
-            foregroundColor: (tipoAcesso == 'Admin')
-                ? Colors.black87
-                : Colors.white,
+            foregroundColor: Colors.white,
             elevation: 2,
             leading: isWeb
                 ? IconButton(
@@ -125,43 +118,53 @@ class _MainLayoutShellState extends ConsumerState<MainLayoutShell> {
                         setState(() => _menuWebExpandido = !_menuWebExpandido),
                   )
                 : null,
-            title: Row(
-              children: [
-                if (logoInstituicao != null && logoInstituicao.isNotEmpty) ...[
-                  Image.network(
-                    logoInstituicao,
-                    height: 32,
-                    fit: BoxFit.contain,
-                    errorBuilder: (c, e, s) => Icon(
-                      Icons.school_outlined,
-                      color: (tipoAcesso == 'Admin')
-                          ? Colors.black87
-                          : Colors.white,
-                    ),
-                  ),
-                  const SizedBox(width: 10),
-                ] else ...[
-                  Icon(
-                    Icons.school_outlined,
-                    color: (tipoAcesso == 'Admin')
-                        ? Colors.black87
-                        : Colors.white,
-                  ),
-                  const SizedBox(width: 8),
-                ],
-                Flexible(
-                  child: Text(
-                    iNstituicaoNome,
+            title: isWeb
+                ? Row(
+                    children: [
+                      if (logoInstituicao != null &&
+                          logoInstituicao.isNotEmpty &&
+                          !isMaster) ...[
+                        Image.network(
+                          logoInstituicao,
+                          height: 32,
+                          fit: BoxFit.contain,
+                          errorBuilder: (c, e, s) => const Icon(
+                            Icons.school_outlined,
+                            color: Colors.white,
+                          ),
+                        ),
+                        const SizedBox(width: 10),
+                      ] else ...[
+                        Icon(
+                          isMaster
+                              ? Icons.admin_panel_settings_outlined
+                              : Icons.school_outlined,
+                          color: Colors.white,
+                        ),
+                        const SizedBox(width: 8),
+                      ],
+                      Flexible(
+                        child: Text(
+                          isMaster
+                              ? 'Rumo Quiz — Ecossistema Master'
+                              : instituicaoNome,
+                          style: const TextStyle(
+                            fontWeight: FontWeight.bold,
+                            fontSize: 16,
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                    ],
+                  )
+                : Text(
+                    isMaster ? 'Painel Corporativo' : nomeUsuario,
                     style: const TextStyle(
                       fontWeight: FontWeight.bold,
                       fontSize: 16,
                     ),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
                   ),
-                ),
-              ],
-            ),
             actions: [
               if (isWeb) ...[
                 Text(avatar, style: const TextStyle(fontSize: 24)),
@@ -171,19 +174,17 @@ class _MainLayoutShellState extends ConsumerState<MainLayoutShell> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      nomeAluno,
+                      nomeUsuario,
                       style: const TextStyle(
                         fontSize: 14,
                         fontWeight: FontWeight.bold,
                       ),
                     ),
                     Text(
-                      tipoAcesso,
-                      style: TextStyle(
+                      isMaster ? 'Diretor Master' : tipoAcesso,
+                      style: const TextStyle(
                         fontSize: 11,
-                        color: (tipoAcesso == 'Admin')
-                            ? Colors.black54
-                            : Colors.white70,
+                        color: Colors.white70,
                       ),
                     ),
                   ],
@@ -191,12 +192,7 @@ class _MainLayoutShellState extends ConsumerState<MainLayoutShell> {
                 const SizedBox(width: 12),
               ],
               IconButton(
-                icon: Icon(
-                  Icons.logout_outlined,
-                  color: (tipoAcesso == 'Admin')
-                      ? Colors.black87
-                      : Colors.white,
-                ),
+                icon: const Icon(Icons.logout_outlined, color: Colors.white),
                 tooltip: 'Sair do Sistema',
                 onPressed: () async {
                   await FirebaseAuth.instance.signOut();
@@ -208,21 +204,36 @@ class _MainLayoutShellState extends ConsumerState<MainLayoutShell> {
               const SizedBox(width: 8),
             ],
           ),
-          body: Row(
-            children: [
-              if (isWeb)
-                AnimatedContainer(
-                  duration: const Duration(milliseconds: 200),
-                  width: _menuWebExpandido ? 260 : 70,
-                  // 🛡️ CORRIGIDO: O prefixo 'const' foi removido aqui para permitir os dados dinâmicos do menu
-                  child: MenuLateralOrganism(
-                    isWebMode: true,
-                    isExpanded: _menuWebExpandido,
+          // 🛠️ CORREÇÃO AQUI: Se for Web, limitamos a altura interna do corpo para forçar o Scaffold
+          // a manter o espaço do bottomNavigationBar visível na janela do navegador.
+          body: SizedBox(
+            height: constraints.maxHeight,
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment
+                  .stretch, // Força os filhos a respeitarem o limite vertical
+              children: [
+                if (isWeb)
+                  AnimatedContainer(
+                    duration: const Duration(milliseconds: 200),
+                    width: _menuWebExpandido ? 260 : 70,
+                    child: MenuLateralOrganism(
+                      isWebMode: true,
+                      isExpanded: _menuWebExpandido,
+                      userName: nomeUsuario,
+                      userRole: tipoAcesso,
+                      logoInstituicao: logoInstituicao,
+                    ),
+                  ),
+                if (isWeb)
+                  VerticalDivider(width: 1, color: Colors.grey.shade300),
+                Expanded(
+                  child: ClipRect(
+                    // Impede transbordo visual de sub-listas longas sobre o rodapé
+                    child: widget.child,
                   ),
                 ),
-              if (isWeb) VerticalDivider(width: 1, color: Colors.grey.shade300),
-              Expanded(child: widget.child),
-            ],
+              ],
+            ),
           ),
           bottomNavigationBar: CarrosselPatrocinadores(
             logosUrls: patrocinadoresUrls,

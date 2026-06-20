@@ -186,7 +186,7 @@ class ResultadoSimuladoPage extends ConsumerWidget {
                     },
                   ),
                   const SizedBox(height: 12),
-                  _buildBotaoVoltar(context, corInstitucional),
+                  _buildBotaoVoltar(context, ref), // 🛠️ Repassado o WidgetRef para lidar com o Reset interno
                   
                   const SizedBox(height: 36),
                   const Divider(height: 1, color: Color(0xFFE5E7EB)),
@@ -312,8 +312,6 @@ class ResultadoSimuladoPage extends ConsumerWidget {
               isPorAssunto: isPorAssunto,
             );
           } else if (label.contains('Inspecionar') || label.contains('Prova')) {
-            // Navegação limpa usando GoRouter!
-            // Passamos os dados necessários via extra através de um Map
             context.push('/inspecionar', extra: {
               'tituloSimulado': tituloSimulado,
               'revisaoQuestoes': revisaoQuestoes,
@@ -324,7 +322,7 @@ class ResultadoSimuladoPage extends ConsumerWidget {
     );
   }
 
-  Widget _buildBotaoVoltar(BuildContext context, Color corInstitucional) {
+  Widget _buildBotaoVoltar(BuildContext context, WidgetRef ref) {
     return SizedBox(
       height: 48,
       child: OutlinedButton.icon(
@@ -336,18 +334,24 @@ class ResultadoSimuladoPage extends ConsumerWidget {
           backgroundColor: Colors.white,
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
         ),
-        onPressed: () => context.go('/historico'),
+        onPressed: () {
+          // ✅ GARANTIA DO CICLO DE Estudo: Reseta o quiz ativo antes de sair
+          ref.read(quizSessionProvider.notifier).resetarSimulado();
+          
+          // Direciona o aluno de volta à listagem com segurança
+          context.go('/historico');
+        },
       ),
     );
   }
 
-  Widget _buildCardResumoLarguraMutavel(String titulo, String valor, Color corTexto, Color corFundo, double larguraDisponivel) {
+  Widget _buildCardResumoLarguraMutavel(String titulo, String valor, Color corTexto, Color colFundo, double larguraDisponivel) {
     final double larguraCard = larguraDisponivel > 600 ? (larguraDisponivel - 80) / 3 : (larguraDisponivel - 64) / 2;
     return Container(
       width: larguraCard,
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: corFundo,
+        color: colFundo,
         borderRadius: BorderRadius.circular(10),
         border: Border.all(color: corTexto.withValues(alpha: 0.15)),
       ),

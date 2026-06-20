@@ -1,24 +1,20 @@
 class AppConstants {
   // --- IDENTIFICAÇÃO DO SISTEMA ---
   static const String appName = 'Rumo Quiz';
-  static const String appVersion = '1.0.0';
+  static const String appVersion = '1.1.0';
 
-  // --- ROTAS DO FIRESTORE (Nomes das Coleções no Banco de Dados) ---
-  // Centralizando garante que o ecossistema NoSQL fique blindado contra erros de digitação
+  // --- ROTAS DO FIRESTORE (Nomes das Coleções NoSQL) ---
   static const String collectionUsers = 'usuarios';
   static const String collectionInstitutions = 'instituicoes';
+  static const String collectionCategories = 'categorias';
+  static const String collectionQuizzes = 'provas';
   static const String collectionQuestions = 'questoes';
-  static const String collectionQuizzes = 'simulados';
   static const String collectionHistory = 'historicos';
+  static const String collectionAuditoria = 'auditoria';
+  static const String collectionGamificacao = 'gamificacao';
+  static const String collectionLoginLogs = 'loginLogs';
 
-  // --- CHAVES DOS PERFIS DE ACESSO (Roles de Segurança) ---
-  // Usadas para trancar e libertar telas dependendo do tipo de utilizador
-  static const String roleMaster = 'Master';
-  static const String roleAdmin = 'Admin';
-  static const String roleAccess2 = 'Acess2'; // Professor / Criador de Questões
-  static const String roleAccess3 = 'Acess3'; // Aluno / Estudante
-
-  // --- CONFIGURAÇÕES DE REGRAS DE NEGÓCIO ---
-  static const int maxImageSizeInBytes = 2097152; // Limite de 2MB para uploads de imagens
-  static const int quizWarningTimeInSeconds = 300; // Alerta do cronômetro aos 5 minutos 
+  // --- CONFIGURAÇÕES DE ARQUIVOS (STORAGE) ---
+  static const int maxFileSizeInBytes = 2 * 1024 * 1024; // Limite estrito de 2MB por imagem (Prompt 1)
+  static const List<String> allowedFileExtensions = ['png', 'jpg', 'jpeg'];
 }

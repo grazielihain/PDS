@@ -1,15 +1,19 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:rumo_quiz/features/auth/data/models/institution_model.dart';
-import '../../data/models/institution_model.dart';
+import '../../data/models/institution_model.dart'; // Mantido apenas o import relativo limpo
 
-// Classe que guarda os dados visuais na memória RAM do celular
+// Classe que guarda os dados visuais na memória RAM do dispositivo
 class WhiteLabelState {
   final InstitutionModel? instituicao;
   final String logoUrl;
   final bool isLoading;
 
   WhiteLabelState({this.instituicao, this.logoUrl = '', this.isLoading = false});
+
+  // Getters explícitos para blindar o MainLayoutShell contra chamadas dinâmicas (dynamic) perigosas
+  String? get corPrimariaHex => instituicao?.corCustomizada ?? instituicao?.primaryColorHex;
+  String? get logoUrlDoBanco => instituicao?.logoUrl ?? instituicao?.logo ?? logoUrl;
+  List<String> get patrocinadores => instituicao?.patrocinadores ?? [];
 }
 
 class WhiteLabelNotifier extends StateNotifier<WhiteLabelState> {
@@ -19,7 +23,7 @@ class WhiteLabelNotifier extends StateNotifier<WhiteLabelState> {
 
   // 🟢 FUNÇÃO ECONÔMICA: Só bate no banco se realmente precisar carregar os dados comerciais
   Future<void> inicializarIdentidade(String instituicaoId, String logoUrl) async {
-    // Se a instituição já estiver na memória, não gasta leitura no Firebase!
+    // Se a instituição já estiver na memória, não gasta leitura desnecessária no Firebase!
     if (state.instituicao?.id == instituicaoId) return;
 
     state = WhiteLabelState(logoUrl: logoUrl, isLoading: true);

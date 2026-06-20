@@ -12,16 +12,13 @@ class QuizSessionState {
   final String? assuntoSelecionado;
   final List<dynamic> questoes; // Lista de Questões filtradas/sorteadas
   final int indiceQuestaoAtual;
-  final Map<String, String>
-  respostasSelecionadas; // {questaoId: alternativaSelecionada}
+  final Map<String, String> respostasSelecionadas; // {questaoId: alternativaSelecionada}
   final int tempoRestanteSegundos;
   final bool tempoEncerrado;
   final bool mostrarAviso5Minutos;
-  final DateTime?
-  horarioTermino; // 🔥 Adicionado para cálculo de tempo absoluto anti-fraude
+  final DateTime? horarioTermino; // 🔥 Adicionado para cálculo de tempo absoluto anti-fraude
 
   QuizSessionState({
-    box,
     this.emExecucao = false,
     this.categoriaId = '',
     this.modoProva = 'completa',
@@ -39,7 +36,7 @@ class QuizSessionState {
     bool? emExecucao,
     String? categoriaId,
     String? modoProva,
-    String? asuntoSelecionado,
+    String? assuntoSelecionado, // 🐛 Corrigido erro de digitação de 'asunto' para 'assunto'
     List<dynamic>? questoes,
     int? indiceQuestaoAtual,
     Map<String, String>? respostasSelecionadas,
@@ -52,13 +49,11 @@ class QuizSessionState {
       emExecucao: emExecucao ?? this.emExecucao,
       categoriaId: categoriaId ?? this.categoriaId,
       modoProva: modoProva ?? this.modoProva,
-      assuntoSelecionado: asuntoSelecionado ?? this.assuntoSelecionado,
+      assuntoSelecionado: assuntoSelecionado ?? this.assuntoSelecionado,
       questoes: questoes ?? this.questoes,
       indiceQuestaoAtual: indiceQuestaoAtual ?? this.indiceQuestaoAtual,
-      respostasSelecionadas:
-          respostasSelecionadas ?? this.respostasSelecionadas,
-      tempoRestanteSegundos:
-          tempoRestanteSegundos ?? this.tempoRestanteSegundos,
+      respostasSelecionadas: respostasSelecionadas ?? this.respostasSelecionadas,
+      tempoRestanteSegundos: tempoRestanteSegundos ?? this.tempoRestanteSegundos,
       tempoEncerrado: tempoEncerrado ?? this.tempoEncerrado,
       mostrarAviso5Minutos: mostrarAviso5Minutos ?? this.mostrarAviso5Minutos,
       horarioTermino: horarioTermino ?? this.horarioTermino,
@@ -82,17 +77,11 @@ class QuizSessionNotifier extends StateNotifier<QuizSessionState> {
     required int qtdSolicitada,
     int? tempoMinutos,
   }) {
-    // Filtrar questões extraindo os dados com segurança, seja objeto ou mapa
     List<dynamic> questoesFiltradas = questoesDisponiveisNoBanco.where((q) {
-      final String qCategoriaId = (q is Map)
-          ? (q['categoriaId'] ?? '')
-          : (q.categoriaId ?? '');
-      final String qAssuntoId = (q is Map)
-          ? (q['assuntoId'] ?? '')
-          : (q.assuntoId ?? '');
+      final String qCategoriaId = (q is Map) ? (q['categoriaId'] ?? '') : (q.categoriaId ?? '');
+      final String qAssuntoId = (q is Map) ? (q['assuntoId'] ?? '') : (q.assuntoId ?? '');
 
-      final bCategoria =
-          qCategoriaId.toLowerCase() == categoriaId.toLowerCase();
+      final bCategoria = qCategoriaId.toLowerCase() == categoriaId.toLowerCase();
 
       if (modoProva == 'assunto' && assunto != null) {
         return bCategoria && qAssuntoId.toLowerCase() == assunto.toLowerCase();
@@ -101,16 +90,11 @@ class QuizSessionNotifier extends StateNotifier<QuizSessionState> {
     }).toList();
 
     int limiteMaximo = questoesFiltradas.length;
-    int qtdFinalAQuizzar = qtdSolicitada > limiteMaximo
-        ? limiteMaximo
-        : qtdSolicitada;
+    int qtdFinalAQuizzar = qtdSolicitada > limiteMaximo ? limiteMaximo : qtdSolicitada;
 
     questoesFiltradas.shuffle(Random());
-    List<dynamic> questoesSorteadas = questoesFiltradas
-        .take(qtdFinalAQuizzar)
-        .toList();
+    List<dynamic> questoesSorteadas = questoesFiltradas.take(qtdFinalAQuizzar).toList();
 
-    // 🔥 Proteção Anti-Pausa: Define rigidamente o horário exato em que a prova deve terminar
     DateTime? limiteTermino;
     int segundosTotais = 0;
     if (tempoMinutos != null && tempoMinutos > 0) {
@@ -129,7 +113,7 @@ class QuizSessionNotifier extends StateNotifier<QuizSessionState> {
       tempoRestanteSegundos: segundosTotais,
       tempoEncerrado: false,
       mostrarAviso5Minutos: false,
-      horarioTermino: limiteTermino, // ✅ Fixado na largada da prova
+      horarioTermino: limiteTermino,
     );
 
     if (limiteTermino != null) {
@@ -137,11 +121,27 @@ class QuizSessionNotifier extends StateNotifier<QuizSessionState> {
     }
   }
 
-  /// ⏱️ 2. CONTROLO DO CRONÓMETRO REGRESSIVO INALTERÁVEL
+  /// 💾 2. RESTAURAÇÃO ATÔMICA LOCAL
+  /// Injeta as respostas e o índice de uma vez só para evitar múltiplos salvamentos concorrentes.
+  void restaurarEstadoCompleto({
+    required Map<String, String> respostas,
+    required int indiceAtual,
+  }) {
+    state = state.copyWith(
+      respostasSelecionadas: respostas,
+      indiceQuestaoAtual: indiceAtual.clamp(0, state.questoes.isNotEmpty ? state.questoes.length - 1 : 0),
+    );
+    
+    // Se houver um horário de término fixado previamente, reinicia o timer absoluto de segurança
+    if (state.horarioTermino != null && _cronometroTimer == null) {
+      _iniciarRelogioAbsoluto();
+    }
+  }
+
+  /// ⏱️ 3. CONTROLE DO CRONÔMETRO REGRESSIVO INALTERÁVEL
   void _iniciarRelogioAbsoluto() {
     _cronometroTimer?.cancel();
 
-    // Roda a cada 1 segundo verificando a distância real do horário atual com o fim da prova
     _cronometroTimer = Timer.periodic(const Duration(seconds: 1), (timer) {
       final fim = state.horarioTermino;
       if (fim == null) {
@@ -152,18 +152,14 @@ class QuizSessionNotifier extends StateNotifier<QuizSessionState> {
       final agora = DateTime.now();
 
       if (agora.isAfter(fim)) {
-        // Tempo esgotado de forma absoluta
         _cronometroTimer?.cancel();
         state = state.copyWith(tempoRestanteSegundos: 0, tempoEncerrado: true);
         finalizarSimuladoForcado();
       } else {
-        // Calcula a diferença real restante (ignora se o app ficou minimizado)
         final diferenca = fim.difference(agora);
         int novosSegundosRestantes = diferenca.inSeconds;
 
-        // Regra de Alerta de 5 minutos (300 segundos restantes)
-        bool aviso5Min =
-            (novosSegundosRestantes <= 300 && !state.mostrarAviso5Minutos);
+        bool aviso5Min = (novosSegundosRestantes <= 300 && !state.mostrarAviso5Minutos);
 
         state = state.copyWith(
           tempoRestanteSegundos: novosSegundosRestantes,
@@ -173,16 +169,14 @@ class QuizSessionNotifier extends StateNotifier<QuizSessionState> {
     });
   }
 
-  /// 🔘 3. SELECIONAR ALTERNATIVA
+  /// 🔘 4. SELECIONAR ALTERNATIVA
   void selecionarAlternativa(String questaoId, String alternativaLetra) {
-    final novasRespostas = Map<String, String>.from(
-      state.respostasSelecionadas,
-    );
+    final novasRespostas = Map<String, String>.from(state.respostasSelecionadas);
     novasRespostas[questaoId] = alternativaLetra;
     state = state.copyWith(respostasSelecionadas: novasRespostas);
   }
 
-  /// ⏭️ 4. NAVEGAÇÃO ENTRE QUESTÕES (Avançar / Voltar)
+  /// ⏭️ 5. NAVEGAÇÃO ENTRE QUESTÕES (Avançar / Voltar)
   void proximaQuestao() {
     if (state.indiceQuestaoAtual < state.questoes.length - 1) {
       state = state.copyWith(indiceQuestaoAtual: state.indiceQuestaoAtual + 1);
@@ -195,20 +189,22 @@ class QuizSessionNotifier extends StateNotifier<QuizSessionState> {
     }
   }
 
-  /// 📴 5. CONSUMIR AVISO DE 5 MINUTOS
-  void limparAviso5Minutos() {
+  /// 📴 6. CONSUMIR AVISO DE 5 MINUTOS
+  void limpiarAviso5Minutos() {
     state = state.copyWith(mostrarAviso5Minutos: false);
   }
 
-  /// 🏁 6. ENCERRAMENTO FORÇADO PELO FIM DO TEMPO
+  /// 🏁 7. ENCERRAMENTO FORÇADO PELO FIM DO TEMPO
   void finalizarSimuladoForcado() {
     _cronometroTimer?.cancel();
+    _cronometroTimer = null;
     state = state.copyWith(emExecucao: false);
   }
 
-  /// 🛑 7. CANCELAR OU RESETAR SESSÃO
+  /// 🛑 8. CANCELAR OU RESETAR SESSÃO
   void resetarSimulado() {
     _cronometroTimer?.cancel();
+    _cronometroTimer = null;
     state = QuizSessionState();
   }
 
@@ -220,7 +216,6 @@ class QuizSessionNotifier extends StateNotifier<QuizSessionState> {
 }
 
 /// 🌍 PROVIDER GLOBAL DISPONÍVEL PARA OS WIDGETS OBSERVADOS
-final quizSessionProvider =
-    StateNotifierProvider<QuizSessionNotifier, QuizSessionState>((ref) {
-      return QuizSessionNotifier();
-    });
+final quizSessionProvider = StateNotifierProvider<QuizSessionNotifier, QuizSessionState>((ref) {
+  return QuizSessionNotifier();
+});

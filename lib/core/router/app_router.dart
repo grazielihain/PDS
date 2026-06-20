@@ -1,7 +1,10 @@
-import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 
+// Modelos e Páginas Existentes
 import 'package:rumo_quiz/features/simulados/data/models/questao_model.dart';
 import 'package:rumo_quiz/features/simulados/data/models/revisao_questao_model.dart';
 import 'package:rumo_quiz/features/simulados/presentation/pages/inspecionar_simulado_page.dart';
@@ -13,24 +16,87 @@ import '../../features/simulados/presentation/pages/historico_simulado_page.dart
 import '../presentation/pages/main_layout_shell.dart';
 import '../../features/simulados/presentation/pages/simulado_page.dart';
 import 'package:rumo_quiz/features/admin/presentation/pages/painel_admin_page.dart';
-
-// 📦 NOVOS IMPORTS ADICIONADOS DAS SPRINTS DIA 2 E DIA 3
 import 'package:rumo_quiz/features/auth/presentation/pages/cadastro_usuario_page.dart';
 import 'package:rumo_quiz/features/admin/presentation/pages/configuracao_gamificacao_page.dart';
-import 'package:rumo_quiz/features/master/presentation/pages/painel_master_page.dart';
 import 'package:rumo_quiz/features/admin/presentation/pages/tela_auditoria_page.dart';
 import 'package:rumo_quiz/features/admin/presentation/pages/dashboard_analitico_page.dart';
+import 'package:rumo_quiz/features/master/presentation/pages/painel_master_page.dart';
 
-class AppRouter {
-  static final GoRouter router = GoRouter(
+/// Provider que escuta o estado de autenticação do Firebase em tempo real
+final firebaseAuthProvider = StreamProvider<User?>((ref) {
+  return FirebaseAuth.instance.authStateChanges();
+});
+
+/// Provider que escuta os dados cadastrais do usuário logado no Firestore em tempo real
+final userProfileProvider = StreamProvider<Map<String, dynamic>?>((ref) {
+  final authState = ref.watch(firebaseAuthProvider);
+  final user = authState.value;
+  if (user == null) return Stream.value(null);
+
+  return FirebaseFirestore.instance
+      .collection('usuarios')
+      .doc(user.uid)
+      .snapshots()
+      .map((doc) => doc.data());
+});
+
+/// Provider que gerencia e expõe a instância reativa do GoRouter
+final routerProvider = Provider<GoRouter>((ref) {
+  final authState = ref.watch(firebaseAuthProvider);
+  final profileState = ref.watch(userProfileProvider);
+
+  final loggedIn = authState.value != null;
+  final dadosUsuario = profileState.value;
+
+  final String role = (dadosUsuario?['role'] ?? 'acesso')
+      .toString()
+      .toLowerCase();
+  final String instituicaoId = dadosUsuario?['instituicaoId'] ?? 'ulbra-01';
+
+  return GoRouter(
     initialLocation: '/login',
+    refreshListenable: RouterNotifier(ref),
     redirect: (context, state) {
-      final user = FirebaseAuth.instance.currentUser;
-      final loggedIn = user != null;
       final loggingIn = state.matchedLocation == '/login';
 
-      if (!loggedIn && !loggingIn) return '/login';
-      if (loggedIn && loggingIn) return '/quiz-selection';
+      // Se não estiver logado no Firebase Auth, força ir para o login
+      if (!loggedIn) {
+        return loggingIn ? null : '/login';
+      }
+
+      // Se os dados do perfil no Firestore ainda estão carregando, segura na tela atual para evitar falso-positivo
+      if (profileState.isLoading) {
+        return null;
+      }
+
+      // Redirecionamento inteligente pós-login baseado em Nível de Acesso (Role)
+      if (loggingIn) {
+        if (role == 'master') return '/master-home';
+        if (role == 'admin') return '/admin';
+        return '/quiz-selection';
+      }
+
+      final location = state.matchedLocation;
+
+      // 🛡️ TRAVA DE SEGURANÇA MASTER: Apenas a rota raiz centralizada existe agora
+      if (location == '/master-home' && role != 'master') {
+        return '/quiz-selection';
+      }
+
+      // Lista de rotas exclusivas para nível Admin (que Master também pode acessar se necessário)
+      final adminRoutes = [
+        '/admin',
+        '/cadastro-usuarios',
+        '/dashboard-analitico',
+        '/configuracao-gamificacao', // Movido para o escopo correto se acessado externamente por Admin
+      ];
+
+      // 🛡️ TRAVA DE SEGURANÇA ADMIN: Apenas Admins e Masters passam por aqui
+      if (adminRoutes.contains(location) &&
+          role != 'admin' &&
+          role != 'master') {
+        return '/quiz-selection';
+      }
 
       return null;
     },
@@ -52,13 +118,13 @@ class AppRouter {
             path: '/historico',
             builder: (context, state) => const HistoricoSimuladoPage(),
           ),
-
-          // 🏛️ ROTAS DO DIA 2 E DIA 3 ACOPLADAS INTERNAMENTE AO SHELL COM MENU LATERAL
           GoRoute(
             path: '/admin',
-            builder: (context, state) =>
-                const PainelAdminPage(substituicaoInstituicaoId: 'ulbra-01'),
+            builder: (context, state) {
+              return PainelAdminPage(substituicaoInstituicaoId: instituicaoId);
+            },
           ),
+          // 🏛️ CENTRAL MATRIZ: A rota única do ecossistema Master unificado
           GoRoute(
             path: '/master-home',
             builder: (context, state) => const PainelMasterPage(),
@@ -70,11 +136,6 @@ class AppRouter {
           GoRoute(
             path: '/configuracao-gamificacao',
             builder: (context, state) => const ConfiguracaoGamificacaoPage(),
-          ),
-          GoRoute(
-            path: '/auditoria-master',
-            builder: (context, state) =>
-                const TelaAuditoriaPage(visaoMaster: true),
           ),
           GoRoute(
             path: '/dashboard-analitico',
@@ -156,4 +217,11 @@ class AppRouter {
     errorBuilder: (context, state) =>
         const Scaffold(body: Center(child: Text('Página não encontrada!'))),
   );
+});
+
+class RouterNotifier extends ChangeNotifier {
+  RouterNotifier(Ref ref) {
+    ref.listen(firebaseAuthProvider, (_, __) => notifyListeners());
+    ref.listen(userProfileProvider, (_, __) => notifyListeners());
+  }
 }

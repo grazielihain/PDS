@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 /// [ORGANISMO] CarrosselPatrocinadores
 /// Rodapé White Label Dinâmico, Reativo e Defensivo contra URLs nulas ou corrompidas.
+/// Garante estritamente o preenchimento de até 5 slots (Prompt 4).
 class CarrosselPatrocinadores extends StatelessWidget {
   final List<String> logosUrls;
   final Color? corCustomizadaInstituicao; 
@@ -23,23 +24,27 @@ class CarrosselPatrocinadores extends StatelessWidget {
 
     List<Widget> itensCarrossel = [];
 
-    // Limpa registros nulos ou vazios que possam vir acidentalmente do Firestore
+    // Limpa registros nulos ou vazios vindos do Firestore
     final logosValidas = logosUrls.where((url) => url.isNotEmpty).take(5).toList();
     
     for (var url in logosValidas) {
       itensCarrossel.add(_buildLogoItem(url, corTextoEIcone));
     }
 
-    // Injeção de fallbacks estruturais caso a lista não atinja 3 elementos básicos
-    if (itensCarrossel.length < 3) {
-      itensCarrossel.add(
-        _buildFallbackLogoItem(Icons.school, 'Instituição', corTextoEIcone),
-      );
-    }
-    if (itensCarrossel.length < 3) {
-      itensCarrossel.add(
-        _buildFallbackLogoItem(Icons.quiz, 'Rumo Quiz', corTextoEIcone),
-      );
+    // Algoritmo de Preenchimento Estrito de 5 Slots (Prompt 4):
+    // Completa os slots vazios alternando entre 'Rumo Quiz' e 'Instituição' até atingir exatamente 5 itens.
+    bool alternarFallback = true;
+    while (itensCarrossel.length < 5) {
+      if (alternarFallback) {
+        itensCarrossel.add(
+          _buildFallbackLogoItem(Icons.quiz, 'Rumo Quiz', corTextoEIcone),
+        );
+      } else {
+        itensCarrossel.add(
+          _buildFallbackLogoItem(Icons.school, 'Instituição', corTextoEIcone),
+        );
+      }
+      alternarFallback = !alternarFallback;
     }
 
     return Container(
@@ -101,7 +106,6 @@ class CarrosselPatrocinadores extends StatelessWidget {
           color: Colors.white,
           borderRadius: BorderRadius.circular(4),
         ),
-        // 🛡️ Tratamento preventivo de quebra de conexão ou link inválido no Storage
         child: Image.network(
           url, 
           height: 36, 

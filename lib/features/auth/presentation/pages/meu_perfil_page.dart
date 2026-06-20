@@ -34,8 +34,8 @@ class _MeuPerfilPageState extends ConsumerState<MeuPerfilPage> {
     '🐼',
     '🐨',
     '🐯',
-    '🐻',
-    '🐵',
+    '🐧',
+    '🦆',
   ];
 
   String _avatarSelecionado = '🐱';
@@ -63,14 +63,14 @@ class _MeuPerfilPageState extends ConsumerState<MeuPerfilPage> {
             _nomeController.text = usuario.nome;
             _avatarSelecionado =
                 _listaAvataresOficial.contains(usuario.avatarEmoji)
-                ? usuario.avatarEmoji
-                : '🐱';
+                    ? usuario.avatarEmoji
+                    : '🐱';
             _instituicaoDoUsuario = usuario.instituicao;
             _carregando = false;
           });
         } else {
           setState(() {
-            _nomeController.text = 'Estudante Cadastrado';
+            _nomeController.text = user.displayName ?? 'Estudante Cadastrado';
             _instituicaoDoUsuario = '';
             _carregando = false;
           });
@@ -103,14 +103,17 @@ class _MeuPerfilPageState extends ConsumerState<MeuPerfilPage> {
 
       bool emailAlterado = false;
       if (novoEmail != user.email) {
+        // Envia e-mail de verificação antes de aplicar a alteração
         await user.verifyBeforeUpdateEmail(novoEmail);
         emailAlterado = true;
       }
 
+      // Correção técnica: Mantemos no Firestore o email autenticado real do usuário.
+      // Se ele solicitou a alteração, salvamos o e-mail atual até que ele valide o link.
       final usuario = UsuarioModel(
         uid: user.uid,
         nome: novoNome,
-        email: novoEmail,
+        email: emailAlterado ? user.email! : novoEmail,
         avatarEmoji: _avatarSelecionado,
         instituicao: _instituicaoDoUsuario,
       );
@@ -120,13 +123,16 @@ class _MeuPerfilPageState extends ConsumerState<MeuPerfilPage> {
           .doc(user.uid)
           .set(usuario.toMap(), SetOptions(merge: true));
 
+      // Atualiza o estado da tela para refletir o nome alterado imediatamente no cabeçalho
+      setState(() {});
+
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(
               emailAlterado
-                  ? 'Perfil atualizado! Verifique sua caixa de entrada para validar o novo e-mail. 📧'
-                  : 'Perfil updated com sucesso! 🎉',
+                  ? 'Nome e Avatar salvos! Verifique sua caixa de entrada no e-mail "$novoEmail" para validar a alteração de login. 📧'
+                  : 'Perfil atualizado com sucesso! 🎉',
             ),
           ),
         );
@@ -154,6 +160,13 @@ class _MeuPerfilPageState extends ConsumerState<MeuPerfilPage> {
         const SnackBar(
           content: Text('A nova senha e a confirmação não conferem!'),
         ),
+      );
+      return;
+    }
+
+    if (_novaSenhaController.text.length < 6) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('A nova senha deve ter pelo menos 6 caracteres! ⚠️')),
       );
       return;
     }
@@ -210,10 +223,8 @@ class _MeuPerfilPageState extends ConsumerState<MeuPerfilPage> {
     Color corSecundariaExibicao = Colors.blue.shade50;
     Color corBordaExibicao = Colors.blue.shade200;
 
-    // Tentativa dinâmica e segura de ler propriedades do seu provider
     try {
       if (estadoWhiteLabel != null) {
-        // Tenta ler strings de nome
         if (estadoWhiteLabel.toString().contains('nome')) {
           nomeInstituicao =
               estadoWhiteLabel.nomeDaInstituicao ?? nomeInstituicao;
@@ -221,7 +232,6 @@ class _MeuPerfilPageState extends ConsumerState<MeuPerfilPage> {
           nomeInstituicao = estadoWhiteLabel.nomeInstituicao ?? nomeInstituicao;
         }
 
-        // Tenta buscar a cor hexadecimal
         String? hexObtido;
         if (estadoWhiteLabel.toString().contains('corPrimariaHex')) {
           hexObtido = estadoWhiteLabel.corPrimariaHex;
@@ -239,9 +249,7 @@ class _MeuPerfilPageState extends ConsumerState<MeuPerfilPage> {
           }
         }
       }
-    } catch (_) {
-      // Caso falhe qualquer reflexão, o fallback padrão acima segura a renderização estável
-    }
+    } catch (_) {}
 
     return Scaffold(
       backgroundColor: Colors.grey.shade50,
@@ -284,7 +292,6 @@ class _MeuPerfilPageState extends ConsumerState<MeuPerfilPage> {
                 Center(
                   child: Column(
                     children: [
-                      // 🏛️ NOME DINÂMICO PROTEGIDO CONTRA ERROS
                       Text(
                         nomeInstituicao.toUpperCase(),
                         textAlign: TextAlign.center,
@@ -365,11 +372,11 @@ class _MeuPerfilPageState extends ConsumerState<MeuPerfilPage> {
                       physics: const NeverScrollableScrollPhysics(),
                       gridDelegate:
                           const SliverGridDelegateWithMaxCrossAxisExtent(
-                            maxCrossAxisExtent: 120,
-                            mainAxisSpacing: 12,
-                            crossAxisSpacing: 12,
-                            childAspectRatio: 1.1,
-                          ),
+                        maxCrossAxisExtent: 120,
+                        mainAxisSpacing: 12,
+                        crossAxisSpacing: 12,
+                        childAspectRatio: 1.1,
+                      ),
                       itemCount: _listaAvataresOficial.length,
                       itemBuilder: (context, index) {
                         final avatar = _listaAvataresOficial[index];

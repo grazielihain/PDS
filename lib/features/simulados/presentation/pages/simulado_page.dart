@@ -3,7 +3,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:shared_preferences/shared_preferences.dart'; // 📦 Custo Zero garantido!
+import 'package:shared_preferences/shared_preferences.dart';
 import '../../data/models/questao_model.dart';
 import '../../data/models/revisao_questao_model.dart';
 import '../controllers/simulado_controller.dart';
@@ -23,12 +23,11 @@ class _SimuladoPageState extends ConsumerState<SimuladoPage> {
   @override
   void initState() {
     super.initState();
-    // Tenta restaurar o rascunho salvo no dispositivo assim que entra na tela
     _restaurarRascunhoLocal();
   }
 
   // ===========================================================================
-  // 💾 INTELIGÊNCIA DE PERSISTÊNCIA LOCAL (SHERED PREFERENCES)
+  // 💾 INTELIGÊNCIA DE PERSISTÊNCIA LOCAL (SHARED PREFERENCES)
   // ===========================================================================
   Future<void> _restaurarRascunhoLocal() async {
     if (_uid == null) return;
@@ -39,31 +38,19 @@ class _SimuladoPageState extends ConsumerState<SimuladoPage> {
       if (rascunhoJson != null) {
         final Map<String, dynamic> dados = jsonDecode(rascunhoJson);
         final int indiceSalvo = dados['indiceQuestaoAtual'] ?? 0;
-        final int tempoSalvo = dados['tempoRestanteSegundos'] ?? 0;
-        final Map<String, dynamic> respostasSalvasRaw =
-            dados['respostas'] ?? {};
+        final Map<String, dynamic> respostasSalvasRaw = dados['respostas'] ?? {};
 
         final Map<String, String> respostasSalvas = respostasSalvasRaw.map(
           (key, value) => MapEntry(key, value.toString()),
         );
 
-        // Injeta os dados recuperados diretamente no seu Notifier do Riverpod
         final notifier = ref.read(quizSessionProvider.notifier);
 
-        // Sincroniza o estado reativo com a memória local recuperada
-        if (respostasSalvas.isNotEmpty) {
-          respostasSalvas.forEach((questaoId, alternativa) {
-            notifier.selecionarAlternativa(questaoId, alternativa);
-          });
-        }
-
-        // Ajusta o índice e o cronômetro para onde parou
-        for (int i = 0; i < indiceSalvo; i++) {
-          notifier.proximaQuestao();
-        }
-
-        // Nota: Certifique-se que seu notifier permite atualizar o tempo se necessário,
-        // ou se ele já manipula o tempo internamente a partir do estado inicial.
+        // ✅ CORREÇÃO 1: Restauração atômica sem loops for concorrentes no disco
+        notifier.restaurarEstadoCompleto(
+          respostas: respostasSalvas,
+          indiceAtual: indiceSalvo,
+        );
       }
     } catch (e) {
       debugPrint('Erro ao restaurar progresso local: $e');
@@ -84,7 +71,6 @@ class _SimuladoPageState extends ConsumerState<SimuladoPage> {
         'respostas': state.respostasSelecionadas,
       };
 
-      // Salva no telefone do aluno sem gerar nenhuma requisição ou custo no Firebase
       await prefs.setString(
         'rascunho_simulado_$_uid',
         jsonEncode(dadosParaSalvar),
@@ -105,7 +91,7 @@ class _SimuladoPageState extends ConsumerState<SimuladoPage> {
   }
 
   // ===========================================================================
-  // 🏁 ENVIO E PROCESSAMENTO DO SIMULADO (SUA LÓGICA ORIGINAL)
+  // 🏁 ENVIO E PROCESSAMENTO DO SIMULADO
   // ===========================================================================
   Future<void> _processarEnvioSimulado({
     required BuildContext context,
@@ -115,7 +101,8 @@ class _SimuladoPageState extends ConsumerState<SimuladoPage> {
   }) async {
     debugPrint('======= PROCESSANDO ENVIO DO SIMULADO =======');
 
-    // Remove o rascunho local já que a prova foi finalizada com sucesso
+    // Desativa a execução para travar o cronômetro imediatamente
+    sessionNotifier.finalizarSimuladoForcado();
     await _limparRascunhoLocal();
 
     int totalAcertos = 0;
@@ -123,15 +110,13 @@ class _SimuladoPageState extends ConsumerState<SimuladoPage> {
 
     try {
       for (var item in sessionState.questoes) {
-        final dynamic q = item;
-        final String questaoId = q.id ?? '';
-        final List<String> opcoes = List<String>.from(q.opcoes ?? []);
-        final int respostaCerta = q.respostaCorretaIndex ?? 0;
+        final QuestaoModel q = item as QuestaoModel;
+        final String questaoId = q.id;
+        final List<String> opcoes = q.opcoes;
+        final int respostaCerta = q.respostaCorretaIndex;
 
         final respAluno = sessionState.respostasSelecionadas[questaoId];
-        final int indexAluno = respAluno != null
-            ? opcoes.indexOf(respAluno)
-            : -1;
+        final int indexAluno = respAluno != null ? opcoes.indexOf(respAluno) : -1;
 
         if (indexAluno != -1 && indexAluno == respostaCerta) {
           totalAcertos++;
@@ -141,7 +126,7 @@ class _SimuladoPageState extends ConsumerState<SimuladoPage> {
           'opcaoEscolhidaIndex': indexAluno == -1 ? null : indexAluno,
           'questao': {
             'id': questaoId,
-            'pergunta': q.pergunta ?? '',
+            'pergunta': q.pergunta,
             'opcoes': opcoes,
             'respostaCorretaIndex': respostaCerta,
             'nota': 1.0,
@@ -158,18 +143,14 @@ class _SimuladoPageState extends ConsumerState<SimuladoPage> {
 
     try {
       await controllerNotifier.finalizarEGravarSimulado(
-        questoesDaProva: sessionState.questoes
-            .map((item) => item as QuestaoModel)
-            .toList(),
+        questoesDaProva: sessionState.questoes.map((item) => item as QuestaoModel).toList(),
         respostasAluno: sessionState.respostasSelecionadas,
         notaCalculada: notaCalculada,
         totalAcertos: totalAcertos,
         listaRevisao: sessionState.questoes.map((item) {
           final q = item as QuestaoModel;
           final respAluno = sessionState.respostasSelecionadas[q.id];
-          final int indexAluno = respAluno != null
-              ? q.opcoes.indexOf(respAluno)
-              : -1;
+          final int indexAluno = respAluno != null ? q.opcoes.indexOf(respAluno) : -1;
 
           return RevisaoQuestaoModel(
             questao: q,
@@ -202,24 +183,21 @@ class _SimuladoPageState extends ConsumerState<SimuladoPage> {
   @override
   Widget build(BuildContext context) {
     final QuizSessionState sessionState = ref.watch(quizSessionProvider);
-    final QuizSessionNotifier sessionNotifier = ref.read(
-      quizSessionProvider.notifier,
-    );
+    final QuizSessionNotifier sessionNotifier = ref.read(quizSessionProvider.notifier);
 
     final controllerState = ref.watch(simuladoControllerProvider);
     final controllerNotifier = ref.read(simuladoControllerProvider.notifier);
 
-    // 🔄 GATILHO AUTOMÁTICO: Sempre que o estado mudar (tempo ou resposta), atualiza o backup local
-    if (_inicializadoLocalmente) {
+    if (_inicializadoLocalmente && sessionState.emExecucao) {
       _salvarRascunhoLocal(sessionState);
     }
 
     final double larguraTela = MediaQuery.of(context).size.width;
     final bool isMobile = larguraTela < 600;
     final int tempoRestante = sessionState.tempoRestanteSegundos;
-    final bool possuiTempo = tempoRestante > 0 || sessionState.tempoEncerrado;
+    final bool possuiTempo = sessionState.horarioTermino != null;
 
-    if (possuiTempo && (tempoRestante <= 0 || sessionState.tempoEncerrado)) {
+    if (possuiTempo && sessionState.emExecucao && (tempoRestante <= 0 || sessionState.tempoEncerrado)) {
       Future.microtask(() {
         if (context.mounted) {
           _processarEnvioSimulado(
@@ -232,6 +210,7 @@ class _SimuladoPageState extends ConsumerState<SimuladoPage> {
       });
     }
 
+    // ✅ CORREÇÃO 2: Verificação de tipo reativa padrão correta para o AsyncValue do Riverpod
     if (controllerState is AsyncLoading || !_inicializadoLocalmente) {
       return const Scaffold(body: Center(child: CircularProgressIndicator()));
     }
@@ -242,15 +221,11 @@ class _SimuladoPageState extends ConsumerState<SimuladoPage> {
       );
     }
 
-    final questaoAtual =
-        sessionState.questoes[sessionState.indiceQuestaoAtual] as QuestaoModel;
-    final respostaSelecionadaTexto =
-        sessionState.respostasSelecionadas[questaoAtual.id];
+    final questaoAtual = sessionState.questoes[sessionState.indiceQuestaoAtual] as QuestaoModel;
+    final respostaSelecionadaTexto = sessionState.respostasSelecionadas[questaoAtual.id];
 
-    final bool emAlertaCritico = tempoRestante <= 300;
-    final Color corDoCronometro = emAlertaCritico
-        ? Colors.red.shade700
-        : const Color(0xFF1E3A8A);
+    final bool emAlertaCritico = possuiTempo && tempoRestante <= 300;
+    final Color corDoCronometro = emAlertaCritico ? Colors.red.shade700 : const Color(0xFF1E3A8A);
 
     String formatarTempo(int totalSegundos) {
       final int minutos = totalSegundos ~/ 60;
@@ -288,14 +263,9 @@ class _SimuladoPageState extends ConsumerState<SimuladoPage> {
               padding: const EdgeInsets.symmetric(horizontal: 16.0),
               child: Center(
                 child: Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 14,
-                    vertical: 6,
-                  ),
+                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
                   decoration: BoxDecoration(
-                    color: emAlertaCritico
-                        ? Colors.red.shade50
-                        : const Color(0xFFEFF6FF),
+                    color: emAlertaCritico ? Colors.red.shade50 : const Color(0xFFEFF6FF),
                     borderRadius: BorderRadius.circular(30),
                     border: Border.all(color: corDoCronometro, width: 1.5),
                   ),
@@ -303,9 +273,7 @@ class _SimuladoPageState extends ConsumerState<SimuladoPage> {
                     mainAxisSize: MainAxisSize.min,
                     children: [
                       Icon(
-                        emAlertaCritico
-                            ? Icons.timer_sharp
-                            : Icons.timer_outlined,
+                        emAlertaCritico ? Icons.timer_sharp : Icons.timer_outlined,
                         color: corDoCronometro,
                         size: 18,
                       ),
@@ -351,10 +319,7 @@ class _SimuladoPageState extends ConsumerState<SimuladoPage> {
                         ),
                         child: const Row(
                           children: [
-                            Icon(
-                              Icons.warning_amber_rounded,
-                              color: Colors.white,
-                            ),
+                            Icon(Icons.warning_amber_rounded, color: Colors.white),
                             SizedBox(width: 10),
                             Text(
                               'Atenção! Restam menos de 5 minutos para o fim da sua prova.',
@@ -371,10 +336,7 @@ class _SimuladoPageState extends ConsumerState<SimuladoPage> {
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
                         Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 12,
-                            vertical: 6,
-                          ),
+                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                           decoration: BoxDecoration(
                             color: Colors.grey.shade100,
                             borderRadius: BorderRadius.circular(6),
@@ -390,10 +352,7 @@ class _SimuladoPageState extends ConsumerState<SimuladoPage> {
                         ),
                         Text(
                           '$questoesRespondidas respondidas',
-                          style: TextStyle(
-                            color: Colors.grey.shade500,
-                            fontSize: 13,
-                          ),
+                          style: TextStyle(color: Colors.grey.shade500, fontSize: 13),
                         ),
                       ],
                     ),
@@ -413,29 +372,22 @@ class _SimuladoPageState extends ConsumerState<SimuladoPage> {
                         itemCount: questaoAtual.opcoes.length,
                         itemBuilder: (context, index) {
                           final opcaoTexto = questaoAtual.opcoes[index];
-                          final estaSelecionado =
-                              respostaSelecionadaTexto == opcaoTexto;
+                          final estaSelecionado = respostaSelecionadaTexto == opcaoTexto;
 
                           return AnimatedContainer(
                             duration: const Duration(milliseconds: 200),
                             margin: const EdgeInsets.symmetric(vertical: 6.0),
                             decoration: BoxDecoration(
-                              color: estaSelecionado
-                                  ? const Color(0xFFEFF6FF)
-                                  : Colors.white,
+                              color: estaSelecionado ? const Color(0xFFEFF6FF) : Colors.white,
                               borderRadius: BorderRadius.circular(12),
                               border: Border.all(
-                                color: estaSelecionado
-                                    ? const Color(0xFF2563EB)
-                                    : Colors.grey.shade300,
+                                color: estaSelecionado ? const Color(0xFF2563EB) : Colors.grey.shade300,
                                 width: estaSelecionado ? 2.0 : 1.0,
                               ),
                               boxShadow: estaSelecionado
                                   ? [
                                       BoxShadow(
-                                        color: Colors.blue.withValues(
-                                          alpha: 0.1,
-                                        ),
+                                        color: Colors.blue.withOpacity(0.1),
                                         blurRadius: 4,
                                         offset: const Offset(0, 2),
                                       ),
@@ -443,21 +395,14 @@ class _SimuladoPageState extends ConsumerState<SimuladoPage> {
                                   : null,
                             ),
                             child: ListTile(
-                              contentPadding: const EdgeInsets.symmetric(
-                                horizontal: 16,
-                                vertical: 6,
-                              ),
+                              contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
                               leading: CircleAvatar(
                                 radius: 18,
-                                backgroundColor: estaSelecionado
-                                    ? const Color(0xFF2563EB)
-                                    : Colors.grey.shade100,
+                                backgroundColor: estaSelecionado ? const Color(0xFF2563EB) : Colors.grey.shade100,
                                 child: Text(
                                   String.fromCharCode(65 + index),
                                   style: TextStyle(
-                                    color: estaSelecionado
-                                        ? Colors.white
-                                        : const Color(0xFF4B5563),
+                                    color: estaSelecionado ? Colors.white : const Color(0xFF4B5563),
                                     fontWeight: FontWeight.bold,
                                     fontSize: 14,
                                   ),
@@ -468,22 +413,14 @@ class _SimuladoPageState extends ConsumerState<SimuladoPage> {
                                 style: TextStyle(
                                   fontSize: isMobile ? 14 : 15,
                                   color: const Color(0xFF374151),
-                                  fontWeight: estaSelecionado
-                                      ? FontWeight.w500
-                                      : FontWeight.normal,
+                                  fontWeight: estaSelecionado ? FontWeight.w500 : FontWeight.normal,
                                 ),
                               ),
                               trailing: estaSelecionado
-                                  ? const Icon(
-                                      Icons.check_circle,
-                                      color: Color(0xFF2563EB),
-                                    )
+                                  ? const Icon(Icons.check_circle, color: Color(0xFF2563EB))
                                   : null,
                               onTap: () {
-                                sessionNotifier.selecionarAlternativa(
-                                  questaoAtual.id,
-                                  opcaoTexto,
-                                );
+                                sessionNotifier.selecionarAlternativa(questaoAtual.id, opcaoTexto);
                               },
                             ),
                           );
@@ -495,14 +432,12 @@ class _SimuladoPageState extends ConsumerState<SimuladoPage> {
               ),
             ),
           ),
-
-          // 🏛️ RODAPÉ INTEGRADO (Botões de Navegação + Patrocinadores)
           Container(
             decoration: BoxDecoration(
               color: Colors.white,
               boxShadow: [
                 BoxShadow(
-                  color: Colors.black.withValues(alpha: 0.05),
+                  color: Colors.black.withOpacity(0.05),
                   blurRadius: 10,
                   offset: const Offset(0, -4),
                 ),
@@ -530,29 +465,19 @@ class _SimuladoPageState extends ConsumerState<SimuladoPage> {
                                   : null,
                               style: OutlinedButton.styleFrom(
                                 side: BorderSide(color: Colors.grey.shade300),
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(8),
-                                ),
+                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
                               ),
                             ),
                           ),
-                          if (sessionState.indiceQuestaoAtual ==
-                              sessionState.questoes.length - 1)
+                          if (sessionState.indiceQuestaoAtual == sessionState.questoes.length - 1)
                             SizedBox(
                               width: isMobile ? 160 : 200,
                               height: 44,
                               child: ElevatedButton.icon(
-                                icon: const Icon(
-                                  Icons.check,
-                                  color: Colors.white,
-                                  size: 18,
-                                ),
+                                icon: const Icon(Icons.check, color: Colors.white, size: 18),
                                 label: const Text(
                                   'Finalizar Simulado',
-                                  style: TextStyle(
-                                    color: Colors.white,
-                                    fontWeight: FontWeight.bold,
-                                  ),
+                                  style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
                                 ),
                                 onPressed: () => _processarEnvioSimulado(
                                   context: context,
@@ -562,9 +487,7 @@ class _SimuladoPageState extends ConsumerState<SimuladoPage> {
                                 ),
                                 style: ElevatedButton.styleFrom(
                                   backgroundColor: const Color(0xFF10B981),
-                                  shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(8),
-                                  ),
+                                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
                                 ),
                               ),
                             )
@@ -576,26 +499,17 @@ class _SimuladoPageState extends ConsumerState<SimuladoPage> {
                                 onPressed: sessionNotifier.proximaQuestao,
                                 style: ElevatedButton.styleFrom(
                                   backgroundColor: const Color(0xFF2563EB),
-                                  shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(8),
-                                  ),
+                                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
                                 ),
                                 child: const Row(
                                   mainAxisAlignment: MainAxisAlignment.center,
                                   children: [
                                     Text(
                                       'Próxima',
-                                      style: TextStyle(
-                                        color: Colors.white,
-                                        fontWeight: FontWeight.w500,
-                                      ),
+                                      style: TextStyle(color: Colors.white, fontWeight: FontWeight.w500),
                                     ),
                                     SizedBox(width: 4),
-                                    Icon(
-                                      Icons.arrow_forward_ios,
-                                      size: 14,
-                                      color: Colors.white,
-                                    ),
+                                    Icon(Icons.arrow_forward_ios, size: 14, color: Colors.white),
                                   ],
                                 ),
                               ),
@@ -605,8 +519,6 @@ class _SimuladoPageState extends ConsumerState<SimuladoPage> {
                       const SizedBox(height: 12),
                       const Divider(height: 1, color: Color(0xFFE5E7EB)),
                       const SizedBox(height: 8),
-
-                      // 🛡️ SUB-RODAPÉ DE PATROCINADORES / REALIZAÇÃO
                       Row(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
@@ -619,11 +531,7 @@ class _SimuladoPageState extends ConsumerState<SimuladoPage> {
                             ),
                           ),
                           const SizedBox(width: 12),
-                          Icon(
-                            Icons.gavel,
-                            size: 14,
-                            color: Colors.grey.shade400,
-                          ),
+                          Icon(Icons.gavel, size: 14, color: Colors.grey.shade400),
                           const SizedBox(width: 4),
                           Text(
                             'TRT-4',
@@ -634,11 +542,7 @@ class _SimuladoPageState extends ConsumerState<SimuladoPage> {
                             ),
                           ),
                           const SizedBox(width: 16),
-                          Icon(
-                            Icons.account_balance,
-                            size: 14,
-                            color: Colors.grey.shade400,
-                          ),
+                          Icon(Icons.account_balance, size: 14, color: Colors.grey.shade400),
                           const SizedBox(width: 4),
                           Text(
                             'Rumo Cultural',

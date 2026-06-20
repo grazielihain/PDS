@@ -56,7 +56,7 @@ dependencies:
   intl: ^0.20.2
 
   # Biblioteca para selecionar arquivos do dispositivo
-  file_picker: ^6.1.1
+  file_picker: ^8.0.0
 
   # Biblioteca para exibir gráficos e visualizações de dados
   fl_chart: ^0.66.0

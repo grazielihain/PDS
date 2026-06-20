@@ -1,6 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter/material.dart';
 import '../../data/models/historico_model.dart';
 import '../../data/models/questao_model.dart';
 import '../../data/models/revisao_questao_model.dart';
@@ -32,26 +33,23 @@ class SimuladoController extends StateNotifier<AsyncValue<void>> {
       final historicoRef = FirebaseFirestore.instance
           .collection('usuarios')
           .doc(userId.isEmpty ? 'anonimo' : userId)
-          .collection('historico_simulados') // Subcoleção onde os dados reais residem isolados
+          .collection('historico_simulados') // Subcoleção isolada por usuário
           .doc();
 
       // 🧠 2. ACESSO AO ESTADO DO RIVERPOD
       final sessionState = ref.read(quizSessionProvider);
 
       // 🔍 EXTRAÇÃO DINÂMICA DA INSTITUIÇÃO
-      // Buscamos o instituicaoId diretamente da primeira questão do simulado executado
       String instituicaoIdExtraida = 'instituicao_padrao';
       if (sessionState.questoes.isNotEmpty) {
         final primeiraQuestao = sessionState.questoes.first;
         if (primeiraQuestao is Map) {
           instituicaoIdExtraida = primeiraQuestao['instituicaoId'] ?? 'instituicao_padrao';
         } else if (primeiraQuestao is QuestaoModel) {
-          // 🔥 Ajuste de segurança: Garante a leitura correta se for o modelo estruturado
           instituicaoIdExtraida = primeiraQuestao.instituicaoId.isEmpty 
               ? 'instituicao_padrao' 
               : primeiraQuestao.instituicaoId;
         } else {
-          // Fallback genérico caso use outra tipagem em alguma refatoração
           try {
             instituicaoIdExtraida = (primeiraQuestao as dynamic).instituicaoId ?? 'instituicao_padrao';
           } catch (_) {
@@ -76,7 +74,7 @@ class SimuladoController extends StateNotifier<AsyncValue<void>> {
         };
       }).toList();
 
-      // 🛠️ 4. INSTÂNCIA DO MODELO TOTALMENTE CORRIGIDA E COMPATÍVEL
+      // 🛠️ 4. INSTÂNCIA DO MODELO TOTALMENTE COMPATÍVEL
       final novoHistorico = HistoricoModel(
         id: historicoRef.id,
         userId: userId.isEmpty ? 'aluno_anonimo' : userId,
@@ -93,28 +91,31 @@ class SimuladoController extends StateNotifier<AsyncValue<void>> {
         revisaoQuestoes: listaRevisaoMapeada, 
       );
 
-      // 5. Salva os dados de forma assíncrona no Cloud Firestore (Mantendo chaves originais)
+      // 5. Salva os dados de forma assíncrona no Cloud Firestore
       await historicoRef.set({
         'id': novoHistorico.id,
         'userId': novoHistorico.userId,
-        'instituicaoId': novoHistorico.instituicaoId, // 🎯 Casado perfeitamente com seu índice composto!
+        'instituicaoId': novoHistorico.instituicaoId, 
         'categoria': novoHistorico.categoria,
         'tipoProva': novoHistorico.tipoProva,
         'assunto': novoHistorico.assunto,
         'totalQuestoes': novoHistorico.totalQuestoes,
         'acertos': novoHistorico.acertos,
         'erros': novoHistorico.erros,
-        'notaObtida': novoHistorico.pontosProva, // 💎 Alinhado com a tela de histórico
-        'pontosGamificacao': novoHistorico.pontosGamificacao,
-        'dataHora': Timestamp.fromDate(novoHistorico.dataConclusao), // 💎 Casado com o índice do Firestore
+        'notaObtida': novoHistorico.pontosProva, 
+        'pointsGamificacao': novoHistorico.pontosGamificacao,
+        'dataHora': Timestamp.fromDate(novoHistorico.dataConclusao), 
         'revisaoQuestoes': novoHistorico.revisaoQuestoes,
       });
 
-      // 6. Reseta o estado do simulado atual após salvar com sucesso
-      ref.read(quizSessionProvider.notifier).resetarSimulado();
+      // ✅ MODIFICAÇÃO DE SEGURANÇA:
+      // O resetarSimulado() foi removido daqui de dentro. 
+      // Agora ele deve ser chamado na 'Action' de voltar ou fechar a tela de /resultado,
+      // preservando o 'extra' do GoRouter intacto para renderizar a pontuação do aluno.
 
       state = const AsyncValue.data(null);
     } catch (e, stack) {
+      debugPrint('Erro catastrófico ao gravar simulado: $e');
       state = AsyncValue.error(e, stack);
     }
   }
