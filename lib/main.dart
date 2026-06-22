@@ -10,11 +10,10 @@ void main() async {
   // Inicializa o Firebase com as configurações automáticas geradas
   await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
 
-  // Envolvemos o MyApp dentro de um ProviderScope para habilitar o Riverpod globalmente
+  // Perfeito e limpo: Sem overrides concorrentes que quebram o estado de memória
   runApp(const ProviderScope(child: MyApp()));
 }
 
-// Convertido para ConsumerWidget para escutar as mudanças do routerProvider de forma limpa
 class MyApp extends ConsumerWidget {
   const MyApp({super.key});
 
@@ -33,4 +32,3 @@ class MyApp extends ConsumerWidget {
     );
   }
 }
-

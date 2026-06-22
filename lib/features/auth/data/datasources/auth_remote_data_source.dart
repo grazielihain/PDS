@@ -9,13 +9,13 @@ class AuthRemoteDataSource {
 
   AuthRemoteDataSource(this.firebaseAuth, this.firestore);
 
-  // 🟢 CORRIGIDO: Retorna o UserModel buscando o usuário atual com sessão ativa
+  // 🟢 RETORNA O USERMODEL BUSCANDO O USUÁRIO ATUAL COM SESSÃO ATIVA
   Future<UserModel?> getCurrentUser() async {
     final User? firebaseUser = firebaseAuth.currentUser;
     if (firebaseUser == null) return null;
 
     final DocumentSnapshot userDoc = await firestore
-        .collection('usuarios')
+        .collection(AppConstants.collectionUsers)
         .doc(firebaseUser.uid)
         .get();
 
@@ -24,12 +24,51 @@ class AuthRemoteDataSource {
     return UserModel.fromFirestore(userDoc);
   }
 
-  // Escuta alterações na sessão (Se logou ou deslogou)
+  // 🟢 REATIVIDADE DO ROTEADOR: Escuta as alterações na sessão (se mudou o estado de autenticado)
+  Stream<bool> watchAuthState() {
+    return firebaseAuth.authStateChanges().map((user) => user != null);
+  }
+
+  // 🟢 REATIVIDADE DO WHITE LABEL / SHELL / ROUTER: Fornece as informações do perfil mapeadas em tempo real
+  Stream<Map<String, dynamic>?> watchProfile() {
+    return firebaseAuth.authStateChanges().asyncMap((user) async {
+      if (user == null) return null;
+      
+      final doc = await firestore
+          .collection(AppConstants.collectionUsers)
+          .doc(user.uid)
+          .get();
+          
+      if (!doc.exists || doc.data() == null) return null;
+
+      final dadosOriginais = doc.data() as Map<String, dynamic>;
+      
+      // 🟢 NORMALIZAÇÃO DE CHAVES: Garante total compatibilidade entre PT e EN para o roteador e modelos
+      final Map<String, dynamic> dadosNormalizados = Map<String, dynamic>.from(dadosOriginais);
+      
+      // Resolve o conflito de instituição
+      final String instituicao = dadosOriginais['instituicaoId'] ?? dadosOriginais['institutionId'] ?? 'ulbra-01';
+      dadosNormalizados['instituicaoId'] = instituicao;
+      dadosNormalizados['institutionId'] = instituicao;
+
+      // Resolve o conflito de nome
+      dadosNormalizados['nome'] = dadosOriginais['nome'] ?? dadosOriginais['name'] ?? 'Estudante';
+      dadosNormalizados['name'] = dadosOriginais['nome'] ?? dadosOriginais['name'] ?? 'Estudante';
+
+      // Normaliza o UID e o Role
+      dadosNormalizados['uid'] = user.uid;
+      dadosNormalizados['role'] = (dadosOriginais['role'] ?? 'Acess3').toString().trim();
+
+      return dadosNormalizados;
+    });
+  }
+
+  // Antigo método mantido caso seja utilizado em outras partes legadas do código
   Stream<User?> authStateChanges() {
     return firebaseAuth.authStateChanges();
   }
 
-  // 🟢 CORRIGIDO: Faz o Login e retorna o UserModel recheado com os dados do Firestore
+  // 🟢 FAZ O LOGIN E RETORNA O USERMODEL RECHEADO COM OS DADOS DO FIRESTORE
   Future<UserModel> loginWithEmailAndPassword(String email, String password) async {
     try {
       // 1. Autentica no Firebase Auth
@@ -43,9 +82,9 @@ class AuthRemoteDataSource {
         throw Exception('Não foi possível realizar o login. Usuário nulo.');
       }
 
-      // 2. Busca os dados do usuário no Firestore
+      // 2. Busca os dados do usuário no Firestore utilizando as AppConstants
       final DocumentSnapshot userDoc = await firestore
-          .collection('usuarios')
+          .collection(AppConstants.collectionUsers)
           .doc(firebaseUser.uid)
           .get();
 
@@ -69,12 +108,12 @@ class AuthRemoteDataSource {
     }
   }
 
-  // Fazer Logout
+  // FAZER LOGOUT
   Future<void> logout() async {
     await firebaseAuth.signOut();
   }
 
-  // Criar conta (Usada no painel administrativo do Admin/Acess2)
+  // CRIAR CONTA (Usada no painel administrativo do Admin/Acess2)
   Future<UserCredential> signUpWithEmailAndPassword({
     required String email,
     required String password,
@@ -87,7 +126,7 @@ class AuthRemoteDataSource {
 
       if (userCredential.user != null) {
         await firestore
-            .collection('usuarios')
+            .collection(AppConstants.collectionUsers)
             .doc(userCredential.user!.uid)
             .set({
               'uid': userCredential.user!.uid,
@@ -95,6 +134,7 @@ class AuthRemoteDataSource {
               'email': email,
               'role': 'Acess3',
               'institutionId': institutionId,
+              'instituicaoId': institutionId,
               'avatarEmoji': '🐱',
               'createdAt': FieldValue.serverTimestamp(),
             });
@@ -106,7 +146,7 @@ class AuthRemoteDataSource {
     }
   }
 
-  // Enviar e-mail de recuperação de senha (US 03)
+  // ENVIAR E-MAIL DE RECUPERAÇÃO DE SENHA (US 03)
   Future<void> enviarEmailRecuperacaoSenha(String email) async {
     try {
       await firebaseAuth.sendPasswordResetEmail(email: email);
@@ -115,7 +155,7 @@ class AuthRemoteDataSource {
     }
   }
 
-  //Registra o log de acesso no Firestore toda vez que alguém logar
+  // REGISTRA O LOG DE ACESSO NO FIRESTORE TODA VEZ QUE ALGUÉM LOGAR
   Future<void> registrarLogAcesso(String userId) async {
     try {
       await firestore.collection('logs_acesso').add({

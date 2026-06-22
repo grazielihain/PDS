@@ -1,9 +1,7 @@
-import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:go_router/go_router.dart';
 import 'package:rumo_quiz/features/auth/presentation/providers/white_label_notifier.dart';
+import '../../../../core/router/app_router.dart';
 import '../providers/auth_notifier.dart';
 
 class LoginPage extends ConsumerStatefulWidget {
@@ -18,7 +16,6 @@ class _LoginPageState extends ConsumerState<LoginPage> {
   final _emailController = TextEditingController();
   final _senhaController = TextEditingController();
   bool _ocultarSenha = true;
-  bool _isLoading = false;
 
   @override
   void dispose() {
@@ -27,7 +24,6 @@ class _LoginPageState extends ConsumerState<LoginPage> {
     super.dispose();
   }
 
-  // 🟢 FUNÇÃO ENCAIXADA AQUI: Abre a caixinha de recuperar senha
   void _exibirModalRecuperarSenha(BuildContext context, WidgetRef ref) {
     final emailRecuperacaoController = TextEditingController();
     final formModalKey = GlobalKey<FormState>();
@@ -98,6 +94,32 @@ class _LoginPageState extends ConsumerState<LoginPage> {
 
   @override
   Widget build(BuildContext context) {
+    final authState = ref.watch(authNotifierProvider);
+
+    // 🟢 REATIVIDADE DO WHITE LABEL: Quando o perfil carregar, inicializa a identidade visual.
+    // O redirecionamento de tela agora é delegado 100% ao GoRouter (app_router.dart) para evitar loops.
+    ref.listen<AsyncValue<Map<String, dynamic>?>>(userProfileProvider, (previous, next) {
+      if (next.hasValue && next.value != null) {
+        final dados = next.value!;
+        final String instituicaoId = dados['instituicaoId'] ?? 'ulbra-01';
+        
+        // Inicializa o White Label reativo na memória RAM do aplicativo
+        ref.read(whiteLabelProvider.notifier).inicializarIdentidade(instituicaoId, '');
+      }
+    });
+
+    // Escuta erros disparados pelo Notifier Centralizado
+    ref.listen<AuthState>(authNotifierProvider, (previous, next) {
+      if (next.errorMessage != null) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(next.errorMessage!),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    });
+
     return Scaffold(
       body: Center(
         child: SingleChildScrollView(
@@ -121,6 +143,7 @@ class _LoginPageState extends ConsumerState<LoginPage> {
                   TextFormField(
                     controller: _emailController,
                     keyboardType: TextInputType.emailAddress,
+                    enabled: !authState.isLoading,
                     decoration: const InputDecoration(
                       labelText: 'E-mail',
                       prefixIcon: Icon(Icons.email_outlined),
@@ -133,6 +156,7 @@ class _LoginPageState extends ConsumerState<LoginPage> {
                   TextFormField(
                     controller: _senhaController,
                     obscureText: _ocultarSenha,
+                    enabled: !authState.isLoading,
                     decoration: InputDecoration(
                       labelText: 'Senha',
                       prefixIcon: const Icon(Icons.lock_outline),
@@ -160,89 +184,29 @@ class _LoginPageState extends ConsumerState<LoginPage> {
                   ),
                   const SizedBox(height: 24),
                   ElevatedButton(
-                    onPressed: _isLoading ? null : () async {
-                      if (_formKey.currentState!.validate()) {
-                        setState(() => _isLoading = true);
-                        try {
-                          // 1. Executa o login real de forma segura usando FirebaseAuth
-                          final UserCredential credential = await FirebaseAuth.instance
-                              .signInWithEmailAndPassword(
-                            email: _emailController.text.trim(),
-                            password: _senhaController.text.trim(),
-                          );
-
-                          final User? user = credential.user;
-                          if (user == null) throw Exception("Falha ao autenticar usuário.");
-
-                          // Captura o documento do usuário no Firestore
-                          final docUser = await FirebaseFirestore.instance
-                              .collection('usuarios')
-                              .doc(user.uid)
-                              .get();
-
-                          if (!docUser.exists) throw Exception("Cadastro não encontrado no banco de dados.");
-                          final dadosUsuario = docUser.data() ?? {};
-
-                          final String instituicaoId = dadosUsuario['instituicaoId'] ?? 'ulbra-01';
-                          final String roleLimpa = (dadosUsuario['role'] ?? 'Acess3').toString().trim().toLowerCase();
-
-                          // 2. Dispara o Log de Auditoria obrigatório na coleção histórica
-                          await FirebaseFirestore.instance.collection('login_logs').add({
-                            'usuarioId': user.uid,
-                            'email': user.email,
-                            'role': roleLimpa,
-                            'instituicaoId': instituicaoId,
-                            'timestamp': FieldValue.serverTimestamp(),
-                            'platform': 'Flutter Application',
-                          });
-
-                          // Inicializa as propriedades visuais da instituição na memória RAM do app
-                          await ref
-                              .read(whiteLabelProvider.notifier)
-                              .inicializarIdentidade(instituicaoId, '');
-
-                          // 3. Redirecionamento dinâmico baseado em papéis e tratamento de primeiro login
-                          if (context.mounted) {
-                            if (roleLimpa == 'master') {
-                              context.go('/master-home');
-                            } 
-                            else if (roleLimpa == 'admin' || roleLimpa == 'acess2') {
-                              context.go('/admin'); // Corrigido para bater com app_router.dart
-                            } 
-                            else {
-                              // Interceptação de primeiro login para contas Acess3 (Alunos)
-                              final bool primeiroLogin = dadosUsuario['primeiroLogin'] ?? false;
-                              if (primeiroLogin) {
-                                await FirebaseFirestore.instance
-                                    .collection('usuarios')
-                                    .doc(user.uid)
-                                    .update({'primeiroLogin': false});
-                              }
-                              context.go('/quiz-selection');
+                    onPressed: authState.isLoading
+                        ? null
+                        : () {
+                            if (_formKey.currentState!.validate()) {
+                              ref.read(authNotifierProvider.notifier).loginComEmailESenha(
+                                    _emailController.text,
+                                    _senhaController.text,
+                                  );
                             }
-                          }
-                        } catch (e) {
-                          if (context.mounted) {
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              SnackBar(
-                                content: Text(
-                                  e.toString().replaceAll('Exception: ', ''),
-                                ),
-                                backgroundColor: Colors.red,
-                              ),
-                            );
-                          }
-                        } finally {
-                          if (mounted) setState(() => _isLoading = false);
-                        }
-                      }
-                    },
+                          },
                     style: ElevatedButton.styleFrom(
                       padding: const EdgeInsets.symmetric(vertical: 16),
                     ),
-                    child: _isLoading 
-                      ? const SizedBox(height: 20, width: 20, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
-                      : const Text('Entrar', style: TextStyle(fontSize: 16)),
+                    child: authState.isLoading
+                        ? const SizedBox(
+                            height: 20,
+                            width: 20,
+                            child: CircularProgressIndicator(
+                              color: Colors.white,
+                              strokeWidth: 2,
+                            ),
+                          )
+                        : const Text('Entrar', style: TextStyle(fontSize: 16)),
                   ),
                 ],
               ),

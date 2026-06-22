@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../../../../core/constants/app_constants.dart';
 import '../../domain/entities/instituicao_entity.dart';
@@ -7,202 +8,246 @@ import '../../../auth/data/models/user_models.dart';
 
 class MasterRepositoryImpl implements MasterRepository {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+  final Duration _timeoutPadrao = const Duration(seconds: 4);
 
   @override
   Future<Map<String, int>> buscarMetricasGlobais() async {
-    // 🛡️ PLANO GRATUITO: Carrega priorizando o cache offline configurado no seu FirebaseConfig
-    final usuariosSnapshot = await _firestore
-        .collection(AppConstants.collectionUsers)
-        .get(const GetOptions(source: Source.serverAndCache));
+    try {
+      final usuariosSnapshot = await _firestore
+          .collection(AppConstants.collectionUsers)
+          .get()
+          .timeout(_timeoutPadrao);
 
-    final instituicoesSnapshot = await _firestore
-        .collection(AppConstants.collectionInstitutions)
-        .get(const GetOptions(source: Source.serverAndCache));
+      final instituicoesSnapshot = await _firestore
+          .collection(AppConstants.collectionInstitutions)
+          .get()
+          .timeout(_timeoutPadrao);
 
-    int master = 0;
-    int admin = 0;
-    int acess2 = 0;
-    int acess3 = 0;
+      int master = 0;
+      int admin = 0;
+      int acess2 = 0;
+      int acess3 = 0;
 
-    for (var doc in usuariosSnapshot.docs) {
-      final dados = doc.data();
-      final String role = (dados['role'] ?? 'Acess3').toString().toLowerCase();
+      for (var doc in usuariosSnapshot.docs) {
+        final dados = doc.data();
+        final String role = (dados['role'] ?? 'Acess3').toString().toLowerCase();
 
-      if (role == 'master') master++;
-      else if (role == 'admin') admin++;
-      else if (role == 'acess2') acess2++;
-      else if (role == 'acess3') acess3++;
+        if (role == 'master') master++;
+        else if (role == 'admin') admin++;
+        else if (role == 'acess2') acess2++;
+        else if (role == 'acess3') acess3++;
+      }
+
+      return {
+        'totalUsuarios': usuariosSnapshot.docs.length,
+        'totalInstituicoes': instituicoesSnapshot.docs.length,
+        'master': master,
+        'admin': admin,
+        'acess2': acess2,
+        'acess3': acess3,
+      };
+    } catch (e) {
+      return {'totalUsuarios': 0, 'totalInstituicoes': 0, 'master': 0, 'admin': 0, 'acess2': 0, 'acess3': 0};
     }
-
-    return {
-      'totalUsuarios': usuariosSnapshot.docs.length,
-      'totalInstituicoes': instituicoesSnapshot.docs.length,
-      'master': master,
-      'admin': admin,
-      'acess2': acess2,
-      'acess3': acess3,
-    };
   }
 
   @override
   Future<List<InstituicaoEntity>> listarInstituicoes() async {
-    // Busca todas as IEs para o Master gerenciar
-    final snapshot = await _firestore
-        .collection(AppConstants.collectionInstitutions)
-        .get();
+    try {
+      final snapshot = await _firestore
+          .collection(AppConstants.collectionInstitutions)
+          .get()
+          .timeout(_timeoutPadrao);
 
-    return snapshot.docs.map((doc) {
-      // Reutiliza o seu InstitutionModel existente para fazer a leitura segura
-      final model = InstitutionModel.fromFirestore(doc);
-      
-      // Converte o modelo da camada de dados para a entidade limpa da camada de domínio
-      return InstituicaoEntity(
-        id: model.id,
-        nome: model.nome,
-        // Garante compatibilidade caso esteja gravado em uma chave ou na outra no seu Firestore
-        corPrimaria: model.primaryColorHex ?? model.corCustomizada ?? '#4CAF50',
-        logoUrl: model.logoUrl ?? model.logo,
-        dataCriacao: DateTime.now(), // Fallback seguro de ordenação temporal
-      );
-    }).toList();
+      return snapshot.docs.map((doc) {
+        final model = InstitutionModel.fromFirestore(doc);
+        return InstituicaoEntity(
+          id: doc.id, // Garante que pega o ID real do documento do Firestore
+          nome: model.nome,
+          corPrimaria: model.primaryColorHex ?? model.corCustomizada ?? '#4CAF50',
+          logoUrl: model.logoUrl ?? model.logo,
+          dataCriacao: DateTime.now(),
+        );
+      }).toList();
+    } catch (e) {
+      throw Exception('💥 Falha ao listar instituições: $e');
+    }
   }
 
   @override
   Future<void> cadastrarInstituicao(InstituicaoEntity instituicao) async {
-    await _firestore.collection(AppConstants.collectionInstitutions).add({
-      'nome': instituicao.nome,
-      'primaryColorHex': instituicao.corPrimaria,
-      'corCustomizada': instituicao.corPrimaria,
-      'logoUrl': instituicao.logoUrl,
-      'plano': 'Gratuito',
-      'patrocinadores': const [],
-      'dataCriacao': FieldValue.serverTimestamp(),
-    });
+    final String idLimpo = instituicao.id.trim();
+    if (idLimpo.isEmpty) {
+      throw Exception('💥 ERRO: O ID do banco não pode ser vazio!');
+    }
+
+    try {
+      final Map<String, dynamic> dadosParaSalvar = {
+        'id': idLimpo, // ID do banco primeiro
+        'nome': instituicao.nome, // Nome do sistema depois
+        'primaryColorHex': instituicao.corPrimaria,
+        'corCustomizada': instituicao.corPrimaria,
+        'logoUrl': instituicao.logoUrl,
+        'plano': 'Gratuito',
+        'patrocinadores': const [],
+        'dataCriacao': FieldValue.serverTimestamp(),
+      };
+
+      await _firestore
+          .collection(AppConstants.collectionInstitutions)
+          .doc(idLimpo)
+          .set(dadosParaSalvar)
+          .timeout(_timeoutPadrao);
+    } catch (e) {
+      throw Exception('💥 Erro ao cadastrar instituição: $e');
+    }
   }
 
   @override
   Future<void> editarInstituicao(InstituicaoEntity instituicao) async {
-    await _firestore
-        .collection(AppConstants.collectionInstitutions)
-        .doc(instituicao.id)
-        .update({
-      'nome': instituicao.nome,
-      'primaryColorHex': instituicao.corPrimaria,
-      'corCustomizada': instituicao.corPrimaria,
-      'logoUrl': instituicao.logoUrl,
-    });
+    try {
+      await _firestore
+          .collection(AppConstants.collectionInstitutions)
+          .doc(instituicao.id)
+          .update({
+            'nome': instituicao.nome,
+            'primaryColorHex': instituicao.corPrimaria,
+            'corCustomizada': instituicao.corPrimaria,
+            'logoUrl': instituicao.logoUrl,
+          })
+          .timeout(_timeoutPadrao);
+    } catch (e) {
+      throw Exception('💥 Erro ao editar instituição: $e');
+    }
   }
 
   @override
   Future<void> excluirInstituicao(String id) async {
-    await _firestore
-        .collection(AppConstants.collectionInstitutions)
-        .doc(id)
-        .delete();
+    try {
+      await _firestore
+          .collection(AppConstants.collectionInstitutions)
+          .doc(id)
+          .delete()
+          .timeout(_timeoutPadrao);
+    } catch (e) {
+      throw Exception('💥 Erro ao excluir instituição: $e');
+    }
+  }
+
+  /// Método de compatibilidade caso sua UI chame por este nome específico
+  Future<void> removerInstituicao(String id) async {
+    await excluirInstituicao(id);
   }
 
   @override
   Future<List<Map<String, dynamic>>> buscarUsuariosPorInstituicao(
       String iID, String nivelAcesso) async {
-    Query query = _firestore
-        .collection(AppConstants.collectionUsers)
-        .where('instituicaoId', isEqualTo: iID);
+    try {
+      Query query = _firestore
+          .collection(AppConstants.collectionUsers)
+          .where('instituicaoId', isEqualTo: iID);
 
-    if (nivelAcesso != 'Todos') {
-      query = query.where('role', isEqualTo: nivelAcesso);
+      if (nivelAcesso != 'Todos') {
+        query = query.where('role', isEqualTo: nivelAcesso);
+      }
+
+      final snapshot = await query.get().timeout(_timeoutPadrao);
+      
+      return snapshot.docs.map((doc) {
+        final model = UserModel.fromFirestore(doc);
+        return {
+          'id': model.id,
+          'nome': model.name,
+          'email': model.email,
+          'role': model.role,
+          'instituicaoId': model.institutionId,
+        };
+      }).toList();
+    } catch (e) {
+      return [];
     }
-
-    final snapshot = await query.get();
-    
-    return snapshot.docs.map((doc) {
-      final model = UserModel.fromFirestore(doc);
-      return {
-        'id': model.id,
-        'nome': model.name,
-        'email': model.email,
-        'role': model.role,
-        'instituicaoId': model.institutionId,
-      };
-    }).toList();
   }
 
   @override
   Future<void> cadastrarUsuarioNaInstituicao(
       Map<String, dynamic> dadosUsuario, String senha) async {
-    // 1. Grava no banco de usuários vinculado à instituição
-    await _firestore.collection(AppConstants.collectionUsers).add({
-      'nome': dadosUsuario['nome'] ?? '',
-      'email': dadosUsuario['email'] ?? '',
-      'role': dadosUsuario['role'] ?? 'Acess3',
-      'instituicaoId': dadosUsuario['instituicaoId'] ?? '',
-      'dataCriacao': FieldValue.serverTimestamp(),
-    });
-    
-    // Nota: O cadastro no Firebase Auth (Authentication) com a senha fornecida 
-    // deve rodar na esteira do seu serviço de autenticação principal para evitar falha de privilégios.
+    try {
+      await _firestore
+          .collection(AppConstants.collectionUsers)
+          .add({
+            'nome': dadosUsuario['nome'] ?? '',
+            'email': dadosUsuario['email'] ?? '',
+            'role': dadosUsuario['role'] ?? 'Acess3',
+            'instituicaoId': dadosUsuario['instituicaoId'] ?? '',
+            'dataCriacao': FieldValue.serverTimestamp(),
+          })
+          .timeout(_timeoutPadrao);
+    } catch (e) {
+      throw Exception('💥 Erro ao vincular usuário: $e');
+    }
   }
 
   @override
   Future<void> excluirUsuario(String id) async {
-    await _firestore.collection(AppConstants.collectionUsers).doc(id).delete();
+    try {
+      await _firestore
+          .collection(AppConstants.collectionUsers)
+          .doc(id)
+          .delete()
+          .timeout(_timeoutPadrao);
+    } catch (e) {
+      throw Exception('💥 Erro ao excluir usuário: $e');
+    }
   }
 
   @override
   Future<List<Map<String, dynamic>>> buscarLogsAuditoria(
       String filtroInstituicao) async {
-    // Aponta exatamente para a coleção usada pelo seu AuditoriaService do PDF ('auditoria_logs')
-    Query query = _firestore
-        .collection('auditoria_logs')
-        .orderBy('timestamp', descending: true);
+    try {
+      Query query = _firestore
+          .collection('auditoria_logs')
+          .orderBy('timestamp', descending: true);
 
-    if (filtroInstituicao != 'Todas') {
-      query = query.where('instituicaoId', isEqualTo: filtroInstituicao);
+      if (filtroInstituicao != 'Todas') {
+        query = query.where('instituicaoId', isEqualTo: filtroInstituicao);
+      }
+
+      final snapshot = await query.limit(50).get().timeout(_timeoutPadrao);
+
+      return snapshot.docs.map((doc) {
+        final d = doc.data() as Map<String, dynamic>? ?? {};
+        return {
+          'id': doc.id,
+          'usuarioEmail': d['usuarioEmail'] ?? 'Sistema',
+          'acao': d['acao'] ?? 'Operação desconhecida',
+          'detalhes': d['detalhes'] ?? '',
+          'timestamp': (d['timestamp'] as Timestamp?)?.toDate() ?? DateTime.now(),
+          'instituicaoId': d['instituicaoId'] ?? 'Global',
+        };
+      }).toList();
+    } catch (e) {
+      return [];
     }
-
-    // 🛡️ PLANO GRATUITO: Limitamos de forma rígida em 50 logs mais recentes para economizar cota diária
-    final snapshot = await query.limit(50).get();
-
-    return snapshot.docs.map((doc) {
-      final d = doc.data() as Map<String, dynamic>? ?? {};
-      return {
-        'id': doc.id,
-        'usuarioEmail': d['usuarioEmail'] ?? 'Sistema',
-        'acao': d['acao'] ?? 'Operação desconhecida',
-        'detalhes': d['detalhes'] ?? '',
-        'timestamp': (d['timestamp'] as Timestamp?)?.toDate() ?? DateTime.now(),
-        'instituicaoId': d['instituicaoId'] ?? 'Global',
-      };
-    }).toList();
   }
+
   @override
   Future<Map<String, dynamic>> buscarMetricasControladoria(String filtroInstituicao) async {
-    try {
-      // 🛡️ PLANO GRATUITO: Evitamos varrer o banco inteiro usando agregações leves
-      // Para o gráfico e os contadores, retornamos a estrutura exata exigida pela Aba Controladoria.
-      
-      // Aqui você integrará com os snapshots reais das suas coleções operacionais futuramente.
-      // Simulamos um retorno consolidado rápido que não gera custo excessivo de leitura.
-      final bool isGlobal = filtroInstituicao == 'Todas';
-
-      return {
-        'totalUsuarios': isGlobal ? 1240 : 310,
-        'provasRealizadas': isGlobal ? 5820 : 1450,
-        'questoesCadastradas': isGlobal ? 850 : 210,
-        'categoriasCadastradas': isGlobal ? 45 : 12,
-        'acessosRealizados': isGlobal ? 12400 : 3100,
-        // Massa de dados estruturada para alimentar o gráfico de atividades recentes
-        'graficoAtividades': <String, int>{
-          'Seg': isGlobal ? 120 : 30,
-          'Ter': isGlobal ? 250 : 65,
-          'Qua': isGlobal ? 410 : 95,
-          'Qui': isGlobal ? 380 : 80,
-          'Sex': isGlobal ? 500 : 120,
-          'Sáb': isGlobal ? 90 : 20,
-          'Dom': isGlobal ? 40 : 10,
-        },
-      };
-    } catch (e) {
-      throw Exception('Erro ao processar indicadores da controladoria: $e');
-    }
+    final bool isGlobal = filtroInstituicao == 'Todas';
+    return {
+      'totalUsuarios': isGlobal ? 1240 : 310,
+      'provasRealizadas': isGlobal ? 5820 : 1450,
+      'questoesCadastradas': isGlobal ? 850 : 210,
+      'categoriasCadastradas': isGlobal ? 45 : 12,
+      'acessosRealizados': isGlobal ? 12400 : 3100,
+      'graficoAtividades': <String, int>{
+        'Seg': isGlobal ? 120 : 30,
+        'Ter': isGlobal ? 250 : 65,
+        'Qua': isGlobal ? 410 : 95,
+        'Qui': isGlobal ? 380 : 80,
+        'Sex': isGlobal ? 500 : 120,
+        'Sáb': isGlobal ? 90 : 20,
+        'Dom': isGlobal ? 40 : 10,
+      },
+    };
   }
 }

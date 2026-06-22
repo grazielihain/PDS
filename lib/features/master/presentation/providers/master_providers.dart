@@ -58,7 +58,6 @@ class MasterNotifier extends StateNotifier<MasterDashboardState> {
   MasterNotifier(this._repository) : super(const MasterDashboardState());
 
   /// Aba Home: Carrega os dados consolidando as métricas limpas
-  /// [forceRefresh] mantido para compatibilidade com as abas filhos
   Future<void> carregarHome({bool forceRefresh = false}) async {
     state = state.copyWith(isLoading: true, erro: null);
     try {
@@ -86,16 +85,17 @@ class MasterNotifier extends StateNotifier<MasterDashboardState> {
     }
   }
 
-  /// Aba Instituições: Cria uma nova IE e atualiza a listagem local
+  /// Aba Instituições: Cria uma nova IE aceitando o ID Customizado do banco
   Future<void> criarInstituicao(
     String nome,
     String corHex,
-    String? logoUrl,
-  ) async {
+    String? logoUrl, {
+    String? customId,
+  }) async {
     state = state.copyWith(isLoading: true);
     try {
       final nova = InstituicaoEntity(
-        id: '',
+        id: customId ?? '', // Se vier preenchido, o repositório usará este ID no documento NoSQL
         nome: nome,
         corPrimaria: corHex,
         logoUrl: logoUrl,
@@ -216,6 +216,6 @@ class MasterNotifier extends StateNotifier<MasterDashboardState> {
 // 4. Provedor global exposto que as telas e componentes usarão para observar o painel Master
 final masterProvider =
     StateNotifierProvider<MasterNotifier, MasterDashboardState>((ref) {
-      final repo = ref.read(masterRepositoryProvider);
-      return MasterNotifier(repo);
-    });
+  final repo = ref.read(masterRepositoryProvider);
+  return MasterNotifier(repo);
+});
