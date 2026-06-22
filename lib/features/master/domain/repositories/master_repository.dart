@@ -7,11 +7,11 @@ abstract class MasterRepository {
   /// Aba Instituições: Lista todas as instituições cadastradas
   Future<List<InstituicaoEntity>> listarInstituicoes();
 
-  /// Aba Instituições: Cria uma nova instituição no ecossistema (Adicionado arquivoLogo opcional)
-  Future<void> cadastrarInstituicao(InstituicaoEntity instituicao, {dynamic arquivoLogo});
+  /// Aba Instituições: Cria uma nova instituição no ecossistema
+  Future<void> cadastrarInstituicao(InstituicaoEntity instituicao);
 
-  /// Aba Instituições: Modifica os dados visuais ou cadastrais de uma instituição (Adicionado arquivoLogo opcional)
-  Future<void> editarInstituicao(InstituicaoEntity instituicao, {dynamic arquivoLogo});
+  /// Aba Instituições: Modifica os dados visuais ou cadastrais de uma instituição
+  Future<void> editarInstituicao(InstituicaoEntity instituicao);
 
   /// Aba Instituições: Remove uma instituição do sistema
   Future<void> excluirInstituicao(String id);
@@ -21,9 +21,6 @@ abstract class MasterRepository {
 
   /// Aba Instituições (Sub-Modal): Cadastra um usuário (Admin, Acess2 ou Acess3) dentro de uma instituição
   Future<void> cadastrarUsuarioNaInstituicao(Map<String, dynamic> dadosUsuario, String senha);
-
-  /// Aba Instituições (Sub-Modal): Modifica dados cadastrais de um usuário vinculado
-  Future<void> editarUsuarioNaInstituicao(Map<String, dynamic> dadosUsuario);
 
   /// Aba Instituições (Sub-Modal): Remove o acesso de um usuário
   Future<void> excluirUsuario(String id);

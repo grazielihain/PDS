@@ -15,12 +15,10 @@ import '../../features/auth/presentation/pages/meu_perfil_page.dart';
 import '../../features/simulados/presentation/pages/historico_simulado_page.dart';
 import '../presentation/pages/main_layout_shell.dart';
 import '../../features/simulados/presentation/pages/simulado_page.dart';
-import 'package:rumo_quiz/features/admin/presentation/pages/painel_admin_page.dart';
 import 'package:rumo_quiz/features/auth/presentation/pages/cadastro_usuario_page.dart';
-import 'package:rumo_quiz/features/admin/presentation/pages/configuracao_gamificacao_page.dart';
-import 'package:rumo_quiz/features/admin/presentation/pages/tela_auditoria_page.dart';
-import 'package:rumo_quiz/features/admin/presentation/pages/dashboard_analitico_page.dart';
-import 'package:rumo_quiz/features/master/presentation/pages/painel_master_page.dart';
+import 'package:rumo_quiz/features/master/presentation/pages/tela_auditoria_page.dart';
+// AJUSTADO: Importação direcionada para a página correta sob a ótica da Clean Architecture
+import 'package:rumo_quiz/features/master/presentation/pages/dashboard_analitico_page.dart';
 
 /// Provider que escuta o estado de autenticação do Firebase em tempo real
 final firebaseAuthProvider = StreamProvider<User?>((ref) {
@@ -51,7 +49,6 @@ final routerProvider = Provider<GoRouter>((ref) {
   final String role = (dadosUsuario?['role'] ?? 'acesso')
       .toString()
       .toLowerCase();
-  final String instituicaoId = dadosUsuario?['instituicaoId'] ?? 'ulbra-01';
 
   return GoRouter(
     initialLocation: '/login',
@@ -59,39 +56,33 @@ final routerProvider = Provider<GoRouter>((ref) {
     redirect: (context, state) {
       final loggingIn = state.matchedLocation == '/login';
 
-      // Se não estiver logado no Firebase Auth, força ir para o login
       if (!loggedIn) {
         return loggingIn ? null : '/login';
       }
 
-      // Se os dados do perfil no Firestore ainda estão carregando, segura na tela atual para evitar falso-positivo
       if (profileState.isLoading) {
         return null;
       }
 
-      // Redirecionamento inteligente pós-login baseado em Nível de Acesso (Role)
       if (loggingIn) {
-        if (role == 'master') return '/master-home';
+        if (role == 'master') return '/master/home';
         if (role == 'admin') return '/admin';
         return '/quiz-selection';
       }
 
       final location = state.matchedLocation;
 
-      // 🛡️ TRAVA DE SEGURANÇA MASTER: Apenas a rota raiz centralizada existe agora
-      if (location == '/master-home' && role != 'master') {
+      // Proteção estendida usando rotas dinâmicas do Master
+      if ((location.startsWith('/master/') || location == '/auditoria-master' || location == '/configuracao-gamificacao') && role != 'master') {
         return '/quiz-selection';
       }
 
-      // Lista de rotas exclusivas para nível Admin (que Master também pode acessar se necessário)
       final adminRoutes = [
         '/admin',
         '/cadastro-usuarios',
         '/dashboard-analitico',
-        '/configuracao-gamificacao', // Movido para o escopo correto se acessado externamente por Admin
       ];
 
-      // 🛡️ TRAVA DE SEGURANÇA ADMIN: Apenas Admins e Masters passam por aqui
       if (adminRoutes.contains(location) &&
           role != 'admin' &&
           role != 'master') {
@@ -117,31 +108,25 @@ final routerProvider = Provider<GoRouter>((ref) {
           GoRoute(
             path: '/historico',
             builder: (context, state) => const HistoricoSimuladoPage(),
-          ),
+          ),     
+          
+          // AJUSTADO: Rota unificada dinâmica do Master, injetando a sub-tela correspondente
           GoRoute(
-            path: '/admin',
+            path: '/master/:view',
             builder: (context, state) {
-              return PainelAdminPage(substituicaoInstituicaoId: instituicaoId);
+              final view = state.pathParameters['view'] ?? 'home';
+              return DashboardAnaliticoPage(subTela: view);
             },
-          ),
-          // 🏛️ CENTRAL MATRIZ: A rota única do ecossistema Master unificado
-          GoRoute(
-            path: '/master-home',
-            builder: (context, state) => const PainelMasterPage(),
           ),
           GoRoute(
             path: '/cadastro-usuarios',
             builder: (context, state) => const CadastroUsuarioPage(),
-          ),
+          ),          
           GoRoute(
-            path: '/configuracao-gamificacao',
-            builder: (context, state) => const ConfiguracaoGamificacaoPage(),
-          ),
-          GoRoute(
-            path: '/dashboard-analitico',
-            builder: (context, state) => const DashboardAnaliticoPage(),
-          ),
-
+            path: '/auditoria-master',
+            builder: (context, state) =>
+                const TelaAuditoriaPage(visaoMaster: true),
+          ),        
           GoRoute(
             path: '/resultado',
             builder: (context, state) {

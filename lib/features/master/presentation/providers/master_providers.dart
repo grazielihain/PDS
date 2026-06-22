@@ -3,10 +3,12 @@ import '../../data/repositories/master_repository_impl.dart';
 import '../../domain/entities/instituicao_entity.dart';
 import '../../domain/repositories/master_repository.dart';
 
+// 1. Injeta a implementação do repositório no escopo do Riverpod
 final masterRepositoryProvider = Provider<MasterRepository>((ref) {
   return MasterRepositoryImpl();
 });
 
+// 2. Modelo de Estado customizado para encapsular os dados do painel Master
 class MasterDashboardState {
   final bool isLoading;
   final String? erro;
@@ -40,85 +42,96 @@ class MasterDashboardState {
       erro: erro,
       metricasGlobais: metricasGlobais ?? this.metricasGlobais,
       instituicoes: instituicoes ?? this.instituicoes,
-      usuariosDaInstituicao: usuariosDaInstituicao ?? this.usuariosDaInstituicao,
-      metricasControladoria: metricasControladoria ?? this.metricasControladoria,
+      usuariosDaInstituicao:
+          usuariosDaInstituicao ?? this.usuariosDaInstituicao,
+      metricasControladoria:
+          metricasControladoria ?? this.metricasControladoria,
       logsAuditoria: logsAuditoria ?? this.logsAuditoria,
     );
   }
 }
 
+// 3. O Controlador que gerencia as ações e modifica o estado
 class MasterNotifier extends StateNotifier<MasterDashboardState> {
   final MasterRepository _repository;
 
   MasterNotifier(this._repository) : super(const MasterDashboardState());
 
+  /// Aba Home: Carrega os dados consolidando as métricas limpas
+  /// [forceRefresh] mantido para compatibilidade com as abas filhos
   Future<void> carregarHome({bool forceRefresh = false}) async {
-    if (state.metricasGlobais.isNotEmpty && !forceRefresh) return;
     state = state.copyWith(isLoading: true, erro: null);
     try {
       final metricas = await _repository.buscarMetricasGlobais();
       state = state.copyWith(isLoading: false, metricasGlobais: metricas);
     } catch (e) {
-      state = state.copyWith(isLoading: false, erro: 'Falha ao carregar métricas: $e');
+      state = state.copyWith(
+        isLoading: false,
+        erro: 'Falha ao carregar métricas: $e',
+      );
     }
   }
 
+  /// Aba Instituições: Lista todas as IEs registradas
   Future<void> carregarInstituicoes({bool forceRefresh = false}) async {
-    if (state.instituicoes.isNotEmpty && !forceRefresh) return;
     state = state.copyWith(isLoading: true, erro: null);
     try {
       final lista = await _repository.listarInstituicoes();
       state = state.copyWith(isLoading: false, instituicoes: lista);
     } catch (e) {
-      state = state.copyWith(isLoading: false, erro: 'Falha ao buscar instituições: $e');
+      state = state.copyWith(
+        isLoading: false,
+        erro: 'Falha ao buscar instituições: $e',
+      );
     }
   }
 
-  // Mudado logoUrl para dynamic para receber a String ou o PlatformFile vindo da UI
-  Future<void> criarInstituicao(String nome, String corHex, dynamic logoParam, String customId) async {
-    state = state.copyWith(isLoading: true, erro: null);
+  /// Aba Instituições: Cria uma nova IE e atualiza a listagem local
+  Future<void> criarInstituicao(
+    String nome,
+    String corHex,
+    String? logoUrl,
+  ) async {
+    state = state.copyWith(isLoading: true);
     try {
-      final corFormatada = corHex.replaceAll('#', '');
-      final idFinal = customId.trim().isNotEmpty ? customId.trim() : DateTime.now().millisecondsSinceEpoch.toString();
-
-      // Criamos a entidade básica. O seu MasterRepositoryImpl precisará interceptar 
-      // se logoUrl for na verdade um PlatformFile e efetuar o upload antes de salvar no banco.
       final nova = InstituicaoEntity(
-        id: idFinal,
+        id: '',
         nome: nome,
-        corPrimaria: corFormatada,
-        logoUrl: logoParam is String ? logoParam : null, 
+        corPrimaria: corHex,
+        logoUrl: logoUrl,
       );
-
-      // Repasse o arquivo em uma sobrecarga ou certifique-se que o seu contrato cadastrarInstituicao 
-      // ou um método específico faça o upload se passar o parametro dinâmico.
-      // Caso queira passar o PlatformFile direto ao repository, adapte a assinatura do repositório para aceitar dynamic no logo.
-      await _repository.cadastrarInstituicao(nova, arquivoLogo: logoParam);
-      
-      state = state.copyWith(isLoading: false);
+      await _repository.cadastrarInstituicao(nova);
       await carregarInstituicoes(forceRefresh: true);
     } catch (e) {
-      state = state.copyWith(isLoading: false, erro: 'Erro ao criar instituição: $e');
+      state = state.copyWith(
+        isLoading: false,
+        erro: 'Erro ao criar instituição: $e',
+      );
     }
   }
 
-  // Mudado de String? para dynamic logoParam
-  Future<void> atualizarInstituicao(String id, String nome, String corHex, dynamic logoParam) async {
+  /// Aba Instituições: Atualiza dados visuais de uma IE
+  Future<void> atualizarInstituicao(
+    String id,
+    String nome,
+    String corHex,
+    String? logoUrl,
+  ) async {
     try {
       final editada = InstituicaoEntity(
         id: id,
         nome: nome,
         corPrimaria: corHex,
-        logoUrl: logoParam is String ? logoParam : null,
+        logoUrl: logoUrl,
       );
-      
-      await _repository.editarInstituicao(editada, arquivoLogo: logoParam);
+      await _repository.editarInstituicao(editada);
       await carregarInstituicoes(forceRefresh: true);
     } catch (e) {
       state = state.copyWith(erro: 'Erro ao editar instituição: $e');
     }
   }
 
+  /// Aba Instituições: Remove uma instituição
   Future<void> deletarInstituicao(String id) async {
     try {
       await _repository.excluirInstituicao(id);
@@ -129,58 +142,67 @@ class MasterNotifier extends StateNotifier<MasterDashboardState> {
     }
   }
 
-  Future<void> carregarUsuariosDaInstituicao(String instituicaoId, String filtroNivel) async {
+  /// Sub-Modal: Carrega a listagem de usuários vinculados de uma IE específica
+  Future<void> carregarUsuariosDaInstituicao(
+    String instituicaoId,
+    String filtroNivel,
+  ) async {
     try {
-      final users = await _repository.buscarUsuariosPorInstituicao(instituicaoId, filtroNivel);
+      final users = await _repository.buscarUsuariosPorInstituicao(
+        instituicaoId,
+        filtroNivel,
+      );
       state = state.copyWith(usuariosDaInstituicao: users);
     } catch (e) {
       state = state.copyWith(erro: 'Erro ao carregar usuários da IE: $e');
     }
   }
 
-  Future<void> adicionarUsuarioNaInstituicao(Map<String, dynamic> dados, String senha) async {
+  /// Sub-Modal: Cria o usuário na esteira da instituição
+  Future<void> adicionarUsuarioNaInstituicao(
+    Map<String, dynamic> dados,
+    String senha,
+  ) async {
     try {
       await _repository.cadastrarUsuarioNaInstituicao(dados, senha);
-      final novosUsuarios = await _repository.buscarUsuariosPorInstituicao(dados['instituicaoId'], 'Todos');
-      state = state.copyWith(usuariosDaInstituicao: novosUsuarios);
+      await carregarUsuariosDaInstituicao(dados['instituicaoId'], 'Todos');
     } catch (e) {
       state = state.copyWith(erro: 'Erro ao cadastrar usuário: $e');
     }
   }
 
-  Future<void> atualizarUsuarioNaInstituicao(Map<String, dynamic> dados) async {
-    try {
-      await _repository.editarUsuarioNaInstituicao(dados);
-      final novosUsuarios = await _repository.buscarUsuariosPorInstituicao(dados['instituicaoId'], 'Todos');
-      state = state.copyWith(usuariosDaInstituicao: novosUsuarios);
-    } catch (e) {
-      state = state.copyWith(erro: 'Erro ao editar usuário: $e');
-    }
-  }
-
+  /// Sub-Modal: Remove um usuário de uma instituição
   Future<void> removerUsuario(String id, String instituicaoId) async {
     try {
       await _repository.excluirUsuario(id);
-      final novosUsuarios = await _repository.buscarUsuariosPorInstituicao(instituicaoId, 'Todos');
-      state = state.copyWith(usuariosDaInstituicao: novosUsuarios);
+      await carregarUsuariosDaInstituicao(instituicaoId, 'Todos');
     } catch (e) {
       state = state.copyWith(erro: 'Erro ao remover usuário: $e');
     }
   }
 
-  Future<void> carregarControladoria(String filtroIE, {bool forceRefresh = false}) async {
-    if (state.metricasControladoria.isNotEmpty && !forceRefresh) return;
+  /// Aba Controladoria: Carrega contadores operacionais filtrados
+  Future<void> carregarControladoria(
+    String filtroIE, {
+    bool forceRefresh = false,
+  }) async {
     state = state.copyWith(isLoading: true, erro: null);
     try {
       final data = await _repository.buscarMetricasControladoria(filtroIE);
       state = state.copyWith(isLoading: false, metricasControladoria: data);
     } catch (e) {
-      state = state.copyWith(isLoading: false, erro: 'Erro na controladoria: $e');
+      state = state.copyWith(
+        isLoading: false,
+        erro: 'Erro na controladoria: $e',
+      );
     }
   }
 
-  Future<void> carregarLogsAuditoria(String filtroIE, {bool forceRefresh = false}) async {
-    if (state.logsAuditoria.isNotEmpty && !forceRefresh) return;
+  /// Aba Auditoria: Carrega os logs mais recentes aplicando o limite grátis
+  Future<void> carregarLogsAuditoria(
+    String filtroIE, {
+    bool forceRefresh = false,
+  }) async {
     state = state.copyWith(isLoading: true, erro: null);
     try {
       final logs = await _repository.buscarLogsAuditoria(filtroIE);
@@ -191,9 +213,9 @@ class MasterNotifier extends StateNotifier<MasterDashboardState> {
   }
 }
 
-final masterProvider = StateNotifierProvider<MasterNotifier, MasterDashboardState>((ref) {
-  final repo = ref.read(masterRepositoryProvider);
-  return MasterNotifier(repo);
-});
-
-final masterAbaAtivaProvider = StateProvider<int>((ref) => 0);
+// 4. Provedor global exposto que as telas e componentes usarão para observar o painel Master
+final masterProvider =
+    StateNotifierProvider<MasterNotifier, MasterDashboardState>((ref) {
+      final repo = ref.read(masterRepositoryProvider);
+      return MasterNotifier(repo);
+    });

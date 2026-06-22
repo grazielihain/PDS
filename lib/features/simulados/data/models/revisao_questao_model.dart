@@ -1,4 +1,4 @@
-import 'questao_model.dart'; 
+import 'questao_model.dart';
 
 class RevisaoQuestaoModel {
   final QuestaoModel questao;
@@ -13,7 +13,7 @@ class RevisaoQuestaoModel {
   factory RevisaoQuestaoModel.fromMap(Map<String, dynamic> map) {
     return RevisaoQuestaoModel(
       questao: QuestaoModel.fromMap(
-        Map<String, dynamic>.from(map['questao'] as Map), 
+        Map<String, dynamic>.from(map['questao'] as Map),
         '', // Passando o ID vazio conforme sua implementação original
       ),
       opcaoEscolhidaIndex: map['opcaoEscolhidaIndex'] as int?,

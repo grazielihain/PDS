@@ -13,3 +13,4 @@ abstract class AuthRepository {
   /// Verifica se existe um usuário já logado no dispositivo
   Future<UserEntity?> getCurrentUser();
 }
+

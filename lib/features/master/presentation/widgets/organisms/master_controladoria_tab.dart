@@ -119,9 +119,7 @@ class _MasterControladoriaTabState extends ConsumerState<MasterControladoriaTab>
                   crossAxisAlignment: CrossAxisAlignment.end,
                   children: dadosGrafico.entries.map((barra) {
                     // Encontra o valor máximo para normalizar a altura das barras proporcionalmente
-                    final maxValor = dadosGrafico.values.isNotEmpty 
-                        ? dadosGrafico.values.reduce((a, b) => a > b ? a : b) 
-                        : 0;
+                    final maxValor = dadosGrafico.values.reduce((a, b) => a > b ? a : b);
                     final alturaPercentual = maxValor > 0 ? (barra.value / maxValor) : 0.0;
 
                     return Expanded(

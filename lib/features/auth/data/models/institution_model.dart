@@ -32,17 +32,14 @@ class InstitutionModel {
         .where((item) => item.isNotEmpty)
         .toList();
 
-    // Consolidação inteligente do link da imagem
-    final stringLogoUrl = data['logoUrl']?.toString() ?? data['logo']?.toString();
-
     return InstitutionModel(
       id: doc.id, // Pega o identificador do documento (ex: 'ulbra-01')
       nome: data['nome'] ?? '',
       plano: data['plano'] ?? 'Gratuito',
       corCustomizada: data['corCustomizada']?.toString(),
       primaryColorHex: data['primaryColorHex']?.toString(),
-      logoUrl: stringLogoUrl,
-      logo: stringLogoUrl,
+      logoUrl: data['logoUrl']?.toString(),
+      logo: data['logo']?.toString(),
       patrocinadores: patrocinadoresTratados,
     );
   }

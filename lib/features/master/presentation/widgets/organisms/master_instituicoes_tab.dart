@@ -2,16 +2,12 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../providers/master_providers.dart';
 
-class MasterInstituicoesTab extends ConsumerStatefulWidget {
+class MasterInstituicoesTab extends ConsumerWidget {
   final MasterDashboardState state;
   final TextEditingController nomeInstituicaoController;
-  final Function(String id, String nome, String corHex, String? logoUrl)
-  onAbrirEdicao;
+  final Function(String id, String nome, String corHex, String? logoUrl) onAbrirEdicao;
   final Function(String id, String nome) onTentarexcluir;
   final Function(String instituicaoId) onAbrirAdicionarUsuario;
-  // Nova callback adicionada para gerenciar a edição do usuário a partir da lista
-  final Function(Map<String, dynamic> usuario, String instituicaoId)
-  onEditarUsuario;
 
   const MasterInstituicoesTab({
     super.key,
@@ -20,197 +16,167 @@ class MasterInstituicoesTab extends ConsumerStatefulWidget {
     required this.onAbrirEdicao,
     required this.onTentarexcluir,
     required this.onAbrirAdicionarUsuario,
-    required this.onEditarUsuario,
   });
 
-  @override
-  ConsumerState<MasterInstituicoesTab> createState() =>
-      _MasterInstituicoesTabState();
-}
-
-class _MasterInstituicoesTabState extends ConsumerState<MasterInstituicoesTab> {
-  String _filtroNivelAtivo = 'Todos';
+  // Cor padrão do escopo Master estabelecida para componentes visuais de controle
+  static const Color corPadraoMaster = Colors.purple;
 
   @override
-  Widget build(BuildContext context) {
-    final instDocs = widget.state.instituicoes;
+  Widget build(BuildContext context, WidgetRef ref) {
+    final instDocs = state.instituicoes;
 
     return Padding(
       padding: const EdgeInsets.all(16.0),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          const Text(
+            '🏛️ Organização e Árvore de Clientes',
+            style: TextStyle(
+              fontSize: 18,
+              fontWeight: FontWeight.bold,
+              color: corPadraoMaster,
+            ),
+          ),
+          const SizedBox(height: 12),
           Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              const Text(
-                'Instituições de Ensino',
-                style: TextStyle(
-                  fontSize: 22,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.purple,
-                ),
-              ),
-              ElevatedButton.icon(
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.purple.shade700,
-                  foregroundColor: Colors.white,
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 16,
-                    vertical: 12,
+              Expanded(
+                child: TextField(
+                  controller: nomeInstituicaoController,
+                  decoration: const InputDecoration(
+                    labelText: 'Nome da Nova Instituição',
+                    hintText: 'Ex: Escola Rumo Saber',
+                    border: OutlineInputBorder(),
+                    floatingLabelStyle: TextStyle(color: corPadraoMaster),
+                    focusedBorder: OutlineInputBorder(
+                      borderSide: BorderSide(color: corPadraoMaster, width: 2),
+                    ),
                   ),
                 ),
-                icon: const Icon(Icons.add),
-                label: const Text('Nova Instituição'),
-                onPressed: () => widget.onAbrirEdicao('', '', '4CAF50', null),
+              ),
+              const SizedBox(width: 12),
+              ElevatedButton(
+                onPressed: () async {
+                  if (nomeInstituicaoController.text.trim().isEmpty) return;
+                  
+                  // Injeta por padrão uma cor cinza neutra, permitindo que a edição defina o Hexadecimal final
+                  await ref.read(masterProvider.notifier).criarInstituicao(
+                        nomeInstituicaoController.text.trim(),
+                        '#9E9E9E',
+                        null,
+                      );
+                  nomeInstituicaoController.clear();
+                },
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: corPadraoMaster,
+                  foregroundColor: Colors.white,
+                  minimumSize: const Size(0, 54),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                ),
+                child: const Text('Cadastrar'),
               ),
             ],
           ),
-          const SizedBox(height: 20),
+          const Divider(height: 32),
           Expanded(
             child: RefreshIndicator(
-              onRefresh: () => ref
-                  .read(masterProvider.notifier)
-                  .carregarInstituicoes(forceRefresh: true),
+              color: corPadraoMaster,
+              onRefresh: () => ref.read(masterProvider.notifier).carregarInstituicoes(forceRefresh: true),
               child: instDocs.isEmpty
-                  ? const Center(child: Text('Nenhuma instituição cadastrada.'))
-                  : GridView.builder(
-                      gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
-                        maxCrossAxisExtent: 400,
-                        crossAxisSpacing: 16,
-                        mainAxisSpacing: 16,
-                        mainAxisExtent:
-                            220, // Ajustado ligeiramente para caber as ações de forma limpa
+                  ? const SingleChildScrollView(
+                      physics: AlwaysScrollableScrollPhysics(),
+                      child: Center(
+                        child: Padding(
+                          padding: EdgeInsets.all(32.0),
+                          child: Text('Nenhuma instituição cadastrada no ecossistema.'),
+                        ),
                       ),
+                    )
+                  : ListView.builder(
                       itemCount: instDocs.length,
                       itemBuilder: (context, index) {
                         final inst = instDocs[index];
-                        Color corIE = Colors.grey;
+
+                        // Converte a cor Hex da IE com fallback seguro caso o formato falhe
+                        Color corInstituicao;
                         try {
-                          final hex = inst.corPrimaria
-                              .replaceAll('#', '')
-                              .trim();
-                          if (hex.isNotEmpty) {
-                            corIE = Color(int.parse('FF$hex', radix: 16));
-                          }
-                        } catch (_) {}
+                          final hex = inst.corPrimaria.replaceAll('#', '');
+                          corInstituicao = Color(int.parse('FF$hex', radix: 16));
+                        } catch (_) {
+                          corInstituicao = corPadraoMaster;
+                        }
 
                         return Card(
-                          elevation: 3,
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(12),
-                            side: BorderSide(
-                              color: corIE.withOpacity(0.4),
-                              width: 2,
+                          margin: const EdgeInsets.only(bottom: 12),
+                          elevation: 1.5,
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                          child: ExpansionTile(
+                            iconColor: corPadraoMaster,
+                            leading: CircleAvatar(
+                              backgroundColor: corInstituicao.withOpacity(0.15),
+                              child: Icon(Icons.corporate_fare, color: corInstituicao),
                             ),
-                          ),
-                          child: Padding(
-                            padding: const EdgeInsets.all(14.0),
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
+                            title: Text(
+                              inst.nome,
+                              style: const TextStyle(fontWeight: FontWeight.bold),
+                            ),
+                            subtitle: Text('ID: ${inst.id} • Cor: ${inst.corPrimaria}'),
+                            onExpansionChanged: (expanded) {
+                              if (expanded) {
+                                ref.read(masterProvider.notifier).carregarUsuariosDaInstituicao(inst.id, 'Todos');
+                              }
+                            },
+                            trailing: Row(
+                              mainAxisSize: MainAxisSize.min,
                               children: [
-                                Row(
-                                  children: [
-                                    CircleAvatar(
-                                      backgroundColor: corIE.withOpacity(0.1),
-                                      backgroundImage:
-                                          (inst.logoUrl != null &&
-                                              inst.logoUrl!.isNotEmpty)
-                                          ? NetworkImage(inst.logoUrl!)
-                                          : null,
-                                      child:
-                                          (inst.logoUrl == null ||
-                                              inst.logoUrl!.isEmpty)
-                                          ? Icon(Icons.business, color: corIE)
-                                          : null,
-                                    ),
-                                    const SizedBox(width: 12),
-                                    Expanded(
-                                      child: Text(
-                                        inst.nome,
-                                        style: const TextStyle(
-                                          fontSize: 16,
-                                          fontWeight: FontWeight.bold,
-                                        ),
-                                        overflow: TextOverflow.ellipsis,
-                                      ),
-                                    ),
-                                  ],
+                                IconButton(
+                                  icon: const Icon(Icons.edit_note_rounded, color: Colors.orange),
+                                  onPressed: () => onAbrirEdicao(
+                                    inst.id,
+                                    inst.nome,
+                                    inst.corPrimaria,
+                                    inst.logoUrl,
+                                  ),
                                 ),
-                                const Spacer(),
-                                Text(
-                                  'ID: ${inst.id}',
-                                  style: TextStyle(
-                                    fontSize: 12,
-                                    color: Colors.grey.shade600,
-                                  ),
-                                  overflow: TextOverflow.ellipsis,
-                                ),
-                                const SizedBox(height: 8),
-                                ElevatedButton.icon(
-                                  style: ElevatedButton.styleFrom(
-                                    backgroundColor: Colors.grey.shade100,
-                                    foregroundColor: Colors.purple.shade900,
-                                    elevation: 0,
-                                    minimumSize: const Size.fromHeight(36),
-                                  ),
-                                  icon: const Icon(
-                                    Icons.people_alt_outlined,
-                                    size: 16,
-                                  ),
-                                  label: const Text(
-                                    'Ver Usuários Vinculados',
-                                    style: TextStyle(fontSize: 13),
-                                  ),
-                                  onPressed: () async {
-                                    // Carrega os usuários no provider antes de abrir o modal
-                                    await ref
-                                        .read(masterProvider.notifier)
-                                        .carregarUsuariosDaInstituicao(
-                                          inst.id,
-                                          'Todos',
-                                        );
-                                    if (context.mounted) {
-                                      _abrirModalUsuarios(
-                                        context,
-                                        inst.id,
-                                        inst.nome,
-                                      );
-                                    }
-                                  },
-                                ),
-                                const Divider(height: 16),
-                                Row(
-                                  mainAxisAlignment: MainAxisAlignment.end,
-                                  children: [
-                                    IconButton(
-                                      icon: const Icon(
-                                        Icons.edit_outlined,
-                                        color: Colors.blue,
-                                      ),
-                                      tooltip: 'Editar Instituição',
-                                      onPressed: () => widget.onAbrirEdicao(
-                                        inst.id,
-                                        inst.nome,
-                                        inst.corPrimaria,
-                                        inst.logoUrl,
-                                      ),
-                                    ),
-                                    IconButton(
-                                      icon: const Icon(
-                                        Icons.delete_outline,
-                                        color: Colors.red,
-                                      ),
-                                      tooltip: 'Excluir Instituição',
-                                      onPressed: () => widget.onTentarexcluir(
-                                        inst.id,
-                                        inst.nome,
-                                      ),
-                                    ),
-                                  ],
+                                IconButton(
+                                  icon: const Icon(Icons.delete_sweep_outlined, color: Colors.red),
+                                  onPressed: () => onTentarexcluir(inst.id, inst.nome),
                                 ),
                               ],
                             ),
+                            children: [
+                              const Padding(
+                                padding: EdgeInsets.symmetric(horizontal: 16.0),
+                                child: Divider(height: 1),
+                              ),
+                              Padding(
+                                padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 12.0),
+                                child: Row(
+                                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                  children: [
+                                    const Text(
+                                      'Árvore de Usuários Vinculados:',
+                                      style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+                                    ),
+                                    ElevatedButton.icon(
+                                      onPressed: () => onAbrirAdicionarUsuario(inst.id),
+                                      icon: const Icon(Icons.person_add_alt_1_rounded, size: 16),
+                                      label: const Text('Vincular Usuário', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
+                                      style: ElevatedButton.styleFrom(
+                                        backgroundColor: Colors.green.shade700,
+                                        foregroundColor: Colors.white,
+                                        visualDensity: VisualDensity.compact,
+                                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              _buildListaUsuariosVinculados(inst.id),
+                              const SizedBox(height: 8),
+                            ],
                           ),
                         );
                       },
@@ -222,205 +188,62 @@ class _MasterInstituicoesTabState extends ConsumerState<MasterInstituicoesTab> {
     );
   }
 
-  void _abrirModalUsuarios(
-    BuildContext context,
-    String instituicaoId,
-    String instituicaoNome,
-  ) {
-    setState(() => _filtroNivelAtivo = 'Todos');
+  Widget _buildListaUsuariosVinculados(String instituicaoId) {
+    final usuarios = state.usuariosDaInstituicao;
+    final usuariosFiltrados = usuarios.where((u) => u['instituicaoId'] == instituicaoId).toList();
 
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-      ),
-      builder: (context) {
+    if (usuariosFiltrados.isEmpty) {
+      return const Padding(
+        padding: EdgeInsets.symmetric(vertical: 16.0),
+        child: Text(
+          'Nenhum usuário alocado nesta instituição.',
+          style: TextStyle(color: Colors.black54, fontSize: 13, fontStyle: FontStyle.italic),
+        ),
+      );
+    }
+
+    return Column(
+      children: usuariosFiltrados.map((user) {
+        final uNome = user['nome'] ?? 'Sem Nome';
+        final uRole = user['role'] ?? 'Acess3';
+        final uEmail = user['email'] ?? '';
+
+        // Identificadores amigáveis de nível de acesso com base nas regras do negócio
+        String traducaoNivel = 'Aluno (Acess3)';
+        Color corNivel = Colors.grey;
+        if (uRole == 'Admin' || uRole == 'Acess1') {
+          traducaoNivel = 'Admin da IE (Acess1)';
+          corNivel = Colors.amber.shade900;
+        } else if (uRole == 'Acess2') {
+          traducaoNivel = 'Gestor (Acess2)';
+          corNivel = Colors.blue.shade700;
+        }
+
         return Consumer(
-          builder: (context, refConsumer, child) {
-            final masterState = refConsumer.watch(masterProvider);
-            final usuarios = masterState.usuariosDaInstituicao;
-
-            final usuariosDaInst = usuarios
-                .where((u) => u['instituicaoId'] == instituicaoId)
-                .toList();
-
-            int totalAdmin = 0;
-            int totalAcess2 = 0;
-            int totalAcess3 = 0;
-
-            for (var u in usuariosDaInst) {
-              final role = u['role'].toString().toLowerCase();
-              if (role == 'admin') totalAdmin++;
-              if (role == 'acess2') totalAcess2++;
-              if (role == 'acess3') totalAcess3++;
-            }
-
-            final usuariosFiltrados = usuariosDaInst.where((u) {
-              if (_filtroNivelAtivo == 'Todos') return true;
-              return u['role'].toString().toLowerCase() ==
-                  _filtroNivelAtivo.toLowerCase();
-            }).toList();
-
+          builder: (context, ref, child) {
             return Container(
-              height: MediaQuery.of(context).size.height * 0.85,
-              padding: const EdgeInsets.all(20),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    children: [
-                      IconButton(
-                        icon: const Icon(Icons.close, color: Colors.grey),
-                        tooltip: 'Sair de Usuários Vinculados',
-                        onPressed: () => Navigator.pop(context),
-                      ),
-                      const SizedBox(width: 4),
-                      Expanded(
-                        child: Text(
-                          'Usuários vinculados — $instituicaoNome',
-                          style: const TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.bold,
-                          ),
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      ),
-                      ElevatedButton.icon(
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: Colors.purple.shade700,
-                        ),
-                        icon: const Icon(
-                          Icons.person_add,
-                          size: 16,
-                          color: Colors.white,
-                        ),
-                        label: const Text(
-                          'Cadastrar Usuário',
-                          style: TextStyle(color: Colors.white, fontSize: 12),
-                        ),
-                        onPressed: () {
-                          Navigator.pop(context);
-                          widget.onAbrirAdicionarUsuario(instituicaoId);
-                        },
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 14),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceAround,
-                    children: [
-                      _buildChipContador('Admins', totalAdmin, Colors.red),
-                      _buildChipContador('Acess2', totalAcess2, Colors.orange),
-                      _buildChipContador('Acess3', totalAcess3, Colors.blue),
-                    ],
-                  ),
-                  const SizedBox(height: 16),
-                  SingleChildScrollView(
-                    scrollDirection: Axis.horizontal,
-                    child: Row(
-                      children: ['Todos', 'Admin', 'Acess2', 'Acess3'].map((
-                        nivel,
-                      ) {
-                        return Padding(
-                          padding: const EdgeInsets.only(right: 8.0),
-                          child: ChoiceChip(
-                            label: Text(nivel),
-                            selected: _filtroNivelAtivo == nivel,
-                            selectedColor: Colors.purple.shade100,
-                            onSelected: (val) {
-                              if (val) {
-                                (context as Element).markNeedsBuild();
-                                setState(() => _filtroNivelAtivo = nivel);
-                              }
-                            },
-                          ),
-                        );
-                      }).toList(),
-                    ),
-                  ),
-                  const SizedBox(height: 12),
-                  Expanded(
-                    child: usuariosFiltrados.isEmpty
-                        ? const Center(
-                            child: Text(
-                              'Nenhum usuário localizado neste nível.',
-                            ),
-                          )
-                        : ListView.builder(
-                            itemCount: usuariosFiltrados.length,
-                            itemBuilder: (context, idx) {
-                              final user = usuariosFiltrados[idx];
-                              return Card(
-                                margin: const EdgeInsets.symmetric(vertical: 4),
-                                child: ListTile(
-                                  leading: const CircleAvatar(
-                                    child: Icon(Icons.person),
-                                  ),
-                                  title: Text(user['nome'] ?? 'Sem Nome'),
-                                  subtitle: Text(
-                                    '${user['email']} \nNível: ${user['role']}',
-                                  ),
-                                  isThreeLine: true,
-                                  trailing: Row(
-                                    mainAxisSize: MainAxisSize.min,
-                                    children: [
-                                      IconButton(
-                                        icon: const Icon(
-                                          Icons.edit_outlined,
-                                          color: Colors.blue,
-                                        ),
-                                        tooltip: 'Editar Usuário',
-                                        onPressed: () {
-                                          Navigator.pop(context);
-                                          widget.onEditarUsuario(
-                                            user,
-                                            instituicaoId,
-                                          );
-                                        },
-                                      ),
-                                      IconButton(
-                                        icon: const Icon(
-                                          Icons.delete_outline,
-                                          color: Colors.red,
-                                        ),
-                                        tooltip: 'Remover Usuário',
-                                        onPressed: () async {
-                                          await refConsumer
-                                              .read(masterProvider.notifier)
-                                              .removerUsuario(
-                                                user['id'],
-                                                instituicaoId,
-                                              );
-                                        },
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                              );
-                            },
-                          ),
-                  ),
-                ],
+              margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+              decoration: BoxDecoration(
+                color: Colors.grey.shade50,
+                borderRadius: BorderRadius.circular(6),
+              ),
+              child: ListTile(
+                dense: true,
+                title: Text(uNome, style: const TextStyle(fontWeight: FontWeight.w600)),
+                subtitle: Text('E-mail: $uEmail\nNível: $traducaoNivel'),
+                isThreeLine: true,
+                trailing: IconButton(
+                  icon: const Icon(Icons.remove_circle_outline, color: Colors.red, size: 18),
+                  tooltip: 'Desvincular Usuário',
+                  onPressed: () async {
+                    await ref.read(masterProvider.notifier).removerUsuario(user['id'], instituicaoId);
+                  },
+                ),
               ),
             );
           },
         );
-      },
-    );
-  }
-
-  Widget _buildChipContador(String label, int total, Color cor) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-      decoration: BoxDecoration(
-        color: cor.withOpacity(0.1),
-        borderRadius: BorderRadius.circular(20),
-      ),
-      child: Text(
-        '$label: $total',
-        style: TextStyle(color: cor, fontWeight: FontWeight.bold, fontSize: 13),
-      ),
+      }).toList(),
     );
   }
 }
