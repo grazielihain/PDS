@@ -34,6 +34,9 @@ class _FazerQuizPageState extends ConsumerState<FazerQuizPage> {
 
   bool _comTempo = false;
   int _tempoMinutos = 60;
+  final _tempoController = TextEditingController(text: '60');
+
+  String? _nomeCategoriaSelecionada;
 
   @override
   void initState() {
@@ -44,6 +47,7 @@ class _FazerQuizPageState extends ConsumerState<FazerQuizPage> {
   @override
   void dispose() {
     _qtdController.dispose();
+    _tempoController.dispose();
     super.dispose();
   }
 
@@ -91,8 +95,14 @@ class _FazerQuizPageState extends ConsumerState<FazerQuizPage> {
   }
 
   Future<void> _aoSelecionarCategoria(String catId) async {
+    final catDoc = _categorias.where((d) => d.id == catId).firstOrNull;
+    final catNome = catDoc != null
+        ? ((catDoc.data() as Map<String, dynamic>)['nome'] as String? ?? catId)
+        : catId;
+
     setState(() {
       _categoriaSelecionada = catId;
+      _nomeCategoriaSelecionada = catNome;
       _tiposSimulado = [];
       _tipoSelecionado = null;
       _assuntosDisponiveis = [];
@@ -128,6 +138,8 @@ class _FazerQuizPageState extends ConsumerState<FazerQuizPage> {
       _assuntosDisponiveis = [];
       _assuntoSelecionado = null;
       _comTempo = false;
+      _tempoMinutos = 60;
+      _tempoController.text = '60';
     });
 
     if (modo == 'assunto') {
@@ -215,11 +227,12 @@ class _FazerQuizPageState extends ConsumerState<FazerQuizPage> {
 
         ref.read(quizSessionProvider.notifier).iniciarSimulado(
           categoriaId: _categoriaSelecionada!,
+          categoriaNome: _nomeCategoriaSelecionada ?? _categoriaSelecionada!,
           modoProva: _modoProva,
           assunto: _modoProva == 'assunto' ? _assuntoSelecionado : null,
           questoesDisponiveisNoBanco: questoes,
           qtdSolicitada: qtd,
-          tempoMinutos: (_modoProva == 'completa' && _comTempo) ? _tempoMinutos : null,
+          tempoMinutos: _comTempo ? _tempoMinutos : null,
         );
 
         context.go('/executar-simulado');
@@ -351,7 +364,7 @@ class _FazerQuizPageState extends ConsumerState<FazerQuizPage> {
                     ),
                   ],
 
-                  // PASSO 3a: Assunto (se modo = assunto)
+                  // PASSO 3: Assunto e Quantidade (somente modo assunto)
                   if (_tipoSelecionado != null && _modoProva == 'assunto') ...[
                     const SizedBox(height: 16),
                     _buildStepCard(
@@ -433,11 +446,11 @@ class _FazerQuizPageState extends ConsumerState<FazerQuizPage> {
                     ),
                   ],
 
-                  // PASSO 3b: Tempo (se modo = completa)
-                  if (_tipoSelecionado != null && _modoProva == 'completa') ...[
+                  // Tempo de Prova — disponível para qualquer tipo/modo
+                  if (_tipoSelecionado != null) ...[
                     const SizedBox(height: 16),
                     _buildStepCard(
-                      step: '3',
+                      step: _modoProva == 'assunto' ? '4' : '3',
                       title: 'Tempo de Prova',
                       child: Column(
                         children: [
@@ -454,36 +467,26 @@ class _FazerQuizPageState extends ConsumerState<FazerQuizPage> {
                             contentPadding: EdgeInsets.zero,
                           ),
                           if (_comTempo) ...[
-                            const SizedBox(height: 8),
-                            Row(
-                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                              children: [
-                                Text(
-                                  'Tempo de prova',
-                                  style: TextStyle(
-                                    fontSize: 13,
-                                    color: Colors.grey.shade700,
-                                    fontWeight: FontWeight.w500,
-                                  ),
-                                ),
-                                Text(
-                                  '$_tempoMinutos min',
-                                  style: const TextStyle(
-                                    fontSize: 14,
-                                    fontWeight: FontWeight.bold,
-                                    color: Color(0xFF1E3A8A),
-                                  ),
-                                ),
-                              ],
-                            ),
-                            Slider(
-                              value: _tempoMinutos.toDouble(),
-                              min: 10,
-                              max: 180,
-                              divisions: 17,
-                              label: '$_tempoMinutos min',
-                              onChanged: (v) =>
-                                  setState(() => _tempoMinutos = v.toInt()),
+                            const SizedBox(height: 12),
+                            TextFormField(
+                              controller: _tempoController,
+                              keyboardType: TextInputType.number,
+                              inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                              decoration: _inputDecoration('').copyWith(
+                                labelText: 'Minutos de prova',
+                                helperText: 'Mínimo: 5 minutos. Sem limite máximo.',
+                                helperStyle: TextStyle(color: Colors.grey.shade600),
+                                suffixText: 'min',
+                              ),
+                              onChanged: (v) {
+                                final n = int.tryParse(v) ?? 5;
+                                setState(() => _tempoMinutos = n < 5 ? 5 : n);
+                              },
+                              validator: (v) {
+                                final n = int.tryParse(v ?? '') ?? 0;
+                                if (n < 5) return 'O tempo mínimo é de 5 minutos';
+                                return null;
+                              },
                             ),
                           ],
                         ],

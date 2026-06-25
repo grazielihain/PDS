@@ -357,13 +357,22 @@ class _QuizSelectionPageState extends State<QuizSelectionPage> {
     );
   }
 
+  String _formatarTempo(int segundosTotais) {
+    if (segundosTotais <= 0) return '00:00:00';
+    final int horas = segundosTotais ~/ 3600;
+    final int minutos = (segundosTotais % 3600) ~/ 60;
+    final int segundos = segundosTotais % 60;
+    return '${horas.toString().padLeft(2, '0')}:${minutos.toString().padLeft(2, '0')}:${segundos.toString().padLeft(2, '0')}';
+  }
+
   Widget _buildTempoCard({
     required String title,
     required double minutos,
     required IconData icon,
   }) {
-    final String display = minutos > 0
-        ? '${minutos.toStringAsFixed(1)} min'
+    final int totalSegundos = (minutos * 60).round();
+    final String display = totalSegundos > 0
+        ? _formatarTempo(totalSegundos)
         : 'Sem dados';
 
     return Container(

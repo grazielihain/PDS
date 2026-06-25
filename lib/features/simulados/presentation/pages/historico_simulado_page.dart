@@ -22,13 +22,23 @@ class _HistoricoSimuladoPageState extends State<HistoricoSimuladoPage> {
   List<String> _categoriasDisponiveis = ['Todas'];
   bool _carregandoCategorias = true;
 
+  // Mapa de resolução de IDs → nomes (para dados antigos que guardavam IDs)
+  Map<String, String> _categoriaNomeMap = {};
+  Map<String, String> _assuntoNomeMap = {};
+
   @override
   void initState() {
     super.initState();
-    _carregarCategoriasDoHistorico();
+    _carregarDados();
   }
 
-  /// 📉 Otimizado para Plano Gratuito: Acessa a rota linear da subcoleção do usuário logado
+  Future<void> _carregarDados() async {
+    // Carrega nomes primeiro para que _resolverNomeCategoria já funcione ao montar o filtro
+    await _carregarNomesDoFirestore();
+    await _carregarCategoriasDoHistorico();
+  }
+
+  /// Carrega as categorias únicas do histórico, resolvendo IDs → nomes e deduplicando
   Future<void> _carregarCategoriasDoHistorico() async {
     final user = _auth.currentUser;
     if (user == null) {
@@ -43,15 +53,16 @@ class _HistoricoSimuladoPageState extends State<HistoricoSimuladoPage> {
           .collection('historico_simulados')
           .get();
 
-      final categorias = snapshot.docs
-          .map((doc) => doc.data()['categoria'] as String?)
-          .where((cat) => cat != null && cat.isNotEmpty)
-          .map((cat) => cat!)
-          .toSet()
-          .toList();
+      // Resolve cada valor bruto (pode ser ID ou nome) para nome e desuplica
+      final Set<String> nomesUnicos = {};
+      for (final doc in snapshot.docs) {
+        final raw = doc.data()['categoria'] as String?;
+        if (raw != null && raw.isNotEmpty) {
+          nomesUnicos.add(_resolverNomeCategoria(raw));
+        }
+      }
 
-      // Ordena as categorias alfabeticamente para melhor UX
-      categorias.sort();
+      final categorias = nomesUnicos.toList()..sort();
 
       setState(() {
         _categoriasDisponiveis = ['Todas', ...categorias];
@@ -62,6 +73,50 @@ class _HistoricoSimuladoPageState extends State<HistoricoSimuladoPage> {
       setState(() => _carregandoCategorias = false);
     }
   }
+
+  /// Carrega nomes de categorias e assuntos para resolver IDs de dados antigos
+  Future<void> _carregarNomesDoFirestore() async {
+    final user = _auth.currentUser;
+    if (user == null) return;
+
+    try {
+      final userDoc = await _firestore.collection('usuarios').doc(user.uid).get();
+      final instId = userDoc.data()?['instituicaoId'] as String?;
+      if (instId == null || instId.isEmpty) return;
+
+      final catSnap = await _firestore
+          .collection('categorias')
+          .where('instituicaoId', isEqualTo: instId)
+          .get();
+      final assuntoSnap = await _firestore
+          .collection('assuntos')
+          .where('instituicaoId', isEqualTo: instId)
+          .get();
+
+      if (mounted) {
+        setState(() {
+          _categoriaNomeMap = {
+            for (final doc in catSnap.docs)
+              doc.id: (doc.data()['nome'] as String? ?? doc.id),
+          };
+          _assuntoNomeMap = {
+            for (final doc in assuntoSnap.docs)
+              doc.id: (doc.data()['nome'] as String? ?? doc.id),
+          };
+        });
+      }
+    } catch (e) {
+      debugPrint('Erro ao carregar nomes de categorias/assuntos: $e');
+    }
+  }
+
+  /// Resolve o nome de uma categoria (converte ID → nome se necessário)
+  String _resolverNomeCategoria(String catIdOrNome) =>
+      _categoriaNomeMap[catIdOrNome] ?? catIdOrNome;
+
+  /// Resolve o nome de um assunto (converte ID → nome se necessário)
+  String _resolverNomeAssunto(String assuntoIdOrNome) =>
+      _assuntoNomeMap[assuntoIdOrNome] ?? assuntoIdOrNome;
 
   Query _montarQueryHistorico() {
     final user = _auth.currentUser;
@@ -74,18 +129,12 @@ class _HistoricoSimuladoPageState extends State<HistoricoSimuladoPage> {
           .collection('historico_simulados');
     }
 
-    // Caminho linear direto da subcoleção de simulados do usuário logado
-    Query query = _firestore
+    // Retorna todos os documentos; o filtro por categoria é feito client-side
+    // para lidar com dados antigos (IDs) e novos (nomes) de forma unificada
+    return _firestore
         .collection('usuarios')
         .doc(user.uid)
         .collection('historico_simulados');
-
-    // Se o filtro for por categoria específica
-    if (_filtroSelecionado == 'categoria' && _categoriaSelecionada != 'Todas') {
-      query = query.where('categoria', isEqualTo: _categoriaSelecionada);
-    }
-
-    return query;
   }
 
   @override
@@ -109,7 +158,7 @@ class _HistoricoSimuladoPageState extends State<HistoricoSimuladoPage> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      'Histórico de Provas',
+                      'Histórico de Simulados',
                       style: TextStyle(
                         fontSize: 26,
                         fontWeight: FontWeight.bold,
@@ -166,7 +215,7 @@ class _HistoricoSimuladoPageState extends State<HistoricoSimuladoPage> {
                       Row(
                         children: [
                           ChoiceChip(
-                            label: const Text('10 Últimas Provas'),
+                            label: const Text('10 Últimos Simulados'),
                             selected: _filtroSelecionado == 'ultimas',
                             onSelected: (selected) {
                               if (selected) {
@@ -288,6 +337,14 @@ class _HistoricoSimuladoPageState extends State<HistoricoSimuladoPage> {
                       return bTs.compareTo(aTs);
                     });
 
+                    // Filtro client-side por categoria (resolve IDs antigos e nomes novos)
+                    if (_filtroSelecionado == 'categoria' && _categoriaSelecionada != 'Todas') {
+                      documentos = documentos.where((doc) {
+                        final cat = ((doc.data() as Map<String, dynamic>)['categoria'] ?? '').toString();
+                        return _resolverNomeCategoria(cat) == _categoriaSelecionada;
+                      }).toList();
+                    }
+
                     if (_filtroSelecionado == 'ultimas') {
                       documentos = documentos.take(10).toList();
                     }
@@ -373,7 +430,7 @@ class _HistoricoSimuladoPageState extends State<HistoricoSimuladoPage> {
                                         borderRadius: BorderRadius.circular(6),
                                       ),
                                       child: Text(
-                                        categoria.toString().toUpperCase(),
+                                        _resolverNomeCategoria(categoria.toString()).toUpperCase(),
                                         style: TextStyle(
                                           color: Colors.blue.shade800,
                                           fontSize: 11,
@@ -395,7 +452,7 @@ class _HistoricoSimuladoPageState extends State<HistoricoSimuladoPage> {
 
                                 Text(
                                   isPorAssunto
-                                      ? 'Prova por Assunto: ${assunto ?? "Especificado"}'
+                                      ? 'Simulado por Assunto: ${assunto != null ? _resolverNomeAssunto(assunto) : "Especificado"}'
                                       : 'Simulado de Categoria Completa',
                                   style: const TextStyle(
                                     fontWeight: FontWeight.bold,

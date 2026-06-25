@@ -292,6 +292,18 @@ class _AdminQuestoesTabState extends State<AdminQuestoesTab> {
     setState(() => _salvando = true);
 
     try {
+      if (_editandoId == null) {
+        final countSnap = await _firestore
+            .collection('questoes')
+            .where('instituicaoId', isEqualTo: widget.instituicaoId)
+            .get();
+        if (countSnap.docs.length >= 100) {
+          setState(() => _salvando = false);
+          _mostrarErro('Limite de 100 questões por instituição atingido.');
+          return;
+        }
+      }
+
       final uid = _auth.currentUser?.uid ?? '';
       final questaoId =
           _editandoId ?? _firestore.collection('questoes').doc().id;

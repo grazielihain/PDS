@@ -7,22 +7,21 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 class QuizSessionState {
   final bool emExecucao;
   final String categoriaId;
+  final String categoriaNome;
   final String modoProva; // 'assunto' ou 'completa'
   final String? assuntoSelecionado;
-  final List<dynamic> questoes; // Lista de Questões filtradas/sorteadas
+  final List<dynamic> questoes;
   final int indiceQuestaoAtual;
-  final Map<String, String>
-  respostasSelecionadas; // {questaoId: alternativaSelecionada}
+  final Map<String, String> respostasSelecionadas;
   final int tempoRestanteSegundos;
   final bool tempoEncerrado;
   final bool mostrarAviso5Minutos;
-  final DateTime?
-  horarioTermino; // 🔥 Adicionado para cálculo de tempo absoluto anti-fraude
+  final DateTime? horarioTermino;
 
   QuizSessionState({
-    Object? box,
     this.emExecucao = false,
     this.categoriaId = '',
+    this.categoriaNome = '',
     this.modoProva = 'completa',
     this.assuntoSelecionado,
     this.questoes = const [],
@@ -37,6 +36,7 @@ class QuizSessionState {
   QuizSessionState copyWith({
     bool? emExecucao,
     String? categoriaId,
+    String? categoriaNome,
     String? modoProva,
     String? assuntoSelecionado,
     List<dynamic>? questoes,
@@ -50,6 +50,7 @@ class QuizSessionState {
     return QuizSessionState(
       emExecucao: emExecucao ?? this.emExecucao,
       categoriaId: categoriaId ?? this.categoriaId,
+      categoriaNome: categoriaNome ?? this.categoriaNome,
       modoProva: modoProva ?? this.modoProva,
       assuntoSelecionado: assuntoSelecionado ?? this.assuntoSelecionado,
       questoes: questoes ?? this.questoes,
@@ -75,6 +76,7 @@ class QuizSessionNotifier extends StateNotifier<QuizSessionState> {
   /// 🚀 1. INICIAR SIMULADO (Com lógica de Sorteio Antirrepetição)
   void iniciarSimulado({
     required String categoriaId,
+    String categoriaNome = '',
     required String modoProva,
     String? assunto,
     required List<dynamic> questoesDisponiveisNoBanco,
@@ -120,6 +122,7 @@ class QuizSessionNotifier extends StateNotifier<QuizSessionState> {
     state = QuizSessionState(
       emExecucao: true,
       categoriaId: categoriaId,
+      categoriaNome: categoriaNome.isNotEmpty ? categoriaNome : categoriaId,
       modoProva: modoProva,
       assuntoSelecionado: assunto,
       questoes: questoesSorteadas,
@@ -136,7 +139,7 @@ class QuizSessionNotifier extends StateNotifier<QuizSessionState> {
     }
   }
 
-  /// ⏱️ 2. CONTROLO DO CRONÓMETRO REGRESSIVO INALTERÁVEL
+  /// ⏱️ 2. CONTROLO DO CRONÔMETRO REGRESSIVO INALTERÁVEL
   void _iniciarRelogioAbsoluto() {
     _cronometroTimer?.cancel();
 
@@ -181,7 +184,7 @@ class QuizSessionNotifier extends StateNotifier<QuizSessionState> {
     state = state.copyWith(respostasSelecionadas: novasRespostas);
   }
 
-  /// ⏭️ 4. NAVEGAÇÃO ENTRE QUESTÕES (Avançar / Voltar)
+  /// ⏭️ 4. NAVEGAÇÃO ENTRE QUESTÕES (Avançar / Voltar / Direta)
   void proximaQuestao() {
     if (state.indiceQuestaoAtual < state.questoes.length - 1) {
       state = state.copyWith(indiceQuestaoAtual: state.indiceQuestaoAtual + 1);
@@ -191,6 +194,12 @@ class QuizSessionNotifier extends StateNotifier<QuizSessionState> {
   void questaoAnterior() {
     if (state.indiceQuestaoAtual > 0) {
       state = state.copyWith(indiceQuestaoAtual: state.indiceQuestaoAtual - 1);
+    }
+  }
+
+  void irParaQuestao(int indice) {
+    if (indice >= 0 && indice < state.questoes.length) {
+      state = state.copyWith(indiceQuestaoAtual: indice);
     }
   }
 

@@ -7,7 +7,8 @@ import 'package:file_picker/file_picker.dart';
 import '../../../auth/presentation/pages/meu_perfil_page.dart';
 
 class PainelMasterPage extends StatefulWidget {
-  const PainelMasterPage({super.key});
+  final int initialTab;
+  const PainelMasterPage({super.key, this.initialTab = 0});
 
   @override
   State<PainelMasterPage> createState() => _PainelMasterPageState();
@@ -48,7 +49,20 @@ class _PainelMasterPageState extends State<PainelMasterPage>
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 4, vsync: this);
+    _tabController = TabController(
+      length: 4,
+      vsync: this,
+      initialIndex: widget.initialTab.clamp(0, 3),
+    );
+  }
+
+  @override
+  void didUpdateWidget(PainelMasterPage oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.initialTab != widget.initialTab &&
+        widget.initialTab < _tabController.length) {
+      _tabController.animateTo(widget.initialTab);
+    }
   }
 
   @override
@@ -337,35 +351,19 @@ class _PainelMasterPageState extends State<PainelMasterPage>
   Widget build(BuildContext context) {
     // O Scaffold externo é provido pelo MainLayoutShell (ShellRoute).
     // Usamos Column aqui para não criar Scaffold aninhado conflitante.
-    return Column(
-      children: [
-        Container(
-          color: Theme.of(context).colorScheme.surface,
-          child: TabBar(
-            controller: _tabController,
-            isScrollable: true,
-            labelColor: Theme.of(context).primaryColor,
-            unselectedLabelColor: Colors.grey,
-            tabs: const [
-              Tab(icon: Icon(Icons.dashboard_outlined), text: 'Home'),
-              Tab(icon: Icon(Icons.business_outlined), text: 'Instituições'),
-              Tab(icon: Icon(Icons.gavel_outlined), text: 'Auditoria'),
-              Tab(icon: Icon(Icons.person_outline), text: 'Meu Perfil'),
-            ],
-          ),
+    return Center(
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 900),
+        child: TabBarView(
+          controller: _tabController,
+          children: [
+            _buildHome(),
+            _buildInstituicoes(),
+            _buildAuditoria(),
+            _buildMeuPerfil(),
+          ],
         ),
-        Expanded(
-          child: TabBarView(
-            controller: _tabController,
-            children: [
-              _buildHome(),
-              _buildInstituicoes(),
-              _buildAuditoria(),
-              _buildMeuPerfil(),
-            ],
-          ),
-        ),
-      ],
+      ),
     );
   }
 

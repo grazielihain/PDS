@@ -14,8 +14,13 @@ import 'tabs/admin_questoes_tab.dart';
 
 class PainelAdminPage extends StatefulWidget {
   final String substituicaoInstituicaoId;
+  final int initialTab;
 
-  const PainelAdminPage({super.key, required this.substituicaoInstituicaoId});
+  const PainelAdminPage({
+    super.key,
+    required this.substituicaoInstituicaoId,
+    this.initialTab = 0,
+  });
 
   @override
   State<PainelAdminPage> createState() => _PainelAdminPageState();
@@ -78,6 +83,15 @@ class _PainelAdminPageState extends State<PainelAdminPage>
   }
 
   @override
+  void didUpdateWidget(PainelAdminPage oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.initialTab != widget.initialTab &&
+        widget.initialTab < _tabController.length) {
+      _tabController.animateTo(widget.initialTab);
+    }
+  }
+
+  @override
   void dispose() {
     _tabController.dispose();
     _nomeEscolaController.dispose();
@@ -129,8 +143,12 @@ class _PainelAdminPageState extends State<PainelAdminPage>
 
   void _reinicializarController(String role) {
     final old = _tabController;
-    _tabController =
-        TabController(length: role == 'Admin' ? 9 : 6, vsync: this);
+    final length = role == 'Admin' ? 9 : 6;
+    _tabController = TabController(
+      length: length,
+      vsync: this,
+      initialIndex: widget.initialTab.clamp(0, length - 1),
+    );
     if (mounted) setState(() {});
     WidgetsBinding.instance.addPostFrameCallback((_) => old.dispose());
   }
@@ -423,27 +441,6 @@ class _PainelAdminPageState extends State<PainelAdminPage>
 
     final isAdmin = _roleCriador == 'Admin';
 
-    final tabs = isAdmin
-        ? const [
-            Tab(icon: Icon(Icons.analytics_outlined), text: 'Home'),
-            Tab(icon: Icon(Icons.palette_outlined), text: 'Painel Admin'),
-            Tab(icon: Icon(Icons.category_outlined), text: 'Categorias'),
-            Tab(icon: Icon(Icons.quiz_outlined), text: 'Questões'),
-            Tab(icon: Icon(Icons.message_outlined), text: 'Mensagens'),
-            Tab(icon: Icon(Icons.stars_outlined), text: 'Gamificação'),
-            Tab(icon: Icon(Icons.people_outline), text: 'Usuários'),
-            Tab(icon: Icon(Icons.gavel_outlined), text: 'Auditoria'),
-            Tab(icon: Icon(Icons.person_outline), text: 'Meu Perfil'),
-          ]
-        : const [
-            Tab(icon: Icon(Icons.analytics_outlined), text: 'Home'),
-            Tab(icon: Icon(Icons.category_outlined), text: 'Categorias'),
-            Tab(icon: Icon(Icons.quiz_outlined), text: 'Questões'),
-            Tab(icon: Icon(Icons.message_outlined), text: 'Mensagens'),
-            Tab(icon: Icon(Icons.people_outline), text: 'Usuários'),
-            Tab(icon: Icon(Icons.person_outline), text: 'Meu Perfil'),
-          ];
-
     final tabViews = isAdmin
         ? <Widget>[
             _buildHome(),
@@ -493,25 +490,14 @@ class _PainelAdminPageState extends State<PainelAdminPage>
             const MeuPerfilPage(),
           ];
 
-    return Column(
-      children: [
-        Container(
-          color: Theme.of(context).colorScheme.surface,
-          child: TabBar(
-            controller: _tabController,
-            isScrollable: true,
-            labelColor: Theme.of(context).primaryColor,
-            unselectedLabelColor: Colors.grey,
-            tabs: tabs,
-          ),
+    return Center(
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 900),
+        child: TabBarView(
+          controller: _tabController,
+          children: tabViews,
         ),
-        Expanded(
-          child: TabBarView(
-            controller: _tabController,
-            children: tabViews,
-          ),
-        ),
-      ],
+      ),
     );
   }
 
@@ -722,6 +708,10 @@ class _PainelAdminPageState extends State<PainelAdminPage>
                 SizedBox(
                   width: double.infinity,
                   child: ElevatedButton(
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFF1E3A8A),
+                      foregroundColor: Colors.white,
+                    ),
                     onPressed:
                         _salvandoIdentidade ? null : _salvarIdentidade,
                     child: _salvandoIdentidade
@@ -779,10 +769,33 @@ class _PainelAdminPageState extends State<PainelAdminPage>
                     icon: const Icon(Icons.delete_outline,
                         color: Colors.red),
                     onPressed: () async {
-                      final antigo =
-                          List<String>.from(_patrocinadoresUrls);
-                      setState(
-                          () => _patrocinadoresUrls.removeAt(e.key));
+                      final confirmar = await showDialog<bool>(
+                        context: context,
+                        builder: (ctx) => AlertDialog(
+                          title: const Text('Excluir Patrocinador'),
+                          content: Text(
+                            'Deseja remover o patrocinador #${e.key + 1}?\nEsta ação atualizará o rodapé imediatamente.',
+                          ),
+                          actions: [
+                            TextButton(
+                              onPressed: () => Navigator.of(ctx).pop(false),
+                              child: const Text('Cancelar'),
+                            ),
+                            TextButton(
+                              style: TextButton.styleFrom(
+                                  foregroundColor: Colors.red),
+                              onPressed: () => Navigator.of(ctx).pop(true),
+                              child: const Text('Excluir'),
+                            ),
+                          ],
+                        ),
+                      );
+                      if (confirmar != true) return;
+
+                      final antigo = List<String>.from(_patrocinadoresUrls);
+                      final novaLista = List<String>.from(_patrocinadoresUrls)
+                        ..removeAt(e.key);
+                      setState(() => _patrocinadoresUrls = novaLista);
                       await _db
                           .collection('instituicoes')
                           .doc(widget.substituicaoInstituicaoId)
@@ -839,6 +852,10 @@ class _PainelAdminPageState extends State<PainelAdminPage>
             SizedBox(
               width: double.infinity,
               child: ElevatedButton(
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFF1E3A8A),
+                  foregroundColor: Colors.white,
+                ),
                 onPressed: _salvandoPatrocinadores
                     ? null
                     : _salvarPatrocinadores,
@@ -946,7 +963,10 @@ class _PainelAdminPageState extends State<PainelAdminPage>
               icon: const Icon(Icons.upload_outlined, size: 16),
               label: const Text('Selecionar Imagem'),
               style: ElevatedButton.styleFrom(
-                  textStyle: const TextStyle(fontSize: 13)),
+                backgroundColor: const Color(0xFF1E3A8A),
+                foregroundColor: Colors.white,
+                textStyle: const TextStyle(fontSize: 13),
+              ),
             ),
             const SizedBox(height: 4),
             Text(
@@ -1049,6 +1069,10 @@ class _PainelAdminPageState extends State<PainelAdminPage>
             SizedBox(
               width: double.infinity,
               child: ElevatedButton(
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFF1E3A8A),
+                  foregroundColor: Colors.white,
+                ),
                 onPressed:
                     _salvandoUsuario ? null : _cadastrarNovoUsuario,
                 child: _salvandoUsuario

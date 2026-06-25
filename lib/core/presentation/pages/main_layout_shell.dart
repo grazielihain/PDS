@@ -140,7 +140,9 @@ class _MainLayoutShellState extends State<MainLayoutShell> {
           [],
     );
 
-    final Color corPrimaria = _converterHexParaCor(corHex.isNotEmpty ? corHex : null);
+    final Color corPrimaria = tipoAcesso == 'Master'
+        ? const Color(0xFF66BB6A)
+        : _converterHexParaCor(corHex.isNotEmpty ? corHex : null);
 
     // Cor do texto baseada no brilho do fundo
     final bool fundoEscuro =
@@ -161,6 +163,7 @@ class _MainLayoutShellState extends State<MainLayoutShell> {
                   nomeUsuario: nomeUsuario,
                   tipoAcesso: tipoAcesso,
                   corPrimaria: corPrimaria,
+                  instituicaoId: _instituicaoIdAtual,
                 ),
           appBar: AppBar(
             backgroundColor: corPrimaria,
@@ -259,6 +262,7 @@ class _MainLayoutShellState extends State<MainLayoutShell> {
                     nomeUsuario: nomeUsuario,
                     tipoAcesso: tipoAcesso,
                     corPrimaria: corPrimaria,
+                    instituicaoId: _instituicaoIdAtual,
                   ),
                 ),
               if (isWeb) VerticalDivider(width: 1, color: Colors.grey.shade300),

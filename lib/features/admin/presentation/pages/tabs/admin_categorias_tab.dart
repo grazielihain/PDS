@@ -27,6 +27,13 @@ class _AdminCategoriasTabState extends State<AdminCategoriasTab> {
   // ──────────────────────────── CRUD CATEGORIAS ────────────────────────────
 
   Future<void> _criarCategoria(String nome) async {
+    final existentes = await _db
+        .collection('categorias')
+        .where('instituicaoId', isEqualTo: widget.instituicaoId)
+        .get();
+    if (existentes.docs.length >= 20) {
+      throw Exception('Limite de 20 categorias por instituição atingido.');
+    }
     final ref = _db.collection('categorias').doc();
     final dados = {
       'nome': nome.trim(),
@@ -70,6 +77,13 @@ class _AdminCategoriasTabState extends State<AdminCategoriasTab> {
   // ──────────────────────────── CRUD ASSUNTOS ──────────────────────────────
 
   Future<void> _criarAssunto(String categoriaId, String nome) async {
+    final existentes = await _db
+        .collection('assuntos')
+        .where('instituicaoId', isEqualTo: widget.instituicaoId)
+        .get();
+    if (existentes.docs.length >= 30) {
+      throw Exception('Limite de 30 assuntos por instituição atingido.');
+    }
     final ref = _db.collection('assuntos').doc();
     final dados = {
       'nome': nome.trim(),

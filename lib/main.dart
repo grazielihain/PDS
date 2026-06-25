@@ -23,7 +23,10 @@ class MyApp extends StatelessWidget {
     return MaterialApp.router(
       title: 'Rumo Quiz',
       debugShowCheckedModeBanner: false,
-      theme: ThemeData(useMaterial3: true, primarySwatch: Colors.blue),
+      theme: ThemeData(
+        useMaterial3: true,
+        colorScheme: ColorScheme.fromSeed(seedColor: const Color(0xFF1E3A8A)),
+      ),
       routerConfig: AppRouter.router,
     );
   }

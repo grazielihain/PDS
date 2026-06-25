@@ -208,7 +208,7 @@ class CertificadoService {
                       ),
                       pw.SizedBox(height: 6),
                       pw.Text(
-                        'Documento emitido via sistema informatizado e gerado em conformidade com as diretrizes do TCC.',
+                        'Documento emitido via sistema informatizado.',
                         style: pw.TextStyle(
                           fontSize: 8,
                           fontStyle: pw.FontStyle.italic,

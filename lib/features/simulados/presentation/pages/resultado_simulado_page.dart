@@ -1,13 +1,11 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:rumo_quiz/features/simulados/presentation/pages/inspecionar_simulado_page.dart';
-import 'package:rumo_quiz/features/simulados/presentation/providers/quiz_session_provider.dart';
 import 'package:rumo_quiz/features/simulados/services/certificado_service.dart';
 import 'package:rumo_quiz/features/simulados/data/models/revisao_questao_model.dart';
 
-class ResultadoSimuladoPage extends ConsumerWidget {
+class ResultadoSimuladoPage extends StatelessWidget {
   final String nomeDoAluno;
   final String instituicaoDoAluno;
   final String? logoUrl;
@@ -22,6 +20,7 @@ class ResultadoSimuladoPage extends ConsumerWidget {
   final String mensagemFinalizacaoAdmin;
   final List<RevisaoQuestaoModel> revisaoQuestoes;
   final int tempoUtilizadoSegundos;
+  final bool isPorAssunto;
 
   const ResultadoSimuladoPage({
     super.key,
@@ -39,30 +38,23 @@ class ResultadoSimuladoPage extends ConsumerWidget {
     required this.mensagemFinalizacaoAdmin,
     required this.revisaoQuestoes,
     required this.tempoUtilizadoSegundos,
+    this.isPorAssunto = false,
   });
 
   String _formatarTempo(int segundosTotais) {
-    if (segundosTotais <= 0) return '00:00';
+    if (segundosTotais <= 0) return '00:00:00';
     final int horas = segundosTotais ~/ 3600;
-    final int minutes = (segundosTotais % 3600) ~/ 60;
+    final int minutos = (segundosTotais % 3600) ~/ 60;
     final int segundos = segundosTotais % 60;
-
-    final String minutosStr = minutes.toString().padLeft(2, '0');
-    final String segundosStr = segundos.toString().padLeft(2, '0');
-
-    if (horas > 0) {
-      return '$horas:$minutosStr:$segundosStr';
-    }
-    return '$minutosStr:$segundosStr min';
+    return '${horas.toString().padLeft(2, '0')}:${minutos.toString().padLeft(2, '0')}:${segundos.toString().padLeft(2, '0')}';
   }
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  Widget build(BuildContext context) {
     final Color corInstitucional = const Color(0xFF1E3A8A);
     final Color corSecundariaInstitucional = Theme.of(context).colorScheme.secondary;
 
-    final sessionState = ref.watch(quizSessionProvider);
-    final bool provaPorAssunto = sessionState.modoProva == 'assunto';
+    final bool provaPorAssunto = isPorAssunto;
     final double larguraTela = MediaQuery.of(context).size.width;
     final bool isMobile = larguraTela < 600;
 
@@ -200,23 +192,71 @@ class ResultadoSimuladoPage extends ConsumerWidget {
                     style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Color(0xFF1F2937)),
                   ),
                   const SizedBox(height: 12),
-                  Wrap(
-                    spacing: 12,
-                    runSpacing: 12,
-                    children: [
-                      _buildCardResumoLarguraMutavel('Questões', '$totalQuestoes', Colors.grey.shade700, Colors.grey.shade100, larguraTela),
-                      _buildCardResumoLarguraMutavel('Acertos', '$acertos', verdeEsmeralda, verdeEsmeralda.withValues(alpha: 0.08), larguraTela),
-                      _buildCardResumoLarguraMutavel('Erros', '$erros', laranjaClaro, laranjaClaro.withValues(alpha: 0.08), larguraTela),
-                      
-                      // ✅ REGRA: Ponto de Prova só aparece no Resumo se for Prova Completa (!provaPorAssunto)
-                      if (!provaPorAssunto)
-                        _buildCardResumoLarguraMutavel('Pontos de Prova', '${notaObtida.toStringAsFixed(1)} / $notaMaxima', corInstitucional, corInstitucional.withValues(alpha: 0.04), larguraTela),
-                      
-                      // ✅ REGRA: Pontuação Acumulada (Gamificação) sempre aparece no Resumo de Prova
-                      _buildCardResumoLarguraMutavel('Pontuação Acumulada', '+$pontosGamificacao XP', Colors.amber.shade900, Colors.amber.shade50, larguraTela),
-                      
-                      _buildCardResumoLarguraMutavel('Tempo Decorrido', _formatarTempo(tempoUtilizadoSegundos), Colors.teal.shade700, Colors.teal.shade50, larguraTela),
-                    ],
+                  LayoutBuilder(
+                    builder: (ctx, constraints) {
+                      final isWide = constraints.maxWidth > 600;
+                      final valorPontos = provaPorAssunto ? '★' : '${notaObtida.toStringAsFixed(1)} / $notaMaxima';
+
+                      if (isWide) {
+                        Widget buildExpandedCard(String titulo, String valor, Color corTexto, Color corFundo) {
+                          return Expanded(
+                            child: Container(
+                              padding: const EdgeInsets.all(16),
+                              decoration: BoxDecoration(
+                                color: corFundo,
+                                borderRadius: BorderRadius.circular(10),
+                                border: Border.all(color: corTexto.withValues(alpha: 0.15)),
+                              ),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(titulo, maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(fontSize: 12, color: Colors.grey.shade600, fontWeight: FontWeight.w600)),
+                                  const SizedBox(height: 4),
+                                  Text(valor, style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: corTexto)),
+                                ],
+                              ),
+                            ),
+                          );
+                        }
+
+                        return Column(
+                          children: [
+                            Row(
+                              children: [
+                                buildExpandedCard('Questões', '$totalQuestoes', Colors.grey.shade700, Colors.grey.shade100),
+                                const SizedBox(width: 12),
+                                buildExpandedCard('Acertos', '$acertos', verdeEsmeralda, verdeEsmeralda.withValues(alpha: 0.08)),
+                                const SizedBox(width: 12),
+                                buildExpandedCard('Erros', '$erros', laranjaClaro, laranjaClaro.withValues(alpha: 0.08)),
+                              ],
+                            ),
+                            const SizedBox(height: 12),
+                            Row(
+                              children: [
+                                buildExpandedCard('Pontos de Prova', valorPontos, corInstitucional, corInstitucional.withValues(alpha: 0.04)),
+                                const SizedBox(width: 12),
+                                buildExpandedCard('Pontuação Acumulada', '+$pontosGamificacao XP', Colors.amber.shade900, Colors.amber.shade50),
+                                const SizedBox(width: 12),
+                                buildExpandedCard('Tempo Decorrido', _formatarTempo(tempoUtilizadoSegundos), Colors.teal.shade700, Colors.teal.shade50),
+                              ],
+                            ),
+                          ],
+                        );
+                      } else {
+                        return Wrap(
+                          spacing: 12,
+                          runSpacing: 12,
+                          children: [
+                            _buildCardResumoLarguraMutavel('Questões', '$totalQuestoes', Colors.grey.shade700, Colors.grey.shade100, larguraTela),
+                            _buildCardResumoLarguraMutavel('Acertos', '$acertos', verdeEsmeralda, verdeEsmeralda.withValues(alpha: 0.08), larguraTela),
+                            _buildCardResumoLarguraMutavel('Erros', '$erros', laranjaClaro, laranjaClaro.withValues(alpha: 0.08), larguraTela),
+                            _buildCardResumoLarguraMutavel('Pontos de Prova', valorPontos, corInstitucional, corInstitucional.withValues(alpha: 0.04), larguraTela),
+                            _buildCardResumoLarguraMutavel('Pontuação Acumulada', '+$pontosGamificacao XP', Colors.amber.shade900, Colors.amber.shade50, larguraTela),
+                            _buildCardResumoLarguraMutavel('Tempo Decorrido', _formatarTempo(tempoUtilizadoSegundos), Colors.teal.shade700, Colors.teal.shade50, larguraTela),
+                          ],
+                        );
+                      }
+                    },
                   ),
                   const SizedBox(height: 32),
 
@@ -336,7 +376,7 @@ class ResultadoSimuladoPage extends ConsumerWidget {
       height: 48,
       child: OutlinedButton.icon(
         icon: const Icon(Icons.arrow_back, size: 18),
-        label: const Text('Voltar para o Histórico de Prova', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
+        label: const Text('Voltar para o Histórico de Simulados', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
         style: OutlinedButton.styleFrom(
           side: BorderSide(color: Colors.grey.shade300),
           foregroundColor: const Color(0xFF4B5563),

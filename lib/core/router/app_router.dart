@@ -57,7 +57,7 @@ Future<(String, String, String, String?)> _fetchResultadoMeta(
         final md = doc.data();
         final de = (md['de'] as num? ?? 0).toDouble();
         final ate = (md['ate'] as num? ?? 100).toDouble();
-        if (taxaAcerto >= de && taxaAcerto < ate) {
+        if (taxaAcerto >= de && taxaAcerto <= ate) {
           mensagem = md['texto'] as String? ?? '';
           break;
         }
@@ -103,26 +103,43 @@ class AppRouter {
           // ── PAINEL MASTER ──────────────────────────────────────────────
           GoRoute(
             path: '/master-painel',
-            builder: (context, state) => const PainelMasterPage(),
+            builder: (context, state) {
+              final tabIndex = int.tryParse(
+                state.uri.queryParameters['tab'] ?? '',
+              ) ?? 0;
+              return PainelMasterPage(initialTab: tabIndex);
+            },
           ),
 
           // ── PAINEL ADMIN / ACESS2 ─────────────────────────────────────
           GoRoute(
             path: '/admin-painel',
             builder: (context, state) {
+              final tabIndex = int.tryParse(
+                state.uri.queryParameters['tab'] ?? '',
+              ) ?? 0;
               final params = state.extra as Map<String, dynamic>? ?? {};
               final idDaInstituicao =
                   params['instituicaoId']?.toString() ?? 'ulbra-01';
-              return PainelAdminPage(substituicaoInstituicaoId: idDaInstituicao);
+              return PainelAdminPage(
+                substituicaoInstituicaoId: idDaInstituicao,
+                initialTab: tabIndex,
+              );
             },
           ),
           GoRoute(
             path: '/admin',
             builder: (context, state) {
+              final tabIndex = int.tryParse(
+                state.uri.queryParameters['tab'] ?? '',
+              ) ?? 0;
               final params = state.extra as Map<String, dynamic>? ?? {};
               final idDaInstituicao =
                   params['instituicaoId']?.toString() ?? 'ulbra-01';
-              return PainelAdminPage(substituicaoInstituicaoId: idDaInstituicao);
+              return PainelAdminPage(
+                substituicaoInstituicaoId: idDaInstituicao,
+                initialTab: tabIndex,
+              );
             },
           ),
 
@@ -240,14 +257,16 @@ class AppRouter {
                     notaMaxima:
                         (dados['notaMaxima'] as num?)?.toDouble() ?? 10.0,
                     tempoUtilizadoSegundos:
-                        dados['tempoUtilizadoSegundos'] ?? 0,
+                        (dados['tempoUtilizadoSegundos'] as num?)?.toInt() ?? 0,
                     revisaoQuestoes: listaModelos,
                     mensagemFinalizacaoAdmin: mensagem,
-                    pontosGamificacao: dados['pontosGamificacao'] ?? 0,
+                    pontosGamificacao:
+                        (dados['pontosGamificacao'] as num?)?.toInt() ?? 0,
                     nomeDoAluno: nomeAluno,
                     instituicaoDoAluno: instituicao,
                     logoUrl: logoUrl,
                     taxaAcerto: taxaAcerto,
+                    isPorAssunto: dados['isPorAssunto'] as bool? ?? false,
                   );
                 },
               );

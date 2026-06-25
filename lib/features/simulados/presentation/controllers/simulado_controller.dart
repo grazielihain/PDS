@@ -16,12 +16,13 @@ class SimuladoController extends StateNotifier<AsyncValue<void>> {
 
   /// 🏁 FINALIZAR E GRAVAR SIMULADO NO FIREBASE
   /// Realiza a computação de acertos, pontos de gamificação e gera o snapshot imutável para o histórico.
-  Future<void> finalizarEGravarSimulado({
+  Future<int> finalizarEGravarSimulado({
     required List<QuestaoModel> questoesDaProva,
     required Map<String, String> respostasAluno,
     required double notaCalculada,
     required int totalAcertos,
-    required List<RevisaoQuestaoModel> listaRevisao, // Recebe a lista de objetos de revisão
+    required List<RevisaoQuestaoModel> listaRevisao,
+    int tempoUtilizadoSegundos = 0,
   }) async {
     state = const AsyncValue.loading();
 
@@ -108,12 +109,19 @@ class SimuladoController extends StateNotifier<AsyncValue<void>> {
         }
       }
 
+      // Salva o NOME da categoria (não o ID) para exibição legível no histórico e revisão
+      final String categoriaNomeParaSalvar = sessionState.categoriaNome.isNotEmpty
+          ? sessionState.categoriaNome
+          : sessionState.categoriaId.isNotEmpty
+              ? sessionState.categoriaId
+              : 'Geral';
+
       // 🛠️ 5. INSTÂNCIA DO MODELO TOTALMENTE CORRIGIDA E COMPATÍVEL
       final novoHistorico = HistoricoModel(
         id: historicoRef.id,
         userId: userId.isEmpty ? 'aluno_anonimo' : userId,
         instituicaoId: instituicaoIdExtraida,
-        categoria: sessionState.categoriaId.isEmpty ? 'Geral' : sessionState.categoriaId,
+        categoria: categoriaNomeParaSalvar,
         tipoProva: sessionState.modoProva == 'assunto' ? 'Por Assunto' : 'Completa',
         assunto: sessionState.assuntoSelecionado,
         totalQuestoes: questoesDaProva.length,
@@ -125,20 +133,22 @@ class SimuladoController extends StateNotifier<AsyncValue<void>> {
         revisaoQuestoes: listaRevisaoMapeada,
       );
 
-      // 6. Salva os dados de forma assíncrona no Cloud Firestore (Mantendo chaves originais)
+      // 6. Salva os dados de forma assíncrona no Cloud Firestore
       await historicoRef.set({
         'id': novoHistorico.id,
         'userId': novoHistorico.userId,
-        'instituicaoId': novoHistorico.instituicaoId, // 🎯 Casado perfeitamente com seu índice composto!
-        'categoria': novoHistorico.categoria,
+        'instituicaoId': novoHistorico.instituicaoId,
+        'categoriaId': sessionState.categoriaId,
+        'categoria': novoHistorico.categoria, // Nome legível da categoria
         'tipoProva': novoHistorico.tipoProva,
         'assunto': novoHistorico.assunto,
         'totalQuestoes': novoHistorico.totalQuestoes,
         'acertos': novoHistorico.acertos,
         'erros': novoHistorico.erros,
-        'notaObtida': novoHistorico.pontosProva, // 💎 Alinhado com a tela de histórico
+        'notaObtida': novoHistorico.pontosProva,
         'pontosGamificacao': novoHistorico.pontosGamificacao,
-        'dataHora': Timestamp.fromDate(novoHistorico.dataConclusao), // 💎 Casado com o índice do Firestore
+        'tempoUtilizadoSegundos': tempoUtilizadoSegundos,
+        'dataHora': Timestamp.fromDate(novoHistorico.dataConclusao),
         'revisaoQuestoes': novoHistorico.revisaoQuestoes,
       });
 
@@ -154,8 +164,10 @@ class SimuladoController extends StateNotifier<AsyncValue<void>> {
       ref.read(quizSessionProvider.notifier).resetarSimulado();
 
       state = const AsyncValue.data(null);
+      return pontosGamificacao;
     } catch (e, stack) {
       state = AsyncValue.error(e, stack);
+      return 0;
     }
   }
 }
