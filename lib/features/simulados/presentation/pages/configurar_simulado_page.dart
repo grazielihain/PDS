@@ -5,8 +5,7 @@ import '../../services/motor_prova_service.dart';
 class ConfigurarSimuladoPage extends StatefulWidget {
   final String alunoInstituicaoId;
 
-  const ConfigurarSimuladoPage({Key? key, required this.alunoInstituicaoId})
-    : super(key: key);
+  const ConfigurarSimuladoPage({super.key, required this.alunoInstituicaoId});
 
   @override
   State<ConfigurarSimuladoPage> createState() => _ConfigurarSimuladoPageState();
@@ -146,7 +145,7 @@ class _ConfigurarSimuladoPageState extends State<ConfigurarSimuladoPage> {
 
                   // 1. SELEÇÃO DE ASSUNTO
                   DropdownButtonFormField<String>(
-                    value: _assuntoSelecionado,
+                    initialValue: _assuntoSelecionado,
                     decoration: InputDecoration(
                       labelText: 'Assunto do Simulado',
                       labelStyle: TextStyle(color: _azulMarinho),
@@ -246,11 +245,13 @@ class _ConfigurarSimuladoPageState extends State<ConfigurarSimuladoPage> {
                       ),
                     ),
                     validator: (value) {
-                      if (value == null || value.isEmpty)
+                      if (value == null || value.isEmpty) {
                         return 'Informe a quantidade';
+                      }
                       final qtd = int.tryParse(value) ?? 0;
-                      if (qtd <= 0)
+                      if (qtd <= 0) {
                         return 'O simulado precisa de no mínimo 1 questão';
+                      }
                       if (qtd > _estoqueDisponivel) {
                         return 'Quantidade excede o estoque físico disponível ($_estoqueDisponivel)';
                       }

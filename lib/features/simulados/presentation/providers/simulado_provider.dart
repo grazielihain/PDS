@@ -15,12 +15,13 @@ final listaQuestoesFirestoreProvider = StreamProvider.family<List<QuestaoModel>,
             final data = doc.data();
             return QuestaoModel(
               id: doc.id,
-              pergunta: data['pergunta'] ?? data['enunciado'] ?? 'Sem pergunta',
-              opcoes: List<String>.from(data['opcoes'] ?? []),
+              pergunta: data['pergunta'] ?? data['texto'] ?? data['enunciado'] ?? 'Sem pergunta',
+              opcoes: List<String>.from(data['opcoes'] ?? data['alternativas'] ?? []),
               respostaCorretaIndex: data['respostaCorretaIndex'] ?? 0,
               instituicaoId: data['instituicaoId'] ?? '',
               categoriaId: data['categoriaId'] ?? '',
               assuntoId: data['assuntoId'] ?? '',
+              justificativa: data['justificativa'] as String? ?? '',
             );
           }).toList());
 });

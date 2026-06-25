@@ -1,15 +1,76 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:rumo_quiz/features/simulados/data/models/revisao_questao_model.dart';
 
-class InspecionarSimuladoPage extends StatelessWidget {
+class InspecionarSimuladoPage extends StatefulWidget {
   final String tituloSimulado;
   final List<RevisaoQuestaoModel> revisaoQuestoes;
 
   const InspecionarSimuladoPage({
-    Key? key,
+    super.key,
     required this.tituloSimulado,
     required this.revisaoQuestoes,
-  }) : super(key: key);
+  });
+
+  @override
+  State<InspecionarSimuladoPage> createState() =>
+      _InspecionarSimuladoPageState();
+}
+
+class _InspecionarSimuladoPageState extends State<InspecionarSimuladoPage> {
+  Map<String, String> _nomesAssuntos = {};
+  Map<String, String> _nomesCategorias = {};
+
+  @override
+  void initState() {
+    super.initState();
+    _carregarNomes();
+  }
+
+  Future<void> _carregarNomes() async {
+    try {
+      final user = FirebaseAuth.instance.currentUser;
+      if (user == null) return;
+      final userDoc = await FirebaseFirestore.instance
+          .collection('usuarios')
+          .doc(user.uid)
+          .get();
+      final instituicaoId =
+          userDoc.data()?['instituicaoId'] as String? ?? '';
+      if (instituicaoId.isEmpty) return;
+
+      final results = await Future.wait([
+        FirebaseFirestore.instance
+            .collection('assuntos')
+            .where('instituicaoId', isEqualTo: instituicaoId)
+            .get(),
+        FirebaseFirestore.instance
+            .collection('categorias')
+            .where('instituicaoId', isEqualTo: instituicaoId)
+            .get(),
+      ]);
+
+      final assuntos = <String, String>{};
+      for (final doc in results[0].docs) {
+        assuntos[doc.id] = doc.data()['nome'] as String? ?? doc.id;
+      }
+
+      final categorias = <String, String>{};
+      for (final doc in results[1].docs) {
+        categorias[doc.id] = doc.data()['nome'] as String? ?? doc.id;
+      }
+
+      if (mounted) {
+        setState(() {
+          _nomesAssuntos = assuntos;
+          _nomesCategorias = categorias;
+        });
+      }
+    } catch (e) {
+      debugPrint('Erro ao carregar nomes assuntos/categorias: $e');
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -17,15 +78,10 @@ class InspecionarSimuladoPage extends StatelessWidget {
     final double larguraTela = MediaQuery.of(context).size.width;
     final bool isMobile = larguraTela < 600;
 
-    // 🎨 Identidade Visual Rumo Quiz (Cores do Logo)
     final Color verdeEsmeraldaBorda = const Color(0xFF10B981);
-    final Color verdeEsmeraldaFundo = const Color(
-      0xFFE6F4EA,
-    ); // Verde suave adaptado
+    final Color verdeEsmeraldaFundo = const Color(0xFFE6F4EA);
     final Color laranjaClaroBorda = const Color(0xFFF97316);
-    final Color laranjaClaroFundo = const Color(
-      0xFFFFF7ED,
-    ); // Laranja suave adaptado
+    final Color laranjaClaroFundo = const Color(0xFFFFF7ED);
 
     return Scaffold(
       backgroundColor: Colors.grey.shade50,
@@ -42,7 +98,7 @@ class InspecionarSimuladoPage extends StatelessWidget {
                 const SizedBox(width: 8),
                 Expanded(
                   child: Text(
-                    'Revisão: $tituloSimulado',
+                    'Revisão: ${widget.tituloSimulado}',
                     style: TextStyle(
                       color: const Color(0xFF1E3A8A),
                       fontWeight: FontWeight.bold,
@@ -59,21 +115,26 @@ class InspecionarSimuladoPage extends StatelessWidget {
       body: SafeArea(
         child: Column(
           children: [
-            // Área de Conteúdo Centralizada e Otimizada para Web/Mobile
             Expanded(
               child: Center(
                 child: Container(
                   constraints: const BoxConstraints(maxWidth: 800),
                   child: ListView.builder(
                     padding: const EdgeInsets.all(16.0),
-                    itemCount: revisaoQuestoes.length,
+                    itemCount: widget.revisaoQuestoes.length,
                     itemBuilder: (context, index) {
-                      final revisao = revisaoQuestoes[index];
+                      final revisao = widget.revisaoQuestoes[index];
                       final questao = revisao.questao;
 
                       final int corretaIndex = questao.respostaCorretaIndex;
                       final int? escolhidaIndex = revisao.opcaoEscolhidaIndex;
                       final bool acertou = escolhidaIndex == corretaIndex;
+
+                      final nomeAssunto = _nomesAssuntos[questao.assuntoId] ??
+                          questao.assuntoId;
+                      final nomeCategoria =
+                          _nomesCategorias[questao.categoriaId] ??
+                              questao.categoriaId;
 
                       return Card(
                         margin: const EdgeInsets.only(bottom: 20),
@@ -88,7 +149,7 @@ class InspecionarSimuladoPage extends StatelessWidget {
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.stretch,
                             children: [
-                              // 1. CABEÇALHO: Detalhes da Questão
+                              // Cabeçalho
                               Row(
                                 mainAxisAlignment:
                                     MainAxisAlignment.spaceBetween,
@@ -99,9 +160,7 @@ class InspecionarSimuladoPage extends StatelessWidget {
                                       vertical: 4,
                                     ),
                                     decoration: BoxDecoration(
-                                      color: corPrimaria.withValues(
-                                        alpha: 0.08,
-                                      ),
+                                      color: corPrimaria.withValues(alpha: 0.08),
                                       borderRadius: BorderRadius.circular(6),
                                     ),
                                     child: Text(
@@ -114,35 +173,40 @@ class InspecionarSimuladoPage extends StatelessWidget {
                                     ),
                                   ),
                                   Flexible(
-                                    child: Text(
-                                      'Assunto: ${questao.assuntoId != 'Geral' ? questao.assuntoId : tituloSimulado}',
-                                      style: TextStyle(
-                                        color: Colors.grey.shade600,
-                                        fontSize: 12,
-                                        fontWeight: FontWeight.w500,
-                                      ),
-                                      overflow: TextOverflow.ellipsis,
+                                    child: Column(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.end,
+                                      children: [
+                                        if (nomeAssunto.isNotEmpty)
+                                          Text(
+                                            'Assunto: $nomeAssunto',
+                                            style: TextStyle(
+                                              color: Colors.grey.shade600,
+                                              fontSize: 12,
+                                              fontWeight: FontWeight.w500,
+                                            ),
+                                            overflow: TextOverflow.ellipsis,
+                                          ),
+                                        if (nomeCategoria.isNotEmpty)
+                                          Text(
+                                            'Categoria: $nomeCategoria',
+                                            style: TextStyle(
+                                              color: Colors.grey.shade500,
+                                              fontSize: 11,
+                                            ),
+                                            overflow: TextOverflow.ellipsis,
+                                          ),
+                                      ],
                                     ),
                                   ),
                                 ],
-                              ),
-                              const SizedBox(height: 8),
-
-                              // Referência da Questão
-                              Text(
-                                'Referência: Banco de Questões Interno Rumo Quiz (${questao.instituicaoId})',
-                                style: TextStyle(
-                                  color: Colors.grey.shade400,
-                                  fontSize: 11,
-                                  fontStyle: FontStyle.italic,
-                                ),
                               ),
                               const Divider(
                                 height: 24,
                                 color: Color(0xFFE5E7EB),
                               ),
 
-                              // 2. DESCRIÇÃO DA QUESTÃO (Enunciado)
+                              // Enunciado
                               Text(
                                 questao.pergunta,
                                 style: const TextStyle(
@@ -154,7 +218,7 @@ class InspecionarSimuladoPage extends StatelessWidget {
                               ),
                               const SizedBox(height: 18),
 
-                              // 3. ALTERNATIVAS DA QUESTÃO (Paleta Rumo Quiz)
+                              // Alternativas
                               ...List.generate(questao.opcoes.length, (
                                 optIndex,
                               ) {
@@ -166,7 +230,6 @@ class InspecionarSimuladoPage extends StatelessWidget {
                                 Widget? iconeResultado;
 
                                 if (optIndex == corretaIndex) {
-                                  // Correta: Verde Esmeralda da logo
                                   corBorda = verdeEsmeraldaBorda;
                                   corFundo = verdeEsmeraldaFundo;
                                   iconeResultado = Icon(
@@ -176,7 +239,6 @@ class InspecionarSimuladoPage extends StatelessWidget {
                                   );
                                 } else if (optIndex == escolhidaIndex &&
                                     !acertou) {
-                                  // Errada: Laranja Claro da logo
                                   corBorda = laranjaClaroBorda;
                                   corFundo = laranjaClaroFundo;
                                   iconeResultado = Icon(
@@ -202,7 +264,6 @@ class InspecionarSimuladoPage extends StatelessWidget {
                                   ),
                                   child: Row(
                                     children: [
-                                      // Indicador de Letra (A, B, C...)
                                       CircleAvatar(
                                         radius: 12,
                                         backgroundColor:
@@ -242,14 +303,13 @@ class InspecionarSimuladoPage extends StatelessWidget {
                                           ),
                                         ),
                                       ),
-                                      if (iconeResultado != null)
-                                        iconeResultado,
+                                      iconeResultado ?? const SizedBox.shrink(),
                                     ],
                                   ),
                                 );
                               }),
 
-                              // 4. JUSTIFICATIVA DA QUESTÃO
+                              // Justificativa
                               const SizedBox(height: 16),
                               Container(
                                 width: double.infinity,
@@ -277,7 +337,7 @@ class InspecionarSimuladoPage extends StatelessWidget {
                                         ),
                                         const SizedBox(width: 6),
                                         Text(
-                                          'Justificativa Comentada:',
+                                          'Justificativa:',
                                           style: TextStyle(
                                             fontWeight: FontWeight.bold,
                                             fontSize: 13,
@@ -287,10 +347,11 @@ class InspecionarSimuladoPage extends StatelessWidget {
                                       ],
                                     ),
                                     const SizedBox(height: 6),
-                                    // Retornado ao padrão fixo seguro de acordo com o seu modelo de dados
-                                    const Text(
-                                      'Análise Pedagógica: A alternativa correta atende perfeitamente à problemática do enunciado. As demais opções contêm generalizações ou distorções conceituais que as invalidam.',
-                                      style: TextStyle(
+                                    Text(
+                                      questao.justificativa.isNotEmpty
+                                          ? questao.justificativa
+                                          : 'Nenhuma justificativa cadastrada para esta questão.',
+                                      style: const TextStyle(
                                         fontSize: 13,
                                         color: Color(0xFF4B5563),
                                         height: 1.4,
@@ -309,7 +370,7 @@ class InspecionarSimuladoPage extends StatelessWidget {
               ),
             ),
 
-            // Botão Inferior de Fechamento (Alinhado e Seguro)
+            // Botão Inferior de Fechamento
             Container(
               padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(

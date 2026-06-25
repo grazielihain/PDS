@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -72,28 +73,59 @@ class SimuladoController extends StateNotifier<AsyncValue<void>> {
             'instituicaoId': item.questao.instituicaoId,
             'categoriaId': item.questao.categoriaId,
             'assuntoId': item.questao.assuntoId,
+            'justificativa': item.questao.justificativa,
           },
         };
       }).toList();
 
-      // 🛠️ 4. INSTÂNCIA DO MODELO TOTALMENTE CORRIGIDA E COMPATÍVEL
+      // 🛠️ 4. BUSCA PONTOS DE GAMIFICAÇÃO NO FIRESTORE
+      int pontosGamificacao = 0;
+      if (instituicaoIdExtraida != 'instituicao_padrao' && sessionState.categoriaId.isNotEmpty) {
+        try {
+          final modoGam = sessionState.modoProva == 'assunto' ? 'assunto' : 'completo';
+          final gamSnap = await FirebaseFirestore.instance
+              .collection('gamificacao')
+              .where('instituicaoId', isEqualTo: instituicaoIdExtraida)
+              .get();
+          for (final doc in gamSnap.docs) {
+            final gd = doc.data();
+            if (gd['categoriaId'] != sessionState.categoriaId) continue;
+            final modo = gd['modo'] as String? ?? '';
+            final modoMatch = modo == modoGam || (modoGam == 'completo' && modo == 'completa');
+            if (!modoMatch) continue;
+            if (sessionState.modoProva == 'assunto') {
+              if (gd['assuntoId'] == sessionState.assuntoSelecionado) {
+                pontosGamificacao = (gd['pontosBonus'] as num? ?? 0).toInt();
+                break;
+              }
+            } else {
+              pontosGamificacao = (gd['pontosBonus'] as num? ?? 0).toInt();
+              break;
+            }
+          }
+        } catch (e) {
+          debugPrint('Aviso: Erro ao buscar regra de gamificação: $e');
+        }
+      }
+
+      // 🛠️ 5. INSTÂNCIA DO MODELO TOTALMENTE CORRIGIDA E COMPATÍVEL
       final novoHistorico = HistoricoModel(
         id: historicoRef.id,
         userId: userId.isEmpty ? 'aluno_anonimo' : userId,
-        instituicaoId: instituicaoIdExtraida, 
-        categoria: sessionState.categoriaId.isEmpty ? 'Geral' : sessionState.categoriaId, 
-        tipoProva: sessionState.modoProva == 'assunto' ? 'Por Assunto' : 'Completa', 
-        assunto: sessionState.assuntoSelecionado, 
+        instituicaoId: instituicaoIdExtraida,
+        categoria: sessionState.categoriaId.isEmpty ? 'Geral' : sessionState.categoriaId,
+        tipoProva: sessionState.modoProva == 'assunto' ? 'Por Assunto' : 'Completa',
+        assunto: sessionState.assuntoSelecionado,
         totalQuestoes: questoesDaProva.length,
         acertos: totalAcertos,
-        erros: questoesDaProva.length - totalAcertos, 
-        pontosProva: notaCalculada, 
-        pontosGamificacao: 10, // Pontuação fixa imutável de bônus exigida pela gamificação
+        erros: questoesDaProva.length - totalAcertos,
+        pontosProva: notaCalculada,
+        pontosGamificacao: pontosGamificacao,
         dataConclusao: DateTime.now(),
-        revisaoQuestoes: listaRevisaoMapeada, 
+        revisaoQuestoes: listaRevisaoMapeada,
       );
 
-      // 5. Salva os dados de forma assíncrona no Cloud Firestore (Mantendo chaves originais)
+      // 6. Salva os dados de forma assíncrona no Cloud Firestore (Mantendo chaves originais)
       await historicoRef.set({
         'id': novoHistorico.id,
         'userId': novoHistorico.userId,
@@ -110,7 +142,15 @@ class SimuladoController extends StateNotifier<AsyncValue<void>> {
         'revisaoQuestoes': novoHistorico.revisaoQuestoes,
       });
 
-      // 6. Reseta o estado do simulado atual após salvar com sucesso
+      // 7. Atualiza pontuação acumulada do aluno (incremento atômico)
+      if (pontosGamificacao > 0 && userId.isNotEmpty && userId != 'aluno_anonimo') {
+        await FirebaseFirestore.instance
+            .collection('usuarios')
+            .doc(userId)
+            .update({'pontuacaoAcumulada': FieldValue.increment(pontosGamificacao)});
+      }
+
+      // 8. Reseta o estado do simulado atual após salvar com sucesso
       ref.read(quizSessionProvider.notifier).resetarSimulado();
 
       state = const AsyncValue.data(null);

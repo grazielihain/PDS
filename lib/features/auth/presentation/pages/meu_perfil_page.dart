@@ -16,7 +16,7 @@ class __MeuPerfilPageState extends State<MeuPerfilPage> {
 
   final _nomeController = TextEditingController();
   final _emailController = TextEditingController();
-  String _instituicaoDoUsuario = '';
+  String _nomeInstituicao = '';
 
   final _senhaAtualController = TextEditingController();
   final _novaSenhaController = TextEditingController();
@@ -55,16 +55,32 @@ class __MeuPerfilPageState extends State<MeuPerfilPage> {
         final doc = await _firestore.collection('usuarios').doc(user.uid).get();
         if (doc.exists && doc.data() != null) {
           final usuario = UsuarioModel.fromMap(doc.data()!, doc.id);
+          final instituicaoId =
+              (doc.data()!['instituicaoId'] ?? '').toString();
+
+          // Busca o nome real da instituição na coleção correta
+          String nomeInst = usuario.instituicao;
+          if (instituicaoId.isNotEmpty) {
+            final instDoc = await _firestore
+                .collection('instituicoes')
+                .doc(instituicaoId)
+                .get();
+            if (instDoc.exists) {
+              nomeInst =
+                  (instDoc.data()?['nome'] ?? usuario.instituicao).toString();
+            }
+          }
+
           setState(() {
             _nomeController.text = usuario.nome;
             _avatarSelecionado = usuario.avatarEmoji;
-            _instituicaoDoUsuario = usuario.instituicao;
+            _nomeInstituicao = nomeInst;
             _carregando = false;
           });
         } else {
           setState(() {
             _nomeController.text = 'Estudante Cadastrado';
-            _instituicaoDoUsuario = '';
+            _nomeInstituicao = '';
             _carregando = false;
           });
         }
@@ -99,22 +115,17 @@ class __MeuPerfilPageState extends State<MeuPerfilPage> {
         await user.verifyBeforeUpdateEmail(novoEmail);
       }
 
-      final usuario = UsuarioModel(
-        uid: user.uid,
-        nome: novoNome,
-        email: novoEmail,
-        avatarEmoji: _avatarSelecionado,
-        instituicao: _instituicaoDoUsuario,
-      );
-
-      await _firestore
-          .collection('usuarios')
-          .doc(user.uid)
-          .set(usuario.toMap(), SetOptions(merge: true));
+      // Salva apenas os campos editáveis; preserva instituicaoId e role existentes
+      await _firestore.collection('usuarios').doc(user.uid).set({
+        'nome': novoNome,
+        'email': novoEmail,
+        'avatarEmoji': _avatarSelecionado,
+      }, SetOptions(merge: true));
 
       if (mounted) {
+        setState(() {}); // Atualiza o cabeçalho com o novo nome/avatar imediatamente
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Perfil updated com sucesso! 🎉')),
+          const SnackBar(content: Text('Perfil atualizado com sucesso!')),
         );
       }
     } catch (e) {
@@ -264,6 +275,27 @@ class __MeuPerfilPageState extends State<MeuPerfilPage> {
                           fontWeight: FontWeight.bold,
                         ),
                       ),
+                      if (_nomeInstituicao.isNotEmpty) ...[
+                        const SizedBox(height: 4),
+                        Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(
+                              Icons.school_outlined,
+                              size: 14,
+                              color: Colors.grey.shade600,
+                            ),
+                            const SizedBox(width: 4),
+                            Text(
+                              _nomeInstituicao,
+                              style: TextStyle(
+                                fontSize: 13,
+                                color: Colors.grey.shade600,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
                     ],
                   ),
                 ),

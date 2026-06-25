@@ -18,8 +18,8 @@ class ConfiguracaoWhiteLabelModel {
       id: id,
       nome: map['nome'] ?? 'Instituição',
       plano: map['plano'] ?? 'Gratuito',
-      corHexadecimal: map['corHexadecimal'] ?? '#1A73E8', 
-      patrocinadoresUrls: List<String>.from(map['patrocinadoresUrls'] ?? []),
+      corHexadecimal: (map['corHexadecimal'] ?? map['corHex'])?.toString() ?? '#1A73E8',
+      patrocinadoresUrls: List<String>.from(map['patrocinadoresUrls'] ?? map['patrocinios'] ?? []),
     );
   }
 
@@ -28,7 +28,9 @@ class ConfiguracaoWhiteLabelModel {
       'nome': nome,
       'plano': plano,
       'corHexadecimal': corHexadecimal,
+      'corHex': corHexadecimal,
       'patrocinadoresUrls': patrocinadoresUrls,
+      'patrocinios': patrocinadoresUrls,
     };
   }
 }

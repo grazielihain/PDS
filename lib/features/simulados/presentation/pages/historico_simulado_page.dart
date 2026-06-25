@@ -3,7 +3,6 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:intl/intl.dart';
 import 'package:go_router/go_router.dart';
-import 'package:rumo_quiz/core/constants/app_constants.dart';
 
 class HistoricoSimuladoPage extends StatefulWidget {
   const HistoricoSimuladoPage({super.key});
@@ -84,13 +83,6 @@ class _HistoricoSimuladoPageState extends State<HistoricoSimuladoPage> {
     // Se o filtro for por categoria específica
     if (_filtroSelecionado == 'categoria' && _categoriaSelecionada != 'Todas') {
       query = query.where('categoria', isEqualTo: _categoriaSelecionada);
-    }
-
-    // Ordenação utilizando o índice (Lembre-se: Requer índice composto se misturado com 'where')
-    query = query.orderBy('dataHora', descending: true);
-
-    if (_filtroSelecionado == 'ultimas') {
-      query = query.limit(10);
     }
 
     return query;
@@ -284,7 +276,23 @@ class _HistoricoSimuladoPageState extends State<HistoricoSimuladoPage> {
                       return const Center(child: CircularProgressIndicator());
                     }
 
-                    if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
+                    // Sort client-side (avoid composite index: where + orderBy on different fields)
+                    var documentos = List<QueryDocumentSnapshot>.from(
+                      snapshot.data?.docs ?? [],
+                    )..sort((a, b) {
+                      final aTs = (a.data() as Map<String, dynamic>)['dataHora'] as Timestamp?;
+                      final bTs = (b.data() as Map<String, dynamic>)['dataHora'] as Timestamp?;
+                      if (aTs == null && bTs == null) return 0;
+                      if (aTs == null) return 1;
+                      if (bTs == null) return -1;
+                      return bTs.compareTo(aTs);
+                    });
+
+                    if (_filtroSelecionado == 'ultimas') {
+                      documentos = documentos.take(10).toList();
+                    }
+
+                    if (documentos.isEmpty) {
                       return Center(
                         child: Text(
                           'Nenhuma prova encontrada para este filtro.',
@@ -295,8 +303,6 @@ class _HistoricoSimuladoPageState extends State<HistoricoSimuladoPage> {
                         ),
                       );
                     }
-
-                    final documentos = snapshot.data!.docs;
 
                     return ListView.builder(
                       padding: const EdgeInsets.symmetric(
@@ -506,7 +512,7 @@ class _HistoricoSimuladoPageState extends State<HistoricoSimuladoPage> {
                                         ),
                                       ),
                                       onPressed: () {
-                                        context.push(
+                                        context.go(
                                           '/resultado',
                                           extra: dados,
                                         );

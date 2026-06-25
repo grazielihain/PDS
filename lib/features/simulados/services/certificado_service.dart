@@ -1,4 +1,3 @@
-import 'dart:typed_data';
 import 'package:flutter/foundation.dart';
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
@@ -42,8 +41,15 @@ class CertificadoService {
     pdf.addPage(
       pw.Page(
         pageFormat: PdfPageFormat.a4.landscape,
+        margin: pw.EdgeInsets.zero,
         build: (pw.Context context) {
-          return pw.Container(
+          return pw.FittedBox(
+            fit: pw.BoxFit.contain,
+            alignment: pw.Alignment.center,
+            child: pw.SizedBox(
+              width: PdfPageFormat.a4.landscape.width,
+              height: PdfPageFormat.a4.landscape.height,
+              child: pw.Container(
             padding: const pw.EdgeInsets.all(24),
             decoration: pw.BoxDecoration(
               border: pw.Border.all(color: PdfColors.blue900, width: 4),
@@ -213,6 +219,8 @@ class CertificadoService {
                   ),
                 ],
               ),
+            ),
+          ),
             ),
           );
         },

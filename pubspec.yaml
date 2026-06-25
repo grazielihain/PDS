@@ -42,8 +42,9 @@ dependencies:
   # O Banco de dados NoSQL 
   cloud_firestore: ^5.0.0
 
-  # Gerenciador de arquivos e mídias 
+  # Gerenciador de arquivos e mídias
   firebase_storage: ^12.0.0
+  file_picker: ^8.1.1
 
   # Gerenciamento de arquivos PDF e impressão
   pdf: ^3.10.8
@@ -53,6 +54,7 @@ dependencies:
   # Use with the CupertinoIcons class for iOS style icons.
   cupertino_icons: ^1.0.8
   firebase_auth: ^5.7.0
+  http: ^0.13.0
   intl: ^0.20.2
 
 dev_dependencies:

@@ -1,6 +1,5 @@
 import 'dart:async';
 import 'dart:math';
-import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 /// 📦 MODELO DE ESTADO DA SESSÃO DO QUIZ
@@ -21,7 +20,7 @@ class QuizSessionState {
   horarioTermino; // 🔥 Adicionado para cálculo de tempo absoluto anti-fraude
 
   QuizSessionState({
-    box,
+    Object? box,
     this.emExecucao = false,
     this.categoriaId = '',
     this.modoProva = 'completa',
@@ -39,7 +38,7 @@ class QuizSessionState {
     bool? emExecucao,
     String? categoriaId,
     String? modoProva,
-    String? asuntoSelecionado,
+    String? assuntoSelecionado,
     List<dynamic>? questoes,
     int? indiceQuestaoAtual,
     Map<String, String>? respostasSelecionadas,
@@ -52,7 +51,7 @@ class QuizSessionState {
       emExecucao: emExecucao ?? this.emExecucao,
       categoriaId: categoriaId ?? this.categoriaId,
       modoProva: modoProva ?? this.modoProva,
-      assuntoSelecionado: asuntoSelecionado ?? this.assuntoSelecionado,
+      assuntoSelecionado: assuntoSelecionado ?? this.assuntoSelecionado,
       questoes: questoes ?? this.questoes,
       indiceQuestaoAtual: indiceQuestaoAtual ?? this.indiceQuestaoAtual,
       respostasSelecionadas:

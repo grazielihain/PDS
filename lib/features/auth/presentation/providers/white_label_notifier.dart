@@ -1,7 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:rumo_quiz/features/auth/data/models/institution_model.dart';
-import '../../data/models/institution_model.dart';
 
 // Classe que guarda os dados visuais na memória RAM do celular
 class WhiteLabelState {

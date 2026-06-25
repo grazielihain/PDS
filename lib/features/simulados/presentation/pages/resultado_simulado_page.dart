@@ -24,7 +24,7 @@ class ResultadoSimuladoPage extends ConsumerWidget {
   final int tempoUtilizadoSegundos;
 
   const ResultadoSimuladoPage({
-    Key? key,
+    super.key,
     required this.nomeDoAluno,
     required this.instituicaoDoAluno,
     this.logoUrl,
@@ -39,7 +39,7 @@ class ResultadoSimuladoPage extends ConsumerWidget {
     required this.mensagemFinalizacaoAdmin,
     required this.revisaoQuestoes,
     required this.tempoUtilizadoSegundos,
-  }) : super(key: key);
+  });
 
   String _formatarTempo(int segundosTotais) {
     if (segundosTotais <= 0) return '00:00';

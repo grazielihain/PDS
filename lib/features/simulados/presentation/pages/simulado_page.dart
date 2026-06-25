@@ -1,4 +1,3 @@
-import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -8,7 +7,7 @@ import '../controllers/simulado_controller.dart';
 import '../providers/quiz_session_provider.dart';
 
 class SimuladoPage extends ConsumerWidget {
-  const SimuladoPage({Key? key}) : super(key: key);
+  const SimuladoPage({super.key});
 
   Future<void> _processarEnvioSimulado({
     required BuildContext context,
@@ -45,6 +44,9 @@ class SimuladoPage extends ConsumerWidget {
             'opcoes': opcoes,
             'respostaCorretaIndex': respostaCerta,
             'nota': 1.0,
+            'categoriaId': q.categoriaId ?? '',
+            'assuntoId': q.assuntoId ?? '',
+            'justificativa': q.justificativa ?? '',
           },
         });
       }

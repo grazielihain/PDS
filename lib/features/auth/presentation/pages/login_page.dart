@@ -1,3 +1,5 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -53,9 +55,12 @@ class _LoginPageState extends ConsumerState<LoginPage> {
                     hintText: 'exemplo@escola.com',
                   ),
                   validator: (value) {
-                    if (value == null || value.isEmpty)
+                    if (value == null || value.isEmpty) {
                       return 'Por favor, insira seu e-mail';
-                    if (!value.contains('@')) return 'Insira um e-mail válido';
+                    }
+                    if (!value.contains('@')) {
+                      return 'Insira um e-mail válido';
+                    }
                     return null;
                   },
                 ),
@@ -182,11 +187,50 @@ class _LoginPageState extends ConsumerState<LoginPage> {
                               );
                           // 3. Direciona o utilizador com base no perfil (Role)
                           if (context.mounted) {
-                            if (userModel.role == 'Master' ||
-                                userModel.role == 'Admin') {
-                              context.go('/admin');
+                            final role = userModel.role.toLowerCase().trim();
+                            if (role == 'master') {
+                              context.go('/master-painel');
+                            } else if (role == 'admin' || role == 'acess2') {
+                              context.go(
+                                '/admin',
+                                extra: {
+                                  'instituicaoId': userModel.institutionId,
+                                },
+                              );
                             } else {
-                              context.go('/quiz-selection');
+                              // Verifica primeiro login para Acess3
+                              final uid = FirebaseAuth.instance.currentUser?.uid;
+                              if (uid != null) {
+                                final doc = await FirebaseFirestore.instance
+                                    .collection('usuarios')
+                                    .doc(uid)
+                                    .get();
+                                final isPrimeiro = doc.data()?['primeiroLogin'] as bool? ?? false;
+                                if (isPrimeiro && context.mounted) {
+                                  await showDialog(
+                                    context: context,
+                                    barrierDismissible: false,
+                                    builder: (ctx) => AlertDialog(
+                                      title: const Text('Bem-vindo(a)!'),
+                                      content: const Text(
+                                        'Este é o seu primeiro acesso.\n\n'
+                                        'Por segurança, recomendamos que você altere sua senha em "Meu Perfil" assim que possível.',
+                                      ),
+                                      actions: [
+                                        FilledButton(
+                                          onPressed: () => Navigator.pop(ctx),
+                                          child: const Text('Entendido'),
+                                        ),
+                                      ],
+                                    ),
+                                  );
+                                  await FirebaseFirestore.instance
+                                      .collection('usuarios')
+                                      .doc(uid)
+                                      .update({'primeiroLogin': false});
+                                }
+                              }
+                              if (context.mounted) context.go('/quiz-selection');
                             }
                           }
                         } catch (e) {

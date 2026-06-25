@@ -1,7 +1,7 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:flutter/material.dart';
 import '../models/user_models.dart'; // Importa o modelo que herda de UserEntity
-import '../../../../core/constants/app_constants.dart';
 
 class AuthRemoteDataSource {
   final FirebaseAuth firebaseAuth;
@@ -95,7 +95,9 @@ class AuthRemoteDataSource {
               'email': email,
               'role': 'Acess3',
               'institutionId': institutionId,
+              'instituicaoId': institutionId,
               'avatarEmoji': '🐱',
+              'primeiroLogin': true,
               'createdAt': FieldValue.serverTimestamp(),
             });
       }
@@ -124,7 +126,7 @@ class AuthRemoteDataSource {
       });
     } catch (e) {
       // Se falhar o log, imprimimos no terminal, mas não travamos o app do usuário
-      print('Erro ao salvar log de auditoria: $e');
+      debugPrint('Erro ao salvar log de auditoria: $e');
     }
   }
 }

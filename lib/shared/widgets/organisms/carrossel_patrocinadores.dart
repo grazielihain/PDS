@@ -1,14 +1,17 @@
 import 'package:flutter/material.dart';
 
-/// [ORGANISMO] CarrosselPatrocinadores
-/// Rodapé White Label Dinâmico, Reativo e Defensivo contra URLs nulas ou corrompidas.
+/// Rodapé White Label com carrossel de patrocinadores.
+/// Sempre exibe 5 slots: primeiros são os patrocinadores cadastrados,
+/// os restantes são preenchidos com a logo da instituição e a logo da Rumo Quiz.
 class CarrosselPatrocinadores extends StatelessWidget {
   final List<String> logosUrls;
-  final Color? corCustomizadaInstituicao; 
+  final String logoInstituicaoUrl;
+  final Color? corCustomizadaInstituicao;
 
   const CarrosselPatrocinadores({
     super.key,
     this.logosUrls = const [],
+    this.logoInstituicaoUrl = '',
     this.corCustomizadaInstituicao,
   });
 
@@ -16,30 +19,37 @@ class CarrosselPatrocinadores extends StatelessWidget {
   Widget build(BuildContext context) {
     final corFundo = corCustomizadaInstituicao ?? Colors.blue.shade700;
 
-    final corTextoEIcone =
-        ThemeData.estimateBrightnessForColor(corFundo) == Brightness.dark
-            ? Colors.white
-            : Colors.black87;
+    final bool fundoEscuro =
+        ThemeData.estimateBrightnessForColor(corFundo) == Brightness.dark;
+    final Color corTextoEIcone = fundoEscuro ? Colors.white : Colors.black87;
 
-    List<Widget> itensCarrossel = [];
+    // Monta a lista com patrocinadores válidos (máx 5)
+    final logosValidas = logosUrls
+        .where((url) => url.trim().isNotEmpty)
+        .take(5)
+        .toList();
 
-    // Limpa registros nulos ou vazios que possam vir acidentalmente do Firestore
-    final logosValidas = logosUrls.where((url) => url.isNotEmpty).take(5).toList();
-    
-    for (var url in logosValidas) {
-      itensCarrossel.add(_buildLogoItem(url, corTextoEIcone));
-    }
+    final List<Widget> itens = logosValidas
+        .map((url) => _buildLogoItem(url))
+        .toList();
 
-    // Injeção de fallbacks estruturais caso a lista não atinja 3 elementos básicos
-    if (itensCarrossel.length < 3) {
-      itensCarrossel.add(
-        _buildFallbackLogoItem(Icons.school, 'Instituição', corTextoEIcone),
-      );
-    }
-    if (itensCarrossel.length < 3) {
-      itensCarrossel.add(
-        _buildFallbackLogoItem(Icons.quiz, 'Rumo Quiz', corTextoEIcone),
-      );
+    // Preenche os slots restantes até 5 com: logo da instituição → Rumo Quiz
+    int i = itens.length;
+    while (i < 5) {
+      if (logoInstituicaoUrl.trim().isNotEmpty) {
+        itens.add(_buildLogoItem(logoInstituicaoUrl));
+      } else {
+        itens.add(
+          _buildFallbackItem(Icons.school, 'Instituição', corTextoEIcone),
+        );
+      }
+      i++;
+      if (i < 5) {
+        itens.add(
+          _buildFallbackItem(Icons.quiz, 'Rumo Quiz', corTextoEIcone),
+        );
+        i++;
+      }
     }
 
     return Container(
@@ -49,7 +59,7 @@ class CarrosselPatrocinadores extends StatelessWidget {
         color: corFundo,
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.1),
+            color: Colors.black.withValues(alpha: 0.1),
             blurRadius: 4,
             offset: const Offset(0, -2),
           ),
@@ -64,7 +74,7 @@ class CarrosselPatrocinadores extends StatelessWidget {
               Icon(
                 Icons.workspace_premium_outlined,
                 size: 16,
-                color: corTextoEIcone.withOpacity(0.8),
+                color: corTextoEIcone.withValues(alpha: 0.8),
               ),
               const SizedBox(width: 6),
               Text(
@@ -82,8 +92,8 @@ class CarrosselPatrocinadores extends StatelessWidget {
           Expanded(
             child: ListView.builder(
               scrollDirection: Axis.horizontal,
-              itemCount: itensCarrossel.length,
-              itemBuilder: (context, index) => itensCarrossel[index],
+              itemCount: itens.length,
+              itemBuilder: (context, index) => itens[index],
             ),
           ),
         ],
@@ -91,7 +101,7 @@ class CarrosselPatrocinadores extends StatelessWidget {
     );
   }
 
-  Widget _buildLogoItem(String url, Color corTratamento) {
+  Widget _buildLogoItem(String url) {
     return Padding(
       key: ValueKey(url),
       padding: const EdgeInsets.symmetric(horizontal: 8.0),
@@ -101,39 +111,43 @@ class CarrosselPatrocinadores extends StatelessWidget {
           color: Colors.white,
           borderRadius: BorderRadius.circular(4),
         ),
-        // 🛡️ Tratamento preventivo de quebra de conexão ou link inválido no Storage
         child: Image.network(
-          url, 
-          height: 36, 
+          url,
+          height: 36,
           fit: BoxFit.contain,
-          errorBuilder: (context, error, stackTrace) {
-            return Container(
-              padding: const EdgeInsets.symmetric(horizontal: 8),
-              color: Colors.grey.shade200,
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Icon(Icons.broken_image_outlined, size: 14, color: Colors.grey.shade600),
-                  const SizedBox(width: 4),
-                  Text('Logo', style: TextStyle(fontSize: 10, color: Colors.grey.shade600)),
-                ],
-              ),
-            );
-          },
+          errorBuilder: (context, error, stackTrace) => Container(
+            padding: const EdgeInsets.symmetric(horizontal: 8),
+            color: Colors.grey.shade200,
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(
+                  Icons.broken_image_outlined,
+                  size: 14,
+                  color: Colors.grey.shade600,
+                ),
+                const SizedBox(width: 4),
+                Text(
+                  'Logo',
+                  style: TextStyle(fontSize: 10, color: Colors.grey.shade600),
+                ),
+              ],
+            ),
+          ),
         ),
       ),
     );
   }
 
-  Widget _buildFallbackLogoItem(IconData icone, String texto, Color corTexto) {
+  Widget _buildFallbackItem(IconData icone, String texto, Color corTexto) {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 8.0),
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
         decoration: BoxDecoration(
-          color: corTexto.withOpacity(0.15),
+          color: corTexto.withValues(alpha: 0.15),
           borderRadius: BorderRadius.circular(6),
-          border: Border.all(color: corTexto.withOpacity(0.25)),
+          border: Border.all(color: corTexto.withValues(alpha: 0.25)),
         ),
         child: Row(
           mainAxisSize: MainAxisSize.min,

@@ -43,3 +43,10 @@ app.*.map.json
 /android/app/debug
 /android/app/profile
 /android/app/release
+
+# Documentação:
+*.md
+README.md
+
+# Ignorar as regras de segurança locais do Storage
+storage.rules
