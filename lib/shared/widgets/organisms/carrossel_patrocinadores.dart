@@ -103,7 +103,7 @@ class _CarrosselPatrocinadoresState extends State<CarrosselPatrocinadores> {
 
     return Container(
       width: double.infinity,
-      height: 56,
+      height: 72,
       decoration: BoxDecoration(
         color: corFundo,
         boxShadow: [
@@ -114,39 +114,39 @@ class _CarrosselPatrocinadoresState extends State<CarrosselPatrocinadores> {
           ),
         ],
       ),
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-      child: Row(
-        children: [
-          Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(
-                Icons.workspace_premium_outlined,
-                size: 16,
-                color: corTextoEIcone.withValues(alpha: 0.8),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          return SingleChildScrollView(
+            controller: _scrollController,
+            scrollDirection: Axis.horizontal,
+            child: ConstrainedBox(
+              constraints: BoxConstraints(minWidth: constraints.maxWidth),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(
+                    Icons.workspace_premium_outlined,
+                    size: 16,
+                    color: corTextoEIcone.withValues(alpha: 0.8),
+                  ),
+                  const SizedBox(width: 6),
+                  Text(
+                    'Parceiros:',
+                    style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.bold,
+                      color: corTextoEIcone,
+                      letterSpacing: 0.5,
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  ...itens,
+                ],
               ),
-              const SizedBox(width: 6),
-              Text(
-                'Parceiros:',
-                style: TextStyle(
-                  fontSize: 12,
-                  fontWeight: FontWeight.bold,
-                  color: corTextoEIcone,
-                  letterSpacing: 0.5,
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: ListView.builder(
-              controller: _scrollController,
-              scrollDirection: Axis.horizontal,
-              itemCount: itens.length,
-              itemBuilder: (context, index) => itens[index],
             ),
-          ),
-        ],
+          );
+        },
       ),
     );
   }
@@ -163,8 +163,10 @@ class _CarrosselPatrocinadoresState extends State<CarrosselPatrocinadores> {
         ),
         child: Image.network(
           url,
-          height: 36,
+          height: 44,
           fit: BoxFit.contain,
+          loadingBuilder: (ctx, child, progress) =>
+              progress == null ? child : const SizedBox(width: 44, height: 44),
           errorBuilder: (context, error, _) => Container(
             padding: const EdgeInsets.symmetric(horizontal: 8),
             color: Colors.grey.shade200,
@@ -196,7 +198,7 @@ class _CarrosselPatrocinadoresState extends State<CarrosselPatrocinadores> {
         ),
         child: Image.asset(
           'assets/images/logo_rumo_quiz_sem_slogan.png',
-          height: 36,
+          height: 44,
           fit: BoxFit.contain,
           errorBuilder: (_, _, _) => Row(
             mainAxisSize: MainAxisSize.min,

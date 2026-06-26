@@ -317,13 +317,18 @@ class ResultadoSimuladoPage extends StatelessWidget {
                           ),
                           if (imagemUrlMensagem != null && imagemUrlMensagem!.isNotEmpty) ...[
                             const SizedBox(height: 12),
-                            ClipRRect(
-                              borderRadius: BorderRadius.circular(8),
-                              child: Image.network(
-                                imagemUrlMensagem!,
-                                width: double.infinity,
-                                fit: BoxFit.contain,
-                                errorBuilder: (context, error, _) => const SizedBox.shrink(),
+                            Center(
+                              child: FractionallySizedBox(
+                                widthFactor: 0.33,
+                                child: ClipRRect(
+                                  borderRadius: BorderRadius.circular(8),
+                                  child: Image.network(
+                                    imagemUrlMensagem!,
+                                    width: double.infinity,
+                                    fit: BoxFit.contain,
+                                    errorBuilder: (context, error, _) => const SizedBox.shrink(),
+                                  ),
+                                ),
                               ),
                             ),
                           ],

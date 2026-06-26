@@ -810,8 +810,20 @@ class _PainelAdminPageState extends State<PainelAdminPage>
                       width: 60,
                       height: 30,
                       fit: BoxFit.contain,
-                      errorBuilder: (ctx, err, st) =>
-                          const Icon(Icons.broken_image),
+                      loadingBuilder: (ctx, child, progress) =>
+                          progress == null
+                              ? child
+                              : const SizedBox(
+                                  width: 60,
+                                  height: 30,
+                                  child: Center(
+                                      child: CircularProgressIndicator(
+                                          strokeWidth: 1.5))),
+                      errorBuilder: (ctx, err, st) => const Tooltip(
+                        message: 'Storage não autorizado ou CORS ausente.',
+                        child: Icon(Icons.broken_image,
+                            size: 20, color: Colors.orange),
+                      ),
                     ),
                   ),
                   title: Text('Patrocinador #${e.key + 1}',
@@ -986,11 +998,22 @@ class _PainelAdminPageState extends State<PainelAdminPage>
     } else if (urlExistente.isNotEmpty) {
       preview = ClipRRect(
         borderRadius: BorderRadius.circular(8),
-        child: Image.network(urlExistente,
-            height: 80,
-            fit: BoxFit.contain,
-            errorBuilder: (ctx, err, st) =>
-                const Icon(Icons.broken_image, size: 40)),
+        child: Image.network(
+          urlExistente,
+          height: 80,
+          fit: BoxFit.contain,
+          loadingBuilder: (ctx, child, progress) => progress == null
+              ? child
+              : const SizedBox(
+                  width: 80,
+                  height: 80,
+                  child: Center(
+                      child: CircularProgressIndicator(strokeWidth: 2))),
+          errorBuilder: (ctx, err, st) => const Tooltip(
+            message: 'Falha ao carregar imagem.\nVerifique regras do Storage e CORS.',
+            child: Icon(Icons.broken_image, size: 40, color: Colors.orange),
+          ),
+        ),
       );
     } else {
       preview = Container(

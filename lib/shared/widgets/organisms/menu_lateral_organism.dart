@@ -72,8 +72,11 @@ class MenuLateralOrganism extends StatelessWidget {
                         errorBuilder: (_, _, _) => Row(
                           mainAxisSize: MainAxisSize.min,
                           children: [
-                            Icon(Icons.quiz, size: 13,
-                                color: corTextoCabecalho.withAlpha(200)),
+                            Icon(
+                              Icons.quiz,
+                              size: 13,
+                              color: corTextoCabecalho.withAlpha(200),
+                            ),
                             const SizedBox(width: 4),
                             Text(
                               'Rumo Quiz',
@@ -86,7 +89,7 @@ class MenuLateralOrganism extends StatelessWidget {
                           ],
                         ),
                       ),
-                    if (logoInstituicaoUrl.isNotEmpty) ...[
+                    if (!isWebMode && logoInstituicaoUrl.isNotEmpty) ...[
                       const SizedBox(width: 8),
                       ClipRRect(
                         borderRadius: BorderRadius.circular(3),
@@ -94,7 +97,8 @@ class MenuLateralOrganism extends StatelessWidget {
                           logoInstituicaoUrl,
                           height: 18,
                           fit: BoxFit.contain,
-                          errorBuilder: (context, error, _) => const SizedBox.shrink(),
+                          errorBuilder: (context, error, _) =>
+                              const SizedBox.shrink(),
                         ),
                       ),
                     ],
@@ -186,42 +190,205 @@ class MenuLateralOrganism extends StatelessWidget {
     switch (tipoAcesso) {
       case 'Master':
         return [
-          _buildItem(context: context, icon: Icons.dashboard_outlined, label: 'Home', route: '/master-painel', tabIndex: 0, mostrarTexto: mostrarTexto),
-          _buildItem(context: context, icon: Icons.business_outlined, label: 'Instituições', route: '/master-painel', tabIndex: 1, mostrarTexto: mostrarTexto),
-          _buildItem(context: context, icon: Icons.gavel_outlined, label: 'Auditoria', route: '/master-painel', tabIndex: 2, mostrarTexto: mostrarTexto),
-          _buildItem(context: context, icon: Icons.person_outline, label: 'Meu Perfil', route: '/master-painel', tabIndex: 3, mostrarTexto: mostrarTexto),
+          _buildItem(
+            context: context,
+            icon: Icons.dashboard_outlined,
+            label: 'Home',
+            route: '/master-painel',
+            tabIndex: 0,
+            mostrarTexto: mostrarTexto,
+          ),
+          _buildItem(
+            context: context,
+            icon: Icons.business_outlined,
+            label: 'Instituições',
+            route: '/master-painel',
+            tabIndex: 1,
+            mostrarTexto: mostrarTexto,
+          ),
+          _buildItem(
+            context: context,
+            icon: Icons.gavel_outlined,
+            label: 'Auditoria',
+            route: '/master-painel',
+            tabIndex: 2,
+            mostrarTexto: mostrarTexto,
+          ),
+          _buildItem(
+            context: context,
+            icon: Icons.person_outline,
+            label: 'Meu Perfil',
+            route: '/master-painel',
+            tabIndex: 3,
+            mostrarTexto: mostrarTexto,
+          ),
         ];
 
       case 'Admin':
         return [
-          _buildItem(context: context, icon: Icons.analytics_outlined, label: 'Home', route: '/admin-painel', tabIndex: 0, mostrarTexto: mostrarTexto),
-          _buildItem(context: context, icon: Icons.palette_outlined, label: 'Painel Admin', route: '/admin-painel', tabIndex: 1, mostrarTexto: mostrarTexto),
-          _buildItem(context: context, icon: Icons.category_outlined, label: 'Categorias', route: '/admin-painel', tabIndex: 2, mostrarTexto: mostrarTexto),
-          _buildItem(context: context, icon: Icons.quiz_outlined, label: 'Questões', route: '/admin-painel', tabIndex: 3, mostrarTexto: mostrarTexto),
-          _buildItem(context: context, icon: Icons.message_outlined, label: 'Mensagens', route: '/admin-painel', tabIndex: 4, mostrarTexto: mostrarTexto),
-          _buildItem(context: context, icon: Icons.stars_outlined, label: 'Gamificação', route: '/admin-painel', tabIndex: 5, mostrarTexto: mostrarTexto),
-          _buildItem(context: context, icon: Icons.people_outline, label: 'Usuários', route: '/admin-painel', tabIndex: 6, mostrarTexto: mostrarTexto),
-          _buildItem(context: context, icon: Icons.gavel_outlined, label: 'Auditoria', route: '/admin-painel', tabIndex: 7, mostrarTexto: mostrarTexto),
-          _buildItem(context: context, icon: Icons.person_outline, label: 'Meu Perfil', route: '/admin-painel', tabIndex: 8, mostrarTexto: mostrarTexto),
+          _buildItem(
+            context: context,
+            icon: Icons.analytics_outlined,
+            label: 'Home',
+            route: '/admin-painel',
+            tabIndex: 0,
+            mostrarTexto: mostrarTexto,
+          ),
+          _buildItem(
+            context: context,
+            icon: Icons.palette_outlined,
+            label: 'Painel Admin',
+            route: '/admin-painel',
+            tabIndex: 1,
+            mostrarTexto: mostrarTexto,
+          ),
+          _buildItem(
+            context: context,
+            icon: Icons.category_outlined,
+            label: 'Categorias',
+            route: '/admin-painel',
+            tabIndex: 2,
+            mostrarTexto: mostrarTexto,
+          ),
+          _buildItem(
+            context: context,
+            icon: Icons.quiz_outlined,
+            label: 'Questões',
+            route: '/admin-painel',
+            tabIndex: 3,
+            mostrarTexto: mostrarTexto,
+          ),
+          _buildItem(
+            context: context,
+            icon: Icons.message_outlined,
+            label: 'Mensagens',
+            route: '/admin-painel',
+            tabIndex: 4,
+            mostrarTexto: mostrarTexto,
+          ),
+          _buildItem(
+            context: context,
+            icon: Icons.stars_outlined,
+            label: 'Gamificação',
+            route: '/admin-painel',
+            tabIndex: 5,
+            mostrarTexto: mostrarTexto,
+          ),
+          _buildItem(
+            context: context,
+            icon: Icons.people_outline,
+            label: 'Usuários',
+            route: '/admin-painel',
+            tabIndex: 6,
+            mostrarTexto: mostrarTexto,
+          ),
+          _buildItem(
+            context: context,
+            icon: Icons.gavel_outlined,
+            label: 'Auditoria',
+            route: '/admin-painel',
+            tabIndex: 7,
+            mostrarTexto: mostrarTexto,
+          ),
+          _buildItem(
+            context: context,
+            icon: Icons.person_outline,
+            label: 'Meu Perfil',
+            route: '/admin-painel',
+            tabIndex: 8,
+            mostrarTexto: mostrarTexto,
+          ),
         ];
 
       case 'Acess2':
         return [
-          _buildItem(context: context, icon: Icons.analytics_outlined, label: 'Home', route: '/admin-painel', tabIndex: 0, mostrarTexto: mostrarTexto),
-          _buildItem(context: context, icon: Icons.category_outlined, label: 'Categorias', route: '/admin-painel', tabIndex: 1, mostrarTexto: mostrarTexto),
-          _buildItem(context: context, icon: Icons.quiz_outlined, label: 'Questões', route: '/admin-painel', tabIndex: 2, mostrarTexto: mostrarTexto),
-          _buildItem(context: context, icon: Icons.message_outlined, label: 'Mensagens', route: '/admin-painel', tabIndex: 3, mostrarTexto: mostrarTexto),
-          _buildItem(context: context, icon: Icons.people_outline, label: 'Usuários', route: '/admin-painel', tabIndex: 4, mostrarTexto: mostrarTexto),
-          _buildItem(context: context, icon: Icons.person_outline, label: 'Meu Perfil', route: '/admin-painel', tabIndex: 5, mostrarTexto: mostrarTexto),
+          _buildItem(
+            context: context,
+            icon: Icons.analytics_outlined,
+            label: 'Home',
+            route: '/admin-painel',
+            tabIndex: 0,
+            mostrarTexto: mostrarTexto,
+          ),
+          _buildItem(
+            context: context,
+            icon: Icons.category_outlined,
+            label: 'Categorias',
+            route: '/admin-painel',
+            tabIndex: 1,
+            mostrarTexto: mostrarTexto,
+          ),
+          _buildItem(
+            context: context,
+            icon: Icons.quiz_outlined,
+            label: 'Questões',
+            route: '/admin-painel',
+            tabIndex: 2,
+            mostrarTexto: mostrarTexto,
+          ),
+          _buildItem(
+            context: context,
+            icon: Icons.message_outlined,
+            label: 'Mensagens',
+            route: '/admin-painel',
+            tabIndex: 3,
+            mostrarTexto: mostrarTexto,
+          ),
+          _buildItem(
+            context: context,
+            icon: Icons.people_outline,
+            label: 'Usuários',
+            route: '/admin-painel',
+            tabIndex: 4,
+            mostrarTexto: mostrarTexto,
+          ),
+          _buildItem(
+            context: context,
+            icon: Icons.person_outline,
+            label: 'Meu Perfil',
+            route: '/admin-painel',
+            tabIndex: 5,
+            mostrarTexto: mostrarTexto,
+          ),
         ];
 
       default: // Acess3
         return [
-          _buildItem(context: context, icon: Icons.dashboard_outlined, label: 'Home / Dashboard', route: '/quiz-selection', mostrarTexto: mostrarTexto),
-          _buildItem(context: context, icon: Icons.play_lesson_outlined, label: 'Fazer Quiz', route: '/fazer-quiz', mostrarTexto: mostrarTexto),
-          _buildItem(context: context, icon: Icons.bar_chart_outlined, label: 'Meus Resultados', route: '/meus-resultados', mostrarTexto: mostrarTexto),
-          _buildItem(context: context, icon: Icons.history, label: 'Histórico de Simulados', route: '/historico', mostrarTexto: mostrarTexto),
-          _buildItem(context: context, icon: Icons.person_outline, label: 'Meu Perfil', route: '/perfil', mostrarTexto: mostrarTexto),
+          _buildItem(
+            context: context,
+            icon: Icons.dashboard_outlined,
+            label: 'Home / Dashboard',
+            route: '/quiz-selection',
+            mostrarTexto: mostrarTexto,
+          ),
+          _buildItem(
+            context: context,
+            icon: Icons.play_lesson_outlined,
+            label: 'Fazer Quiz',
+            route: '/fazer-quiz',
+            mostrarTexto: mostrarTexto,
+          ),
+          _buildItem(
+            context: context,
+            icon: Icons.bar_chart_outlined,
+            label: 'Meus Resultados',
+            route: '/meus-resultados',
+            mostrarTexto: mostrarTexto,
+          ),
+          _buildItem(
+            context: context,
+            icon: Icons.history,
+            label: 'Histórico de Simulados',
+            route: '/historico',
+            mostrarTexto: mostrarTexto,
+          ),
+          _buildItem(
+            context: context,
+            icon: Icons.person_outline,
+            label: 'Meu Perfil',
+            route: '/perfil',
+            mostrarTexto: mostrarTexto,
+          ),
         ];
     }
   }
@@ -235,7 +402,8 @@ class MenuLateralOrganism extends StatelessWidget {
     int tabIndex = 0,
   }) {
     final currentUri = GoRouterState.of(context).uri;
-    final currentTab = int.tryParse(currentUri.queryParameters['tab'] ?? '0') ?? 0;
+    final currentTab =
+        int.tryParse(currentUri.queryParameters['tab'] ?? '0') ?? 0;
     final bool ativo = currentUri.path == route && currentTab == tabIndex;
 
     return Tooltip(
