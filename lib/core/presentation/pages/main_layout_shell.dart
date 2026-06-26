@@ -181,6 +181,18 @@ class _MainLayoutShellState extends State<MainLayoutShell> {
                 : null,
             title: Row(
               children: [
+                if (isWeb) ...[
+                  Image.asset(
+                    'assets/images/logo_rumo_quiz_sem_slogan.png',
+                    height: 30,
+                    fit: BoxFit.contain,
+                    errorBuilder: (_, _, _) => const SizedBox.shrink(),
+                  ),
+                  const SizedBox(width: 8),
+                  Container(
+                      width: 1, height: 28, color: corTextoAppBar.withAlpha(80)),
+                  const SizedBox(width: 8),
+                ],
                 if (logoInstituicaoUrl.isNotEmpty) ...[
                   Image.network(
                     logoInstituicaoUrl,

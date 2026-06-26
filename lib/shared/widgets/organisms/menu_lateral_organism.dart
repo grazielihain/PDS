@@ -63,23 +63,29 @@ class MenuLateralOrganism extends StatelessWidget {
                 // Linha: logos + botão fechar (mobile)
                 Row(
                   children: [
-                    // Logo Rumo Quiz
-                    Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Icon(Icons.quiz, size: 13,
-                            color: corTextoCabecalho.withAlpha(200)),
-                        const SizedBox(width: 4),
-                        Text(
-                          'Rumo Quiz',
-                          style: TextStyle(
-                            fontSize: 10,
-                            color: corTextoCabecalho.withAlpha(200),
-                            fontWeight: FontWeight.w600,
-                          ),
+                    // Logo Rumo Quiz (somente mobile)
+                    if (!isWebMode)
+                      Image.asset(
+                        'assets/images/logo_rumo_quiz_sem_slogan.png',
+                        height: 24,
+                        fit: BoxFit.contain,
+                        errorBuilder: (_, _, _) => Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(Icons.quiz, size: 13,
+                                color: corTextoCabecalho.withAlpha(200)),
+                            const SizedBox(width: 4),
+                            Text(
+                              'Rumo Quiz',
+                              style: TextStyle(
+                                fontSize: 10,
+                                color: corTextoCabecalho.withAlpha(200),
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ],
                         ),
-                      ],
-                    ),
+                      ),
                     if (logoInstituicaoUrl.isNotEmpty) ...[
                       const SizedBox(width: 8),
                       ClipRRect(

@@ -111,12 +111,12 @@ class _LoginPageState extends ConsumerState<LoginPage> {
                 mainAxisAlignment: MainAxisAlignment.center,
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  const Icon(Icons.school, size: 80, color: Colors.blue),
-                  const SizedBox(height: 16),
-                  const Text(
-                    'Rumo Quiz',
-                    textAlign: TextAlign.center,
-                    style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold),
+                  Image.asset(
+                    'assets/images/logo_rumo_quiz.png',
+                    height: 130,
+                    fit: BoxFit.contain,
+                    errorBuilder: (_, _, _) =>
+                        const Icon(Icons.school, size: 80, color: Colors.blue),
                   ),
                   const SizedBox(height: 32),
                   TextFormField(

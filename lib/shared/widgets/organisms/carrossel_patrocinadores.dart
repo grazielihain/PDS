@@ -96,9 +96,7 @@ class _CarrosselPatrocinadoresState extends State<CarrosselPatrocinadores> {
       }
       i++;
       if (i < 5) {
-        itens.add(
-          _buildFallbackItem(Icons.quiz, 'Rumo Quiz', corTextoEIcone),
-        );
+        itens.add(_buildLogoRumoQuizItem());
         i++;
       }
     }
@@ -181,6 +179,33 @@ class _CarrosselPatrocinadoresState extends State<CarrosselPatrocinadores> {
                         fontSize: 10, color: Colors.grey.shade600)),
               ],
             ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildLogoRumoQuizItem() {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 8.0),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(4),
+        ),
+        child: Image.asset(
+          'assets/images/logo_rumo_quiz_sem_slogan.png',
+          height: 36,
+          fit: BoxFit.contain,
+          errorBuilder: (_, _, _) => Row(
+            mainAxisSize: MainAxisSize.min,
+            children: const [
+              Icon(Icons.quiz, size: 14, color: Colors.grey),
+              SizedBox(width: 4),
+              Text('Rumo Quiz',
+                  style: TextStyle(fontSize: 11, color: Colors.black87)),
+            ],
           ),
         ),
       ),
