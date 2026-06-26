@@ -1,0 +1,143 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ── Funções auxiliares ────────────────────────────────────────────────────
+
+    function isAuth() {
+      return request.auth != null;
+    }
+
+    function uid() {
+      return request.auth.uid;
+    }
+
+    // Documento do usuário autenticado (cacheado pelo engine por request)
+    function userDoc() {
+      return get(/databases/$(database)/documents/usuarios/$(request.auth.uid)).data;
+    }
+
+    function myRole()   { return userDoc().role; }
+    function myInstId() { return userDoc().instituicaoId; }
+
+    function isMaster() { return isAuth() && myRole() == 'Master'; }
+    function isAdmin()  { return isAuth() && myRole() == 'Admin'; }
+    function isAcess2() { return isAuth() && myRole() == 'Acess2'; }
+
+    // ── Instituições ──────────────────────────────────────────────────────────
+    match /instituicoes/{instId} {
+      allow read: if isAuth();
+      allow create: if isMaster();
+      allow update, delete: if isMaster()
+        || (isAdmin() && myInstId() == instId);
+    }
+
+    // ── Usuários ──────────────────────────────────────────────────────────────
+    match /usuarios/{userId} {
+      // Cada usuário lê o próprio perfil; Master lê tudo; Admin/Acess2 leem da mesma inst.
+      allow read: if isAuth() && (
+        uid() == userId ||
+        isMaster() ||
+        myInstId() == resource.data.instituicaoId
+      );
+      // Master cria qualquer um; Admin cria Acess2/Acess3 da sua inst.;
+      // Acess2 só cria Acess3 da sua inst.
+      allow create: if isMaster()
+        || (isAdmin() && request.resource.data.instituicaoId == myInstId())
+        || (isAcess2()
+            && request.resource.data.role == 'Acess3'
+            && request.resource.data.instituicaoId == myInstId());
+      // Usuário atualiza o próprio perfil; Admin atualiza usuários da sua inst.
+      allow update: if uid() == userId
+        || isMaster()
+        || (isAdmin() && resource.data.instituicaoId == myInstId());
+      allow delete: if isMaster()
+        || (isAdmin() && resource.data.instituicaoId == myInstId());
+    }
+
+    // Histórico de simulados — imutável após gravação (registros de prova)
+    match /usuarios/{userId}/historico_simulados/{histId} {
+      allow read: if isAuth() && (
+        uid() == userId || isMaster() || isAdmin()
+      );
+      allow create: if isAuth() && uid() == userId;
+      allow update, delete: if false;
+    }
+
+    // ── Categorias ────────────────────────────────────────────────────────────
+    match /categorias/{catId} {
+      allow read: if isAuth();
+      allow create: if isMaster()
+        || (isAdmin() && request.resource.data.instituicaoId == myInstId());
+      allow update, delete: if isMaster()
+        || (isAdmin() && resource.data.instituicaoId == myInstId());
+    }
+
+    // ── Assuntos ──────────────────────────────────────────────────────────────
+    match /assuntos/{assId} {
+      allow read: if isAuth();
+      allow create: if isMaster()
+        || (isAdmin() && request.resource.data.instituicaoId == myInstId());
+      allow update, delete: if isMaster()
+        || (isAdmin() && resource.data.instituicaoId == myInstId());
+    }
+
+    // ── Tipos de Simulado ─────────────────────────────────────────────────────
+    match /tipos_simulado/{tipoId} {
+      allow read: if isAuth();
+      allow create: if isMaster()
+        || (isAdmin() && request.resource.data.instituicaoId == myInstId());
+      allow update, delete: if isMaster()
+        || (isAdmin() && resource.data.instituicaoId == myInstId());
+    }
+
+    // ── Questões ──────────────────────────────────────────────────────────────
+    match /questoes/{questId} {
+      allow read: if isAuth();
+      allow create: if (isAdmin() || isAcess2())
+        && request.resource.data.instituicaoId == myInstId();
+      allow update: if isAdmin()
+        || (isAcess2() && resource.data.criadoPor == uid());
+      allow delete: if isAdmin()
+        || (isAcess2() && resource.data.criadoPor == uid());
+    }
+
+    // ── Mensagens de Resultado ────────────────────────────────────────────────
+    match /mensagens_resultado/{msgId} {
+      allow read: if isAuth();
+      allow create: if isMaster()
+        || (isAdmin() && request.resource.data.instituicaoId == myInstId());
+      allow update, delete: if isMaster()
+        || (isAdmin() && resource.data.instituicaoId == myInstId());
+    }
+
+    // ── Gamificação ───────────────────────────────────────────────────────────
+    match /gamificacao/{regId} {
+      allow read: if isAuth();
+      allow create: if isMaster()
+        || (isAdmin() && request.resource.data.instituicaoId == myInstId());
+      allow update, delete: if isMaster()
+        || (isAdmin() && resource.data.instituicaoId == myInstId());
+    }
+
+    // ── Auditoria ─────────────────────────────────────────────────────────────
+    match /auditoria/{logId} {
+      allow read: if isMaster() || isAdmin();
+      allow create: if isAuth();
+      allow update, delete: if false;
+    }
+
+    // ── Logs de Acesso e Login ────────────────────────────────────────────────
+    match /logs_acesso/{logId} {
+      allow create: if isAuth();
+      allow read: if isMaster();
+      allow update, delete: if false;
+    }
+
+    match /loginLogs/{logId} {
+      allow create: if isAuth();
+      allow read: if isMaster();
+      allow update, delete: if false;
+    }
+  }
+}
