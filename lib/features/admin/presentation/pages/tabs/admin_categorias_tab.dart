@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../providers/admin_provider.dart';
 
-class AdminCategoriasTab extends StatefulWidget {
+class AdminCategoriasTab extends ConsumerStatefulWidget {
   final String instituicaoId;
   final String roleCriador;
   final Future<void> Function(String, String, String, String, String)
@@ -16,44 +18,27 @@ class AdminCategoriasTab extends StatefulWidget {
   });
 
   @override
-  State<AdminCategoriasTab> createState() => _AdminCategoriasTabState();
+  ConsumerState<AdminCategoriasTab> createState() => _AdminCategoriasTabState();
 }
 
-class _AdminCategoriasTabState extends State<AdminCategoriasTab> {
-  final FirebaseFirestore _db = FirebaseFirestore.instance;
-
+class _AdminCategoriasTabState extends ConsumerState<AdminCategoriasTab> {
   bool get _isAdmin => widget.roleCriador == 'Admin';
 
   // ──────────────────────────── CRUD CATEGORIAS ────────────────────────────
 
   Future<void> _criarCategoria(String nome) async {
-    final existentes = await _db
-        .collection('categorias')
-        .where('instituicaoId', isEqualTo: widget.instituicaoId)
-        .get();
-    if (existentes.docs.length >= 20) {
-      throw Exception('Limite de 20 categorias por instituição atingido.');
-    }
-    final ref = _db.collection('categorias').doc();
-    final dados = {
-      'nome': nome.trim(),
-      'instituicaoId': widget.instituicaoId,
-      'dataCriacao': FieldValue.serverTimestamp(),
-    };
-    await ref.set(dados);
+    await ref.read(adminDataSourceProvider).criarCategoria(nome, widget.instituicaoId);
     await widget.onAuditoria(
       'CRIAR',
       'Admin / Categorias',
       'Criou a categoria "$nome"',
       'Nenhum',
-      dados.toString(),
+      '{nome: $nome, instituicaoId: ${widget.instituicaoId}}',
     );
   }
 
   Future<void> _editarCategoria(String docId, String nomeAntigo, String nomeNovo) async {
-    await _db.collection('categorias').doc(docId).update({
-      'nome': nomeNovo.trim(),
-    });
+    await ref.read(adminDataSourceProvider).editarCategoria(docId, nomeNovo);
     await widget.onAuditoria(
       'ALTERAR',
       'Admin / Categorias',
@@ -64,7 +49,7 @@ class _AdminCategoriasTabState extends State<AdminCategoriasTab> {
   }
 
   Future<void> _excluirCategoria(String docId, String nome) async {
-    await _db.collection('categorias').doc(docId).delete();
+    await ref.read(adminDataSourceProvider).excluirCategoria(docId);
     await widget.onAuditoria(
       'EXCLUIR',
       'Admin / Categorias',
@@ -77,34 +62,18 @@ class _AdminCategoriasTabState extends State<AdminCategoriasTab> {
   // ──────────────────────────── CRUD ASSUNTOS ──────────────────────────────
 
   Future<void> _criarAssunto(String categoriaId, String nome) async {
-    final existentes = await _db
-        .collection('assuntos')
-        .where('instituicaoId', isEqualTo: widget.instituicaoId)
-        .get();
-    if (existentes.docs.length >= 30) {
-      throw Exception('Limite de 30 assuntos por instituição atingido.');
-    }
-    final ref = _db.collection('assuntos').doc();
-    final dados = {
-      'nome': nome.trim(),
-      'categoriaId': categoriaId,
-      'instituicaoId': widget.instituicaoId,
-      'dataCriacao': FieldValue.serverTimestamp(),
-    };
-    await ref.set(dados);
+    await ref.read(adminDataSourceProvider).criarAssunto(categoriaId, nome, widget.instituicaoId);
     await widget.onAuditoria(
       'CRIAR',
       'Admin / Assuntos',
       'Criou o assunto "$nome"',
       'Nenhum',
-      dados.toString(),
+      '{nome: $nome, categoriaId: $categoriaId, instituicaoId: ${widget.instituicaoId}}',
     );
   }
 
   Future<void> _editarAssunto(String docId, String nomeAntigo, String nomeNovo) async {
-    await _db.collection('assuntos').doc(docId).update({
-      'nome': nomeNovo.trim(),
-    });
+    await ref.read(adminDataSourceProvider).editarAssunto(docId, nomeNovo);
     await widget.onAuditoria(
       'ALTERAR',
       'Admin / Assuntos',
@@ -115,7 +84,7 @@ class _AdminCategoriasTabState extends State<AdminCategoriasTab> {
   }
 
   Future<void> _excluirAssunto(String docId, String nome) async {
-    await _db.collection('assuntos').doc(docId).delete();
+    await ref.read(adminDataSourceProvider).excluirAssunto(docId);
     await widget.onAuditoria(
       'EXCLUIR',
       'Admin / Assuntos',
@@ -131,14 +100,12 @@ class _AdminCategoriasTabState extends State<AdminCategoriasTab> {
     String categoriaId,
     Map<String, dynamic> dados,
   ) async {
-    final ref = _db.collection('tipos_simulado').doc();
     final payload = {
       ...dados,
       'categoriaId': categoriaId,
       'instituicaoId': widget.instituicaoId,
-      'dataCriacao': FieldValue.serverTimestamp(),
     };
-    await ref.set(payload);
+    await ref.read(adminDataSourceProvider).criarTipoSimulado(payload);
     await widget.onAuditoria(
       'CRIAR',
       'Admin / Tipos de Simulado',
@@ -153,7 +120,7 @@ class _AdminCategoriasTabState extends State<AdminCategoriasTab> {
     Map<String, dynamic> antigo,
     Map<String, dynamic> novo,
   ) async {
-    await _db.collection('tipos_simulado').doc(docId).update(novo);
+    await ref.read(adminDataSourceProvider).editarTipoSimulado(docId, novo);
     await widget.onAuditoria(
       'ALTERAR',
       'Admin / Tipos de Simulado',
@@ -164,7 +131,7 @@ class _AdminCategoriasTabState extends State<AdminCategoriasTab> {
   }
 
   Future<void> _excluirTipoSimulado(String docId, String descricao) async {
-    await _db.collection('tipos_simulado').doc(docId).delete();
+    await ref.read(adminDataSourceProvider).excluirTipoSimulado(docId);
     await widget.onAuditoria(
       'EXCLUIR',
       'Admin / Tipos de Simulado',
@@ -235,12 +202,13 @@ class _AdminCategoriasTabState extends State<AdminCategoriasTab> {
   }) async {
     List<QueryDocumentSnapshot> assuntosDisponiveis = [];
     try {
-      final snap = await _db
-          .collection('assuntos')
-          .where('categoriaId', isEqualTo: categoriaId)
-          .where('instituicaoId', isEqualTo: widget.instituicaoId)
-          .get();
-      assuntosDisponiveis = snap.docs;
+      final snap = await ref
+          .read(adminDataSourceProvider)
+          .streamAssuntos(widget.instituicaoId)
+          .first;
+      assuntosDisponiveis = snap.docs
+          .where((d) => (d.data() as Map<String, dynamic>)['categoriaId'] == categoriaId)
+          .toList();
     } catch (_) {}
 
     if (!mounted) return;
@@ -326,10 +294,7 @@ class _AdminCategoriasTabState extends State<AdminCategoriasTab> {
             ),
           const SizedBox(height: 16),
           StreamBuilder<QuerySnapshot>(
-            stream: _db
-                .collection('categorias')
-                .where('instituicaoId', isEqualTo: widget.instituicaoId)
-                .snapshots(),
+            stream: ref.read(adminDataSourceProvider).streamCategorias(widget.instituicaoId),
             builder: (context, snap) {
               if (snap.hasError) {
                 return Center(
@@ -416,19 +381,14 @@ class _AdminCategoriasTabState extends State<AdminCategoriasTab> {
   }
 
   Future<void> _onExcluirCategoria(String docId, String nome) async {
-    // Verifica se há assuntos ou tipos cadastrados (avisa mas permite)
-    final assuntosSnap = await _db
-        .collection('assuntos')
-        .where('categoriaId', isEqualTo: docId)
-        .where('instituicaoId', isEqualTo: widget.instituicaoId)
-        .get();
-    final tiposSnap = await _db
-        .collection('tipos_simulado')
-        .where('categoriaId', isEqualTo: docId)
-        .where('instituicaoId', isEqualTo: widget.instituicaoId)
-        .get();
+    final ds = ref.read(adminDataSourceProvider);
+    final assuntosSnap = await ds.streamAssuntos(widget.instituicaoId).first;
+    final tiposSnap = await ds.streamTiposSimulado(docId).first;
 
-    final totalVinculados = assuntosSnap.docs.length + tiposSnap.docs.length;
+    final assuntosVinculados = assuntosSnap.docs
+        .where((d) => (d.data() as Map<String, dynamic>)['categoriaId'] == docId)
+        .length;
+    final totalVinculados = assuntosVinculados + tiposSnap.docs.length;
     final aviso = totalVinculados > 0
         ? '\n\nATENCAO: Existem $totalVinculados registro(s) vinculado(s) a esta categoria (assuntos e/ou tipos de simulado).'
         : '';
@@ -467,11 +427,7 @@ class _AdminCategoriasTabState extends State<AdminCategoriasTab> {
         ),
         const SizedBox(height: 8),
         StreamBuilder<QuerySnapshot>(
-          stream: _db
-              .collection('assuntos')
-              .where('categoriaId', isEqualTo: categoriaId)
-              .where('instituicaoId', isEqualTo: widget.instituicaoId)
-              .snapshots(),
+          stream: ref.read(adminDataSourceProvider).streamAssuntos(widget.instituicaoId),
           builder: (context, snap) {
             if (snap.connectionState == ConnectionState.waiting) {
               return const LinearProgressIndicator();
@@ -482,7 +438,9 @@ class _AdminCategoriasTabState extends State<AdminCategoriasTab> {
                 style: const TextStyle(color: Colors.red, fontSize: 12),
               );
             }
-            final docs = snap.data?.docs ?? [];
+            final docs = (snap.data?.docs ?? [])
+                .where((d) => (d.data() as Map<String, dynamic>)['categoriaId'] == categoriaId)
+                .toList();
             if (docs.isEmpty) {
               return const Text(
                 'Nenhum assunto cadastrado.',
@@ -533,16 +491,13 @@ class _AdminCategoriasTabState extends State<AdminCategoriasTab> {
   }
 
   Future<void> _onExcluirAssunto(String docId, String nome) async {
-    // Protege exclusão se houver questões vinculadas ao assunto
     try {
-      final questoesSnap = await _db
-          .collection('questoes')
-          .where('assuntoId', isEqualTo: docId)
-          .where('instituicaoId', isEqualTo: widget.instituicaoId)
-          .get();
-      if (questoesSnap.docs.isNotEmpty) {
+      final possuiQuestoes = await ref
+          .read(adminDataSourceProvider)
+          .assuntoPossuiQuestoes(docId, widget.instituicaoId);
+      if (possuiQuestoes) {
         _showError(
-          'Não é possível excluir "$nome": existem ${questoesSnap.docs.length} questão(ões) vinculadas. Remova-as antes.',
+          'Não é possível excluir "$nome": existem questões vinculadas. Remova-as antes.',
         );
         return;
       }
@@ -582,11 +537,7 @@ class _AdminCategoriasTabState extends State<AdminCategoriasTab> {
         ),
         const SizedBox(height: 8),
         StreamBuilder<QuerySnapshot>(
-          stream: _db
-              .collection('tipos_simulado')
-              .where('categoriaId', isEqualTo: categoriaId)
-              .where('instituicaoId', isEqualTo: widget.instituicaoId)
-              .snapshots(),
+          stream: ref.read(adminDataSourceProvider).streamTiposSimulado(categoriaId),
           builder: (context, snap) {
             if (snap.connectionState == ConnectionState.waiting) {
               return const LinearProgressIndicator();

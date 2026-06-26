@@ -2,10 +2,11 @@ import 'dart:typed_data';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:file_picker/file_picker.dart';
-import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../providers/admin_provider.dart';
 
-class AdminMensagensTab extends StatefulWidget {
+class AdminMensagensTab extends ConsumerStatefulWidget {
   final String instituicaoId;
   final String mascoteUrl;
   final bool somenteLeitura;
@@ -21,13 +22,10 @@ class AdminMensagensTab extends StatefulWidget {
   });
 
   @override
-  State<AdminMensagensTab> createState() => _AdminMensagensTabState();
+  ConsumerState<AdminMensagensTab> createState() => _AdminMensagensTabState();
 }
 
-class _AdminMensagensTabState extends State<AdminMensagensTab> {
-  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
-  final FirebaseStorage _storage = FirebaseStorage.instance;
-
+class _AdminMensagensTabState extends ConsumerState<AdminMensagensTab> {
   // Controle do formulário
   bool _mostrarFormulario = false;
   String? _editandoId;
@@ -117,14 +115,14 @@ class _AdminMensagensTabState extends State<AdminMensagensTab> {
 
   /// Valida se o range [de, ate] não sobrepõe ranges já cadastrados.
   Future<String?> _validarSobreposicao(double de, double ate) async {
-    final snap = await _firestore
-        .collection('mensagens_resultado')
-        .where('instituicaoId', isEqualTo: widget.instituicaoId)
-        .get();
+    final snap = await ref
+        .read(adminDataSourceProvider)
+        .streamMensagens(widget.instituicaoId)
+        .first;
 
     for (final doc in snap.docs) {
       if (doc.id == _editandoId) continue; // ignora o próprio registro
-      final dados = doc.data();
+      final dados = doc.data() as Map<String, dynamic>;
       final existeDe = (dados['de'] as num).toDouble();
       final existeAte = (dados['ate'] as num).toDouble();
       // Sobreposição: os intervalos se cruzam
@@ -176,16 +174,15 @@ class _AdminMensagensTabState extends State<AdminMensagensTab> {
 
       // Upload se necessário
       if (_tipoImagem == 'upload' && _imagemBytes != null) {
-        final msgId =
-            _editandoId ?? _firestore.collection('mensagens_resultado').doc().id;
         final timestamp = DateTime.now().millisecondsSinceEpoch;
         final ext = _imagemNome?.split('.').last ?? 'jpg';
-        final ref = _storage.ref('mensagens/$msgId/$timestamp.$ext');
-        await ref.putData(
-          _imagemBytes!,
-          SettableMetadata(contentType: 'image/$ext'),
+        final msgId = _editandoId ?? 'new_$timestamp';
+        final path = 'mensagens/$msgId/$timestamp.$ext';
+        imagemUrl = await ref.read(adminDataSourceProvider).uploadImagem(
+          bytes: _imagemBytes!,
+          storagePath: path,
+          contentType: 'image/$ext',
         );
-        imagemUrl = await ref.getDownloadURL();
       } else if (_tipoImagem == 'mascote') {
         imagemUrl = widget.mascoteUrl;
       } else if (_tipoImagem == 'nenhuma') {
@@ -202,26 +199,22 @@ class _AdminMensagensTabState extends State<AdminMensagensTab> {
       };
 
       if (_editandoId != null) {
-        final docAntigo = await _firestore
-            .collection('mensagens_resultado')
-            .doc(_editandoId)
-            .get();
-        await _firestore
-            .collection('mensagens_resultado')
-            .doc(_editandoId)
-            .update(dados);
+        final snap = await ref
+            .read(adminDataSourceProvider)
+            .streamMensagens(widget.instituicaoId)
+            .first;
+        final docAntigo = snap.docs.where((d) => d.id == _editandoId).firstOrNull;
+        await ref.read(adminDataSourceProvider).editarMensagem(_editandoId!, dados);
 
         await widget.onAuditoria(
           'ALTERAR',
           'Admin Mensagens de Resultado',
           'Editou mensagem para range $de%–$ate%',
-          docAntigo.data()?.toString() ?? 'Nenhum',
+          docAntigo?.data()?.toString() ?? 'Nenhum',
           dados.toString(),
         );
       } else {
-        final ref = await _firestore
-            .collection('mensagens_resultado')
-            .add({...dados, 'dataCriacao': FieldValue.serverTimestamp()});
+        await ref.read(adminDataSourceProvider).criarMensagem(dados);
 
         await widget.onAuditoria(
           'CRIAR',
@@ -230,7 +223,6 @@ class _AdminMensagensTabState extends State<AdminMensagensTab> {
           'Nenhum (Novo Registro)',
           dados.toString(),
         );
-        debugPrint('Mensagem criada: ${ref.id}');
       }
 
       if (mounted) {
@@ -277,10 +269,7 @@ class _AdminMensagensTabState extends State<AdminMensagensTab> {
     if (confirmado != true) return;
 
     try {
-      await _firestore
-          .collection('mensagens_resultado')
-          .doc(doc.id)
-          .delete();
+      await ref.read(adminDataSourceProvider).excluirMensagem(doc.id);
 
       await widget.onAuditoria(
         'EXCLUIR',
@@ -583,10 +572,9 @@ class _AdminMensagensTabState extends State<AdminMensagensTab> {
 
   Widget _buildLista() {
     return StreamBuilder<QuerySnapshot>(
-      stream: _firestore
-          .collection('mensagens_resultado')
-          .where('instituicaoId', isEqualTo: widget.instituicaoId)
-          .snapshots(),
+      stream: ref
+          .read(adminDataSourceProvider)
+          .streamMensagens(widget.instituicaoId),
       builder: (context, snapshot) {
         if (snapshot.hasError) {
           return Text('Erro ao carregar mensagens: ${snapshot.error}');

@@ -50,3 +50,4 @@ README.md
 
 # Ignorar as regras de segurança locais do Storage
 storage.rules
+firestore.rules

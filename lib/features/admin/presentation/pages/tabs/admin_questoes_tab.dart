@@ -2,10 +2,11 @@ import 'dart:typed_data';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../providers/admin_provider.dart';
 
-class AdminQuestoesTab extends StatefulWidget {
+class AdminQuestoesTab extends ConsumerStatefulWidget {
   final String instituicaoId;
   final String roleCriador;
   final Future<void> Function(String, String, String, String, String)
@@ -19,12 +20,10 @@ class AdminQuestoesTab extends StatefulWidget {
   });
 
   @override
-  State<AdminQuestoesTab> createState() => _AdminQuestoesTabState();
+  ConsumerState<AdminQuestoesTab> createState() => _AdminQuestoesTabState();
 }
 
-class _AdminQuestoesTabState extends State<AdminQuestoesTab> {
-  final _firestore = FirebaseFirestore.instance;
-  final _storage = FirebaseStorage.instance;
+class _AdminQuestoesTabState extends ConsumerState<AdminQuestoesTab> {
   final _auth = FirebaseAuth.instance;
 
   // Filtros
@@ -82,14 +81,14 @@ class _AdminQuestoesTabState extends State<AdminQuestoesTab> {
 
   Future<void> _carregarTodosAssuntos() async {
     try {
-      final snap = await _firestore
-          .collection('assuntos')
-          .where('instituicaoId', isEqualTo: widget.instituicaoId)
-          .get();
+      final snap = await ref
+          .read(adminDataSourceProvider)
+          .streamAssuntos(widget.instituicaoId)
+          .first;
       if (mounted) {
         setState(() {
           _todosAssuntos = snap.docs
-              .map((d) => {'id': d.id, 'nome': d['nome'] ?? d.id})
+              .map((d) => {'id': d.id, 'nome': (d.data() as Map<String, dynamic>)['nome'] ?? d.id})
               .toList();
         });
       }
@@ -98,14 +97,14 @@ class _AdminQuestoesTabState extends State<AdminQuestoesTab> {
 
   Future<void> _carregarCategorias() async {
     try {
-      final snap = await _firestore
-          .collection('categorias')
-          .where('instituicaoId', isEqualTo: widget.instituicaoId)
-          .get();
+      final snap = await ref
+          .read(adminDataSourceProvider)
+          .streamCategorias(widget.instituicaoId)
+          .first;
       if (mounted) {
         setState(() {
           _categorias = snap.docs
-              .map((d) => {'id': d.id, 'nome': d['nome'] ?? d.id})
+              .map((d) => {'id': d.id, 'nome': (d.data() as Map<String, dynamic>)['nome'] ?? d.id})
               .toList();
         });
       }
@@ -116,12 +115,13 @@ class _AdminQuestoesTabState extends State<AdminQuestoesTab> {
 
   Future<List<Map<String, dynamic>>> _carregarAssuntos(
       String categoriaId) async {
-    final snap = await _firestore
-        .collection('assuntos')
-        .where('categoriaId', isEqualTo: categoriaId)
-        .get();
+    final snap = await ref
+        .read(adminDataSourceProvider)
+        .streamAssuntos(widget.instituicaoId)
+        .first;
     return snap.docs
-        .map((d) => {'id': d.id, 'nome': d['nome'] ?? d.id})
+        .where((d) => (d.data() as Map<String, dynamic>)['categoriaId'] == categoriaId)
+        .map((d) => {'id': d.id, 'nome': (d.data() as Map<String, dynamic>)['nome'] ?? d.id})
         .toList();
   }
 
@@ -138,23 +138,14 @@ class _AdminQuestoesTabState extends State<AdminQuestoesTab> {
     );
   }
 
-  // Retorna a query de acordo com os filtros
-  Query<Map<String, dynamic>> get _queryQuestoes {
+  Stream<QuerySnapshot> get _streamQuestoes {
     final uid = _auth.currentUser?.uid ?? '';
-    Query<Map<String, dynamic>> q = _firestore
-        .collection('questoes')
-        .where('instituicaoId', isEqualTo: widget.instituicaoId);
-
-    if (_apenasMinhas) {
-      q = q.where('criadoPor', isEqualTo: uid);
-    }
-    if (_filtroCategId != null) {
-      q = q.where('categoriaId', isEqualTo: _filtroCategId);
-    }
-    if (_filtroAssuntoId != null) {
-      q = q.where('assuntoId', isEqualTo: _filtroAssuntoId);
-    }
-    return q;
+    return ref.read(adminDataSourceProvider).streamQuestoes(
+      instituicaoId: widget.instituicaoId,
+      categoriaId: _filtroCategId,
+      assuntoId: _filtroAssuntoId,
+      criadoPor: _apenasMinhas ? uid : null,
+    );
   }
 
   void _abrirFormularioNovo() {
@@ -253,14 +244,12 @@ class _AdminQuestoesTabState extends State<AdminQuestoesTab> {
     final urls = <String>[];
     for (final img in _imagensPendentes) {
       final timestamp = DateTime.now().millisecondsSinceEpoch;
-      final ref = _storage
-          .ref('questoes/$questaoId/$timestamp.${img.ext}');
-      final task = ref.putData(
-        img.bytes,
-        SettableMetadata(contentType: 'image/${img.ext}'),
+      final path = 'questoes/$questaoId/$timestamp.${img.ext}';
+      final url = await ref.read(adminDataSourceProvider).uploadImagem(
+        bytes: img.bytes,
+        storagePath: path,
+        contentType: 'image/${img.ext}',
       );
-      final snap = await task;
-      final url = await snap.ref.getDownloadURL();
       urls.add(url);
     }
     return urls;
@@ -292,24 +281,7 @@ class _AdminQuestoesTabState extends State<AdminQuestoesTab> {
     setState(() => _salvando = true);
 
     try {
-      if (_editandoId == null) {
-        final countSnap = await _firestore
-            .collection('questoes')
-            .where('instituicaoId', isEqualTo: widget.instituicaoId)
-            .get();
-        if (countSnap.docs.length >= 100) {
-          setState(() => _salvando = false);
-          _mostrarErro('Limite de 100 questões por instituição atingido.');
-          return;
-        }
-      }
-
       final uid = _auth.currentUser?.uid ?? '';
-      final questaoId =
-          _editandoId ?? _firestore.collection('questoes').doc().id;
-
-      final urlsNovas = await _uploadImagensPendentes(questaoId);
-      final todasImagens = [..._imagensExistentes, ...urlsNovas];
 
       final dados = {
         'categoriaId': _formCategoriaId,
@@ -317,7 +289,6 @@ class _AdminQuestoesTabState extends State<AdminQuestoesTab> {
         'instituicaoId': widget.instituicaoId,
         'referencia': _refController.text.trim(),
         'texto': _textoController.text.trim(),
-        'imagens': todasImagens,
         'alternativas': alternativas,
         'respostaCorretaIndex': _respostaCorretaIndex,
         'justificativa': _justificativaController.text.trim(),
@@ -326,8 +297,12 @@ class _AdminQuestoesTabState extends State<AdminQuestoesTab> {
       };
 
       if (_editandoId == null) {
-        dados['dataCriacao'] = FieldValue.serverTimestamp();
-        await _firestore.collection('questoes').doc(questaoId).set(dados);
+        final questaoId = await ref.read(adminDataSourceProvider).criarQuestao(dados);
+        final urlsNovas = await _uploadImagensPendentes(questaoId);
+        final todasImagens = [..._imagensExistentes, ...urlsNovas];
+        if (todasImagens.isNotEmpty) {
+          await ref.read(adminDataSourceProvider).editarQuestao(questaoId, {'imagens': todasImagens});
+        }
         await widget.onAuditoria(
           'CRIAR',
           'Admin Questoes',
@@ -337,10 +312,10 @@ class _AdminQuestoesTabState extends State<AdminQuestoesTab> {
         );
         _mostrarSucesso('Questão criada com sucesso!');
       } else {
-        await _firestore
-            .collection('questoes')
-            .doc(_editandoId)
-            .update(dados);
+        final urlsNovas = await _uploadImagensPendentes(_editandoId!);
+        final todasImagens = [..._imagensExistentes, ...urlsNovas];
+        dados['imagens'] = todasImagens;
+        await ref.read(adminDataSourceProvider).editarQuestao(_editandoId!, dados);
         await widget.onAuditoria(
           'ALTERAR',
           'Admin Questoes',
@@ -386,7 +361,7 @@ class _AdminQuestoesTabState extends State<AdminQuestoesTab> {
     if (confirmar != true) return;
 
     try {
-      await _firestore.collection('questoes').doc(id).delete();
+      await ref.read(adminDataSourceProvider).excluirQuestao(id);
       await widget.onAuditoria(
         'EXCLUIR',
         'Admin Questoes',
@@ -961,7 +936,7 @@ class _AdminQuestoesTabState extends State<AdminQuestoesTab> {
 
   Widget _buildListaQuestoes(ColorScheme cs) {
     return StreamBuilder<QuerySnapshot>(
-      stream: _queryQuestoes.snapshots(),
+      stream: _streamQuestoes,
       builder: (context, snapshot) {
         if (snapshot.hasError) {
           return Center(

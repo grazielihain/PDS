@@ -1,22 +1,20 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
+import '../../data/datasources/simulado_remote_data_source.dart';
+import 'package:rumo_quiz/shared/widgets/molecules/metric_card_molecule.dart';
+import 'package:rumo_quiz/shared/widgets/templates/scrollable_page_template.dart';
 
-class QuizSelectionPage extends StatefulWidget {
+class QuizSelectionPage extends ConsumerStatefulWidget {
   const QuizSelectionPage({super.key});
 
   @override
-  State<QuizSelectionPage> createState() => _QuizSelectionPageState();
+  ConsumerState<QuizSelectionPage> createState() => _QuizSelectionPageState();
 }
 
-class _QuizSelectionPageState extends State<QuizSelectionPage> {
+class _QuizSelectionPageState extends ConsumerState<QuizSelectionPage> {
   bool _carregando = true;
-  String _nomeAluno = 'Estudante';
-  int _provasConcluidas = 0;
-  double _pontosAcumulados = 0;
-  double _taxaAcerto = 0;
-  double _tempoMedioAssuntoMin = 0;
-  double _tempoMedioCompletaMin = 0;
+  DashboardAlunoModel _dashboard = DashboardAlunoModel.empty;
 
   @override
   void initState() {
@@ -31,66 +29,15 @@ class _QuizSelectionPageState extends State<QuizSelectionPage> {
       return;
     }
 
-    try {
-      final results = await Future.wait([
-        FirebaseFirestore.instance.collection('usuarios').doc(user.uid).get(),
-        FirebaseFirestore.instance
-            .collection('usuarios')
-            .doc(user.uid)
-            .collection('historico_simulados')
-            .get(),
-      ]);
+    final dashboard = await ref
+        .read(simuladoDataSourceProvider)
+        .buscarDashboardAluno(user.uid);
 
-      final userDoc = results[0] as DocumentSnapshot;
-      final historicoSnap = results[1] as QuerySnapshot;
-
-      if (userDoc.exists) {
-        final d = userDoc.data() as Map<String, dynamic>;
-        _nomeAluno = d['nome'] as String? ?? 'Estudante';
-      }
-
-      final docs = historicoSnap.docs;
-      double pontos = 0;
-      int totalAcertos = 0;
-      int totalQuestoes = 0;
-      double tempoAssunto = 0;
-      int countAssunto = 0;
-      double tempoCompleta = 0;
-      int countCompleta = 0;
-
-      for (final doc in docs) {
-        final d = doc.data() as Map<String, dynamic>;
-        pontos += (d['pontosGamificacao'] as num? ?? 0);
-        totalAcertos += (d['acertos'] as num? ?? 0).toInt();
-        totalQuestoes += (d['totalQuestoes'] as num? ?? 0).toInt();
-
-        final tipo = (d['tipoProva'] as String? ?? '').toLowerCase();
-        final tempo = (d['tempoUtilizadoSegundos'] as num? ?? 0).toDouble();
-
-        if (tipo.contains('assunto')) {
-          tempoAssunto += tempo;
-          countAssunto++;
-        } else {
-          tempoCompleta += tempo;
-          countCompleta++;
-        }
-      }
-
+    if (mounted) {
       setState(() {
-        _provasConcluidas = docs.length;
-        _pontosAcumulados = pontos;
-        _taxaAcerto = totalQuestoes > 0
-            ? (totalAcertos / totalQuestoes) * 100
-            : 0;
-        _tempoMedioAssuntoMin =
-            countAssunto > 0 ? (tempoAssunto / countAssunto) / 60 : 0;
-        _tempoMedioCompletaMin =
-            countCompleta > 0 ? (tempoCompleta / countCompleta) / 60 : 0;
+        _dashboard = dashboard;
         _carregando = false;
       });
-    } catch (e) {
-      debugPrint('Erro ao carregar dashboard: $e');
-      setState(() => _carregando = false);
     }
   }
 
@@ -100,22 +47,15 @@ class _QuizSelectionPageState extends State<QuizSelectionPage> {
       return const Scaffold(body: Center(child: CircularProgressIndicator()));
     }
 
-    return Scaffold(
-      backgroundColor: Colors.grey.shade50,
-      body: RefreshIndicator(
-        onRefresh: _carregarDados,
-        child: SingleChildScrollView(
-          physics: const AlwaysScrollableScrollPhysics(),
-          child: Center(
-            child: ConstrainedBox(
-              constraints: const BoxConstraints(maxWidth: 900),
-              child: Padding(
-                padding: const EdgeInsets.all(24.0),
-                child: Column(
+    return ScrollablePageTemplate(
+      maxWidth: 900,
+      allowRefresh: true,
+      onRefresh: _carregarDados,
+      child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      'Olá, $_nomeAluno!',
+                      'Olá, ${_dashboard.nome}!',
                       style: TextStyle(
                         fontSize: 26,
                         fontWeight: FontWeight.bold,
@@ -138,30 +78,30 @@ class _QuizSelectionPageState extends State<QuizSelectionPage> {
                           return Row(
                             children: [
                               Expanded(
-                                child: _buildMetricCard(
+                                child: MetricCardMolecule(
                                   icon: Icons.star_rounded,
                                   title: 'Pontuação Acumulada',
-                                  value: '${_pontosAcumulados.toInt()} XP',
+                                  value: '${_dashboard.pontosAcumulados.toInt()} XP',
                                   color: Colors.amber.shade700,
                                   bgColor: Colors.amber.shade50,
                                 ),
                               ),
                               const SizedBox(width: 12),
                               Expanded(
-                                child: _buildMetricCard(
+                                child: MetricCardMolecule(
                                   icon: Icons.check_circle_outline,
                                   title: 'Provas Concluídas',
-                                  value: '$_provasConcluidas',
+                                  value: '${_dashboard.provasConcluidas}',
                                   color: const Color(0xFF1E3A8A),
                                   bgColor: const Color(0xFFEFF6FF),
                                 ),
                               ),
                               const SizedBox(width: 12),
                               Expanded(
-                                child: _buildMetricCard(
+                                child: MetricCardMolecule(
                                   icon: Icons.bar_chart_rounded,
                                   title: 'Taxa de Acerto',
-                                  value: '${_taxaAcerto.toStringAsFixed(1)}%',
+                                  value: '${_dashboard.taxaAcerto.toStringAsFixed(1)}%',
                                   color: const Color(0xFF10B981),
                                   bgColor: const Color(0xFFECFDF5),
                                 ),
@@ -171,26 +111,26 @@ class _QuizSelectionPageState extends State<QuizSelectionPage> {
                         }
                         return Column(
                           children: [
-                            _buildMetricCard(
+                            MetricCardMolecule(
                               icon: Icons.star_rounded,
                               title: 'Pontuação Acumulada',
-                              value: '${_pontosAcumulados.toInt()} XP',
+                              value: '${_dashboard.pontosAcumulados.toInt()} XP',
                               color: Colors.amber.shade700,
                               bgColor: Colors.amber.shade50,
                             ),
                             const SizedBox(height: 12),
-                            _buildMetricCard(
+                            MetricCardMolecule(
                               icon: Icons.check_circle_outline,
                               title: 'Provas Concluídas',
-                              value: '$_provasConcluidas',
+                              value: '${_dashboard.provasConcluidas}',
                               color: const Color(0xFF1E3A8A),
                               bgColor: const Color(0xFFEFF6FF),
                             ),
                             const SizedBox(height: 12),
-                            _buildMetricCard(
+                            MetricCardMolecule(
                               icon: Icons.bar_chart_rounded,
                               title: 'Taxa de Acerto',
-                              value: '${_taxaAcerto.toStringAsFixed(1)}%',
+                              value: '${_dashboard.taxaAcerto.toStringAsFixed(1)}%',
                               color: const Color(0xFF10B981),
                               bgColor: const Color(0xFFECFDF5),
                             ),
@@ -212,7 +152,7 @@ class _QuizSelectionPageState extends State<QuizSelectionPage> {
                               Expanded(
                                 child: _buildTempoCard(
                                   title: 'Por Assunto',
-                                  minutos: _tempoMedioAssuntoMin,
+                                  minutos: _dashboard.tempoMedioAssuntoMin,
                                   icon: Icons.subject_outlined,
                                 ),
                               ),
@@ -220,7 +160,7 @@ class _QuizSelectionPageState extends State<QuizSelectionPage> {
                               Expanded(
                                 child: _buildTempoCard(
                                   title: 'Prova Completa',
-                                  minutos: _tempoMedioCompletaMin,
+                                  minutos: _dashboard.tempoMedioCompletaMin,
                                   icon: Icons.assignment_outlined,
                                 ),
                               ),
@@ -231,13 +171,13 @@ class _QuizSelectionPageState extends State<QuizSelectionPage> {
                           children: [
                             _buildTempoCard(
                               title: 'Por Assunto',
-                              minutos: _tempoMedioAssuntoMin,
+                              minutos: _dashboard.tempoMedioAssuntoMin,
                               icon: Icons.subject_outlined,
                             ),
                             const SizedBox(height: 12),
                             _buildTempoCard(
                               title: 'Prova Completa',
-                              minutos: _tempoMedioCompletaMin,
+                              minutos: _dashboard.tempoMedioCompletaMin,
                               icon: Icons.assignment_outlined,
                             ),
                           ],
@@ -289,11 +229,6 @@ class _QuizSelectionPageState extends State<QuizSelectionPage> {
                     ),
                   ],
                 ),
-              ),
-            ),
-          ),
-        ),
-      ),
     );
   }
 
@@ -304,55 +239,6 @@ class _QuizSelectionPageState extends State<QuizSelectionPage> {
         fontSize: 18,
         fontWeight: FontWeight.bold,
         color: Color(0xFF1F2937),
-      ),
-    );
-  }
-
-  Widget _buildMetricCard({
-    required IconData icon,
-    required String title,
-    required String value,
-    required Color color,
-    required Color bgColor,
-  }) {
-    return Container(
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        color: bgColor,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: color.withValues(alpha: 0.2)),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Icon(icon, color: color, size: 22),
-              const SizedBox(width: 8),
-              Expanded(
-                child: Text(
-                  title,
-                  style: TextStyle(
-                    fontSize: 12,
-                    color: Colors.grey.shade600,
-                    fontWeight: FontWeight.w500,
-                  ),
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 12),
-          Text(
-            value,
-            style: TextStyle(
-              fontSize: 26,
-              fontWeight: FontWeight.bold,
-              color: color,
-            ),
-          ),
-        ],
       ),
     );
   }

@@ -3,7 +3,8 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../../data/datasources/auth_remote_data_source.dart';
 
-// Ponto de acesso ao DataSource
+// Fonte única de verdade para o DataSource de autenticação.
+// Importado por login_page.dart e qualquer outro consumidor.
 final authDataSourceProvider = Provider<AuthRemoteDataSource>((ref) {
   return AuthRemoteDataSource(
     FirebaseAuth.instance,
@@ -11,33 +12,32 @@ final authDataSourceProvider = Provider<AuthRemoteDataSource>((ref) {
   );
 });
 
-// O Estado da Autenticação
-class AuthState {
+// Estado para operações de registro e recuperação de senha
+class RegistroState {
   final bool isLoading;
   final String? errorMessage;
   final bool isSuccess;
 
-  AuthState({
+  const RegistroState({
     this.isLoading = false,
     this.errorMessage,
     this.isSuccess = false,
   });
 }
 
-// O Notifier (O motor do estado)
-class AuthNotifier extends StateNotifier<AuthState> {
-  final AuthRemoteDataSource dataSource; // 👈 Ajustado o nome aqui
+// Notifier para cadastro de estudantes e recuperação de senha
+class RegistroNotifier extends StateNotifier<RegistroState> {
+  final AuthRemoteDataSource dataSource;
 
-  AuthNotifier(this.dataSource) : super(AuthState());
+  RegistroNotifier(this.dataSource) : super(const RegistroState());
 
-  // Função para cadastrar usuários via painel administrativo
   Future<void> cadastrarEstudante({
     required String email,
     required String password,
     required String nome,
     required String institutionId,
   }) async {
-    state = AuthState(isLoading: true);
+    state = const RegistroState(isLoading: true);
     try {
       await dataSource.signUpWithEmailAndPassword(
         email: email,
@@ -45,32 +45,30 @@ class AuthNotifier extends StateNotifier<AuthState> {
         nome: nome,
         institutionId: institutionId,
       );
-      state = AuthState(isSuccess: true);
+      state = const RegistroState(isSuccess: true);
     } catch (e) {
-      state = AuthState(
+      state = RegistroState(
         errorMessage: e.toString().replaceAll('Exception:', ''),
       );
     }
   }
 
-  // Função para recuperar senha
   Future<void> recuperarSenha(String email) async {
-    state = AuthState(isLoading: true);
+    state = const RegistroState(isLoading: true);
     try {
       await dataSource.enviarEmailRecuperacaoSenha(email);
-      state = AuthState(isSuccess: true);
+      state = const RegistroState(isSuccess: true);
     } catch (e) {
-      state = AuthState(
+      state = RegistroState(
         errorMessage: e.toString().replaceAll('Exception:', ''),
       );
     }
   }
 }
 
-// O Provider que a tela vai escutar
-final authNotifierProvider = StateNotifierProvider<AuthNotifier, AuthState>((
-  ref,
-) {
+// Provider exposto para as telas (login_page usa authNotifierProvider.notifier)
+final authNotifierProvider =
+    StateNotifierProvider<RegistroNotifier, RegistroState>((ref) {
   final dataSource = ref.watch(authDataSourceProvider);
-  return AuthNotifier(dataSource);
+  return RegistroNotifier(dataSource);
 });

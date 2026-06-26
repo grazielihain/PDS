@@ -1,8 +1,10 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../providers/admin_provider.dart';
 
-class AdminGamificacaoTab extends StatefulWidget {
+class AdminGamificacaoTab extends ConsumerStatefulWidget {
   final String instituicaoId;
   final Future<void> Function(String, String, String, String, String)
   onAuditoria;
@@ -14,12 +16,10 @@ class AdminGamificacaoTab extends StatefulWidget {
   });
 
   @override
-  State<AdminGamificacaoTab> createState() => _AdminGamificacaoTabState();
+  ConsumerState<AdminGamificacaoTab> createState() => _AdminGamificacaoTabState();
 }
 
-class _AdminGamificacaoTabState extends State<AdminGamificacaoTab> {
-  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
-
+class _AdminGamificacaoTabState extends ConsumerState<AdminGamificacaoTab> {
   // ── Controle de formulário ──────────────────────────────────────────────────
   bool _mostrarFormulario = false;
   String? _editandoId;
@@ -64,10 +64,10 @@ class _AdminGamificacaoTabState extends State<AdminGamificacaoTab> {
   Future<void> _carregarCategorias() async {
     setState(() => _carregandoCategorias = true);
     try {
-      final snap = await _firestore
-          .collection('categorias')
-          .where('instituicaoId', isEqualTo: widget.instituicaoId)
-          .get();
+      final snap = await ref
+          .read(adminDataSourceProvider)
+          .streamCategorias(widget.instituicaoId)
+          .first;
       if (mounted) setState(() => _categorias = snap.docs);
     } catch (e) {
       _mostrarErro('Erro ao carregar categorias: $e');
@@ -78,19 +78,22 @@ class _AdminGamificacaoTabState extends State<AdminGamificacaoTab> {
 
   Future<void> _carregarTodosParaLabels() async {
     try {
+      final ds = ref.read(adminDataSourceProvider);
       final results = await Future.wait([
-        _firestore
-            .collection('tipos_simulado')
-            .where('instituicaoId', isEqualTo: widget.instituicaoId)
-            .get(),
-        _firestore
-            .collection('assuntos')
-            .where('instituicaoId', isEqualTo: widget.instituicaoId)
-            .get(),
+        ds.streamTiposSimulado('').first,
+        ds.streamAssuntos(widget.instituicaoId).first,
       ]);
+      // tipos_simulado filtrado por instituição não existe no datasource diretamente;
+      // usamos stream de categorias para obter todos via query separada
+      final tiposSnap = await ds.streamCategorias(widget.instituicaoId).first;
+      final List<QueryDocumentSnapshot> todosTipos = [];
+      for (final cat in tiposSnap.docs) {
+        final tipos = await ds.streamTiposSimulado(cat.id).first;
+        todosTipos.addAll(tipos.docs);
+      }
       if (mounted) {
         setState(() {
-          _todosTiposSimulado = results[0].docs;
+          _todosTiposSimulado = todosTipos;
           _todosAssuntos = results[1].docs;
         });
       }
@@ -107,11 +110,10 @@ class _AdminGamificacaoTabState extends State<AdminGamificacaoTab> {
       _assuntoSelecionadoId = null;
     });
     try {
-      final snap = await _firestore
-          .collection('tipos_simulado')
-          .where('categoriaId', isEqualTo: categoriaId)
-          .where('instituicaoId', isEqualTo: widget.instituicaoId)
-          .get();
+      final snap = await ref
+          .read(adminDataSourceProvider)
+          .streamTiposSimulado(categoriaId)
+          .first;
       if (mounted) setState(() => _tiposSimulado = snap.docs);
     } catch (e) {
       _mostrarErro('Erro ao carregar tipos de simulado: $e');
@@ -127,12 +129,17 @@ class _AdminGamificacaoTabState extends State<AdminGamificacaoTab> {
       _assuntoSelecionadoId = null;
     });
     try {
-      final snap = await _firestore
-          .collection('assuntos')
-          .where('categoriaId', isEqualTo: categoriaId)
-          .where('instituicaoId', isEqualTo: widget.instituicaoId)
-          .get();
-      if (mounted) setState(() => _assuntos = snap.docs);
+      final snap = await ref
+          .read(adminDataSourceProvider)
+          .streamAssuntos(widget.instituicaoId)
+          .first;
+      if (mounted) {
+        setState(() {
+          _assuntos = snap.docs
+              .where((d) => (d.data() as Map<String, dynamic>)['categoriaId'] == categoriaId)
+              .toList();
+        });
+      }
     } catch (e) {
       _mostrarErro('Erro ao carregar assuntos: $e');
     } finally {
@@ -171,20 +178,15 @@ class _AdminGamificacaoTabState extends State<AdminGamificacaoTab> {
   ) async {
     setState(() => _carregandoTipos = true);
     try {
-      final snapTipos = await _firestore
-          .collection('tipos_simulado')
-          .where('categoriaId', isEqualTo: categoriaId)
-          .where('instituicaoId', isEqualTo: widget.instituicaoId)
-          .get();
+      final ds = ref.read(adminDataSourceProvider);
+      final snapTipos = await ds.streamTiposSimulado(categoriaId).first;
 
       List<QueryDocumentSnapshot> assuntosDocs = [];
       if ((dados['modo'] as String?) == 'assunto') {
-        final snapAssuntos = await _firestore
-            .collection('assuntos')
-            .where('categoriaId', isEqualTo: categoriaId)
-            .where('instituicaoId', isEqualTo: widget.instituicaoId)
-            .get();
-        assuntosDocs = snapAssuntos.docs;
+        final snapAssuntos = await ds.streamAssuntos(widget.instituicaoId).first;
+        assuntosDocs = snapAssuntos.docs
+            .where((d) => (d.data() as Map<String, dynamic>)['categoriaId'] == categoriaId)
+            .toList();
       }
 
       if (mounted) {
@@ -245,27 +247,22 @@ class _AdminGamificacaoTabState extends State<AdminGamificacaoTab> {
       };
 
       if (_editandoId != null) {
-        final docAntigo = await _firestore
-            .collection('gamificacao')
-            .doc(_editandoId)
-            .get();
-        await _firestore
-            .collection('gamificacao')
-            .doc(_editandoId)
-            .update(dados);
+        final snap = await ref
+            .read(adminDataSourceProvider)
+            .streamGamificacao(widget.instituicaoId)
+            .first;
+        final docAntigo = snap.docs.where((d) => d.id == _editandoId).firstOrNull;
+        await ref.read(adminDataSourceProvider).editarRegraGamificacao(_editandoId!, dados);
 
         await widget.onAuditoria(
           'ALTERAR',
           'Admin Gamificação',
           'Editou regra de gamificação (${_pontosController.text} pontos)',
-          docAntigo.data()?.toString() ?? 'Nenhum',
+          docAntigo?.data()?.toString() ?? 'Nenhum',
           dados.toString(),
         );
       } else {
-        await _firestore.collection('gamificacao').add({
-          ...dados,
-          'dataCriacao': FieldValue.serverTimestamp(),
-        });
+        await ref.read(adminDataSourceProvider).criarRegraGamificacao(dados);
 
         await widget.onAuditoria(
           'CRIAR',
@@ -314,7 +311,7 @@ class _AdminGamificacaoTabState extends State<AdminGamificacaoTab> {
     if (confirmado != true) return;
 
     try {
-      await _firestore.collection('gamificacao').doc(doc.id).delete();
+      await ref.read(adminDataSourceProvider).excluirRegraGamificacao(doc.id);
       await widget.onAuditoria(
         'EXCLUIR',
         'Admin Gamificação',
@@ -595,10 +592,9 @@ class _AdminGamificacaoTabState extends State<AdminGamificacaoTab> {
 
   Widget _buildLista() {
     return StreamBuilder<QuerySnapshot>(
-      stream: _firestore
-          .collection('gamificacao')
-          .where('instituicaoId', isEqualTo: widget.instituicaoId)
-          .snapshots(),
+      stream: ref
+          .read(adminDataSourceProvider)
+          .streamGamificacao(widget.instituicaoId),
       builder: (context, snapshot) {
         if (snapshot.hasError) {
           return Text('Erro ao carregar regras: ${snapshot.error}');

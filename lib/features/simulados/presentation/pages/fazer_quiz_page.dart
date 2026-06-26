@@ -2,10 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:go_router/go_router.dart';
 import '../providers/simulado_provider.dart';
 import '../providers/quiz_session_provider.dart';
+import '../../data/datasources/simulado_remote_data_source.dart';
 
 class FazerQuizPage extends ConsumerStatefulWidget {
   const FazerQuizPage({super.key});
@@ -18,16 +18,16 @@ class _FazerQuizPageState extends ConsumerState<FazerQuizPage> {
   bool _carregandoPerfil = true;
   String? _instituicaoId;
 
-  List<QueryDocumentSnapshot> _categorias = [];
+  List<Map<String, dynamic>> _categorias = [];
   String? _categoriaSelecionada;
 
-  List<QueryDocumentSnapshot> _tiposSimulado = [];
+  List<Map<String, dynamic>> _tiposSimulado = [];
   String? _tipoSelecionado;
   String _modoProva = 'completa';
   int _qtdMaxima = 10;
   int _tipoQtdMax = 10;
 
-  List<QueryDocumentSnapshot> _assuntosDisponiveis = [];
+  List<Map<String, dynamic>> _assuntosDisponiveis = [];
   String? _assuntoSelecionado;
   int _qtdQuestoes = 10;
   final _qtdController = TextEditingController(text: '10');
@@ -59,12 +59,8 @@ class _FazerQuizPageState extends ConsumerState<FazerQuizPage> {
     }
 
     try {
-      final doc = await FirebaseFirestore.instance
-          .collection('usuarios')
-          .doc(user.uid)
-          .get();
-      final dados = doc.data();
-      _instituicaoId = dados?['instituicaoId'] as String?;
+      final ds = ref.read(simuladoDataSourceProvider);
+      _instituicaoId = await ds.buscarInstituicaoIdDoUsuario(user.uid);
 
       if (_instituicaoId != null && _instituicaoId!.isNotEmpty) {
         await _carregarCategorias();
@@ -78,16 +74,9 @@ class _FazerQuizPageState extends ConsumerState<FazerQuizPage> {
 
   Future<void> _carregarCategorias() async {
     try {
-      final snap = await FirebaseFirestore.instance
-          .collection('categorias')
-          .where('instituicaoId', isEqualTo: _instituicaoId)
-          .get();
-      final docs = List<QueryDocumentSnapshot>.from(snap.docs)
-        ..sort((a, b) {
-          final an = (a.data() as Map<String, dynamic>)['nome'] as String? ?? '';
-          final bn = (b.data() as Map<String, dynamic>)['nome'] as String? ?? '';
-          return an.compareTo(bn);
-        });
+      final docs = await ref
+          .read(simuladoDataSourceProvider)
+          .buscarCategoriasInstituicao(_instituicaoId!);
       setState(() => _categorias = docs);
     } catch (e) {
       debugPrint('Erro ao carregar categorias: $e');
@@ -95,10 +84,8 @@ class _FazerQuizPageState extends ConsumerState<FazerQuizPage> {
   }
 
   Future<void> _aoSelecionarCategoria(String catId) async {
-    final catDoc = _categorias.where((d) => d.id == catId).firstOrNull;
-    final catNome = catDoc != null
-        ? ((catDoc.data() as Map<String, dynamic>)['nome'] as String? ?? catId)
-        : catId;
+    final catMap = _categorias.where((d) => d['id'] == catId).firstOrNull;
+    final catNome = catMap?['nome'] as String? ?? catId;
 
     setState(() {
       _categoriaSelecionada = catId;
@@ -111,22 +98,22 @@ class _FazerQuizPageState extends ConsumerState<FazerQuizPage> {
     });
 
     try {
-      final snap = await FirebaseFirestore.instance
-          .collection('tipos_simulado')
-          .where('categoriaId', isEqualTo: catId)
-          .where('instituicaoId', isEqualTo: _instituicaoId)
-          .get();
-      setState(() => _tiposSimulado = snap.docs);
+      final docs = await ref
+          .read(simuladoDataSourceProvider)
+          .buscarTiposSimuladoCategoria(
+            categoriaId: catId,
+            instituicaoId: _instituicaoId!,
+          );
+      setState(() => _tiposSimulado = docs);
     } catch (e) {
       debugPrint('Erro ao carregar tipos de simulado: $e');
     }
   }
 
   Future<void> _aoSelecionarTipo(String tipoId) async {
-    final doc = _tiposSimulado.firstWhere((d) => d.id == tipoId);
-    final dados = doc.data() as Map<String, dynamic>;
-    final modo = dados['modo'] as String? ?? 'completa';
-    final qtd = (dados['quantidadeMaxima'] as num? ?? 10).toInt();
+    final doc = _tiposSimulado.firstWhere((d) => d['id'] == tipoId);
+    final modo = doc['modo'] as String? ?? 'completa';
+    final qtd = (doc['quantidadeMaxima'] as num? ?? 10).toInt();
 
     setState(() {
       _tipoSelecionado = tipoId;
@@ -151,20 +138,15 @@ class _FazerQuizPageState extends ConsumerState<FazerQuizPage> {
     if (_instituicaoId == null || _categoriaSelecionada == null) return;
 
     try {
-      final snap = await FirebaseFirestore.instance
-          .collection('assuntos')
-          .where('categoriaId', isEqualTo: _categoriaSelecionada)
-          .where('instituicaoId', isEqualTo: _instituicaoId)
-          .get();
-      final docs = List<QueryDocumentSnapshot>.from(snap.docs)
-        ..sort((a, b) {
-          final an = (a.data() as Map<String, dynamic>)['nome'] as String? ?? '';
-          final bn = (b.data() as Map<String, dynamic>)['nome'] as String? ?? '';
-          return an.compareTo(bn);
-        });
+      final docs = await ref
+          .read(simuladoDataSourceProvider)
+          .buscarAssuntosCategoria(
+            categoriaId: _categoriaSelecionada!,
+            instituicaoId: _instituicaoId!,
+          );
       setState(() {
         _assuntosDisponiveis = docs;
-        if (docs.isNotEmpty) _aoSelecionarAssunto(docs.first.id);
+        if (docs.isNotEmpty) _aoSelecionarAssunto(docs.first['id'] as String);
       });
     } catch (e) {
       debugPrint('Erro ao carregar assuntos: $e');
@@ -198,7 +180,6 @@ class _FazerQuizPageState extends ConsumerState<FazerQuizPage> {
 
     questoesAsync.when(
       data: (questoes) {
-        // Verifica se há questões para a seleção específica
         final questoesFiltradas = questoes.where((q) {
           final bCat = q.categoriaId == _categoriaSelecionada;
           if (_modoProva == 'assunto' && _assuntoSelecionado != null) {
@@ -316,11 +297,10 @@ class _FazerQuizPageState extends ConsumerState<FazerQuizPage> {
                             decoration: _inputDecoration('Selecione a categoria'),
                             hint: const Text('Selecione a categoria'),
                             isExpanded: true,
-                            items: _categorias.map((doc) {
-                              final d = doc.data() as Map<String, dynamic>;
+                            items: _categorias.map((d) {
                               return DropdownMenuItem<String>(
-                                value: doc.id,
-                                child: Text(d['nome'] as String? ?? doc.id),
+                                value: d['id'] as String,
+                                child: Text(d['nome'] as String? ?? ''),
                               );
                             }).toList(),
                             onChanged: (id) {
@@ -346,12 +326,11 @@ class _FazerQuizPageState extends ConsumerState<FazerQuizPage> {
                               decoration: _inputDecoration('Selecione o modo de prova'),
                               hint: const Text('Selecione o modo de prova'),
                               isExpanded: true,
-                              items: _tiposSimulado.map((doc) {
-                                final d = doc.data() as Map<String, dynamic>;
+                              items: _tiposSimulado.map((d) {
                                 final modo = d['modo'] as String? ?? 'completa';
                                 final qtd = d['quantidadeMaxima'] ?? 0;
                                 return DropdownMenuItem<String>(
-                                  value: doc.id,
+                                  value: d['id'] as String,
                                   child: Text(
                                     '${modo == 'assunto' ? 'Por Assunto' : 'Prova Completa'} — Máx. $qtd questões',
                                   ),
@@ -383,11 +362,10 @@ class _FazerQuizPageState extends ConsumerState<FazerQuizPage> {
                                   initialValue: _assuntoSelecionado,
                                   decoration: _inputDecoration('Selecione o assunto'),
                                   isExpanded: true,
-                                  items: _assuntosDisponiveis.map((doc) {
-                                    final d = doc.data() as Map<String, dynamic>;
+                                  items: _assuntosDisponiveis.map((d) {
                                     return DropdownMenuItem<String>(
-                                      value: doc.id,
-                                      child: Text(d['nome'] as String? ?? doc.id),
+                                      value: d['id'] as String,
+                                      child: Text(d['nome'] as String? ?? ''),
                                     );
                                   }).toList(),
                                   onChanged: (id) {

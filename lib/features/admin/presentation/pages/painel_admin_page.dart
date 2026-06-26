@@ -4,8 +4,9 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_core/firebase_core.dart';
-import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../providers/admin_provider.dart';
 
 import '../../../auth/presentation/pages/meu_perfil_page.dart';
 import 'tabs/admin_categorias_tab.dart';
@@ -13,7 +14,7 @@ import 'tabs/admin_gamificacao_tab.dart';
 import 'tabs/admin_mensagens_tab.dart';
 import 'tabs/admin_questoes_tab.dart';
 
-class PainelAdminPage extends StatefulWidget {
+class PainelAdminPage extends ConsumerStatefulWidget {
   final String substituicaoInstituicaoId;
   final int initialTab;
 
@@ -24,13 +25,16 @@ class PainelAdminPage extends StatefulWidget {
   });
 
   @override
-  State<PainelAdminPage> createState() => _PainelAdminPageState();
+  ConsumerState<PainelAdminPage> createState() => _PainelAdminPageState();
 }
 
-class _PainelAdminPageState extends State<PainelAdminPage>
+class _PainelAdminPageState extends ConsumerState<PainelAdminPage>
     with TickerProviderStateMixin {
   late TabController _tabController;
-  final _db = FirebaseFirestore.instance;
+
+  // Getter de compatibilidade — operações de painel que ainda não migraram
+  // para AdminRemoteDataSource usam este getter enquanto a refatoração avança.
+  FirebaseFirestore get _db => FirebaseFirestore.instance;
 
   // Role and loading
   String _roleCriador = '';
@@ -186,22 +190,14 @@ class _PainelAdminPageState extends State<PainelAdminPage>
     String antigo,
     String novo,
   ) async {
-    try {
-      final user = FirebaseAuth.instance.currentUser;
-      await _db.collection('auditoria').add({
-        'instituicaoId': widget.substituicaoInstituicaoId,
-        'userId': user?.uid ?? 'desconhecido',
-        'userName': user?.email ?? 'Administrador',
-        'acao': acao,
-        'tela': tela,
-        'detalhe': detalhe,
-        'registroAntigo': antigo,
-        'registroNovo': novo,
-        'dataHora': FieldValue.serverTimestamp(),
-      });
-    } catch (e) {
-      debugPrint('Falha ao registrar auditoria: $e');
-    }
+    await ref.read(adminDataSourceProvider).registrarAuditoria(
+      instituicaoId: widget.substituicaoInstituicaoId,
+      acao: acao,
+      tela: tela,
+      detalhe: detalhe,
+      registroAntigo: antigo,
+      registroNovo: novo,
+    );
   }
 
   // ─────────────────────────── IMAGEM HELPERS ───────────────────────────────
@@ -241,20 +237,23 @@ class _PainelAdminPageState extends State<PainelAdminPage>
     onBytes(file.bytes!, file.name);
   }
 
+  // Logo e mascote usam path fixo (sobrescreve o arquivo anterior no Storage).
+  // Patrocinadores usam timestamp pois múltiplos arquivos coexistem.
   Future<String> _uploadImagem(
       Uint8List bytes, String nome, String pasta) async {
     final ext =
         nome.contains('.') ? nome.split('.').last.toLowerCase() : 'png';
-    final ts = DateTime.now().millisecondsSinceEpoch;
-    final ref = FirebaseStorage.instance
-        .ref()
-        .child('instituicoes')
-        .child(widget.substituicaoInstituicaoId)
-        .child(pasta)
-        .child('$ts.$ext');
-    final upload =
-        await ref.putData(bytes, SettableMetadata(contentType: 'image/$ext'));
-    return upload.ref.getDownloadURL();
+    final isFixo = pasta == 'logo' || pasta == 'mascote';
+    final nomeArquivo = isFixo
+        ? '$pasta.$ext'
+        : '${DateTime.now().millisecondsSinceEpoch}.$ext';
+    final path =
+        'instituicoes/${widget.substituicaoInstituicaoId}/$pasta/$nomeArquivo';
+    return ref.read(adminDataSourceProvider).uploadImagem(
+          bytes: bytes,
+          storagePath: path,
+          contentType: 'image/$ext',
+        );
   }
 
   // ─────────────────────────── IDENTIDADE VISUAL ────────────────────────────
@@ -288,10 +287,8 @@ class _PainelAdminPageState extends State<PainelAdminPage>
         'mascoteUrl': novoMascoteUrl,
       };
 
-      await _db
-          .collection('instituicoes')
-          .doc(widget.substituicaoInstituicaoId)
-          .set(dados, SetOptions(merge: true));
+      await ref.read(adminDataSourceProvider).salvarIdentidade(
+            widget.substituicaoInstituicaoId, dados);
 
       await _registrarAuditoria(
         'ALTERAR',
@@ -358,13 +355,8 @@ class _PainelAdminPageState extends State<PainelAdminPage>
       }
       final todasUrls = [..._patrocinadoresUrls, ...novasUrls];
 
-      await _db
-          .collection('instituicoes')
-          .doc(widget.substituicaoInstituicaoId)
-          .set({
-        'patrocinadoresUrls': todasUrls,
-        'patrocinios': todasUrls,
-      }, SetOptions(merge: true));
+      await ref.read(adminDataSourceProvider).salvarPatrocinadores(
+            widget.substituicaoInstituicaoId, todasUrls);
 
       await _registrarAuditoria(
         'ALTERAR',
@@ -863,13 +855,8 @@ class _PainelAdminPageState extends State<PainelAdminPage>
                       final novaLista = List<String>.from(_patrocinadoresUrls)
                         ..removeAt(e.key);
                       setState(() => _patrocinadoresUrls = novaLista);
-                      await _db
-                          .collection('instituicoes')
-                          .doc(widget.substituicaoInstituicaoId)
-                          .set({
-                        'patrocinadoresUrls': _patrocinadoresUrls,
-                        'patrocinios': _patrocinadoresUrls,
-                      }, SetOptions(merge: true));
+                      await ref.read(adminDataSourceProvider).salvarPatrocinadores(
+                            widget.substituicaoInstituicaoId, _patrocinadoresUrls);
                       await _registrarAuditoria(
                         'EXCLUIR',
                         'Painel Administrativo',
@@ -1187,18 +1174,6 @@ class _PainelAdminPageState extends State<PainelAdminPage>
         ],              // fecha children do Column externo
       );
 
-      var query = _db
-          .collection('usuarios')
-          .where('instituicaoId',
-              isEqualTo: widget.substituicaoInstituicaoId)
-          .limit(15);
-
-      if (_roleCriador == 'Acess2') {
-        query = query
-            .where('role', isEqualTo: 'Acess3')
-            .where('criadoPor', isEqualTo: uid);
-      }
-
       final lista = Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -1208,7 +1183,11 @@ class _PainelAdminPageState extends State<PainelAdminPage>
           const SizedBox(height: 8),
           Expanded(
             child: StreamBuilder<QuerySnapshot>(
-              stream: query.snapshots(),
+              stream: ref.read(adminDataSourceProvider).streamUsuarios(
+                    instituicaoId: widget.substituicaoInstituicaoId,
+                    role: _roleCriador == 'Acess2' ? 'Acess3' : null,
+                    criadoPor: _roleCriador == 'Acess2' ? uid : null,
+                  ),
               builder: (context, snap) {
                 if (!snap.hasData) {
                   return const Center(
@@ -1290,7 +1269,7 @@ class _PainelAdminPageState extends State<PainelAdminPage>
                                       if (salvo == true) {
                                         final novoNome = nomeCtrl.text.trim();
                                         final novoEmail = emailCtrl.text.trim();
-                                        await _db.collection('usuarios').doc(docs[i].id).update({
+                                        await ref.read(adminDataSourceProvider).editarUsuario(docs[i].id, {
                                           'nome': novoNome,
                                           if (novoEmail.isNotEmpty) 'email': novoEmail,
                                         });
@@ -1341,10 +1320,7 @@ class _PainelAdminPageState extends State<PainelAdminPage>
                                         ),
                                       );
                                       if (confirm == true) {
-                                        await _db
-                                            .collection('usuarios')
-                                            .doc(docs[i].id)
-                                            .delete();
+                                        await ref.read(adminDataSourceProvider).excluirUsuario(docs[i].id);
                                         await _registrarAuditoria(
                                           'EXCLUIR',
                                           'Usuários',
@@ -1411,12 +1387,8 @@ class _PainelAdminPageState extends State<PainelAdminPage>
 
   Widget _buildAuditoria() {
     return StreamBuilder<QuerySnapshot>(
-      stream: _db
-          .collection('auditoria')
-          .where('instituicaoId',
-              isEqualTo: widget.substituicaoInstituicaoId)
-          .limit(50)
-          .snapshots(),
+      stream: ref.read(adminDataSourceProvider).streamAuditoria(
+            widget.substituicaoInstituicaoId),
       builder: (context, snap) {
         if (snap.hasError) {
           return Center(child: Text('Erro: ${snap.error}'));
