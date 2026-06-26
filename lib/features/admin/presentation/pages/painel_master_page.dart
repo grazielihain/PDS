@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:file_picker/file_picker.dart';
 import '../../../auth/presentation/pages/meu_perfil_page.dart';
@@ -1311,18 +1312,37 @@ class _DialogVerUsuariosState extends State<_DialogVerUsuarios> {
   Future<void> _cadastrarUsuario() async {
     if (!_formKeyNovoUsuario.currentState!.validate()) return;
     setState(() => _salvandoUsuario = true);
+
+    final email = _emailUsuarioController.text.trim();
+    final senha = _senhaUsuarioController.text.trim();
+
+    FirebaseApp? tempApp;
     try {
-      final idGerado = widget.db.collection('usuarios').doc().id;
+      // 1. Cria conta no Firebase Auth via app secundário sem deslogar o master
+      tempApp = await Firebase.initializeApp(
+        name: 'criarUsuario_${DateTime.now().millisecondsSinceEpoch}',
+        options: Firebase.app().options,
+      );
+      final tempAuth = FirebaseAuth.instanceFor(app: tempApp);
+      final cred = await tempAuth.createUserWithEmailAndPassword(
+        email: email,
+        password: senha,
+      );
+      final uid = cred.user!.uid;
+      await tempAuth.signOut();
+
+      // 2. Cria documento Firestore usando o UID real do Firebase Auth
       final novoUserMap = {
+        'uid': uid,
         'nome': _nomeUsuarioController.text.trim(),
-        'email': _emailUsuarioController.text.trim(),
+        'email': email,
         'role': _roleSelecionada,
         'instituicaoId': widget.instituicaoId,
         'avatarEmoji': '🦁',
         'pontuacaoAcumulada': 0,
         'criadoPor': FirebaseAuth.instance.currentUser?.uid ?? 'Master',
       };
-      await widget.db.collection('usuarios').doc(idGerado).set(novoUserMap);
+      await widget.db.collection('usuarios').doc(uid).set(novoUserMap);
       await widget.registrarAuditoria(
         acao: 'CRIAR',
         tela: 'Gestão de Usuários da Instituição',
@@ -1347,6 +1367,23 @@ class _DialogVerUsuariosState extends State<_DialogVerUsuarios> {
           ),
         );
       }
+    } on FirebaseAuthException catch (e) {
+      String msg;
+      switch (e.code) {
+        case 'email-already-in-use':
+          msg = 'Este e-mail já está cadastrado no sistema.';
+        case 'invalid-email':
+          msg = 'E-mail inválido.';
+        case 'weak-password':
+          msg = 'Senha fraca (mínimo 6 caracteres).';
+        default:
+          msg = 'Erro ao criar acesso: ${e.message}';
+      }
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(msg), backgroundColor: Colors.red),
+        );
+      }
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -1357,6 +1394,7 @@ class _DialogVerUsuariosState extends State<_DialogVerUsuarios> {
         );
       }
     } finally {
+      await tempApp?.delete();
       if (mounted) setState(() => _salvandoUsuario = false);
     }
   }
