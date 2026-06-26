@@ -10,6 +10,7 @@ class MenuLateralOrganism extends StatelessWidget {
   final String tipoAcesso;
   final Color corPrimaria;
   final String instituicaoId;
+  final String logoInstituicaoUrl;
 
   const MenuLateralOrganism({
     super.key,
@@ -20,6 +21,7 @@ class MenuLateralOrganism extends StatelessWidget {
     this.tipoAcesso = 'Acess3',
     this.corPrimaria = Colors.blue,
     this.instituicaoId = '',
+    this.logoInstituicaoUrl = '',
   });
 
   String get _tituloPerfil {
@@ -39,7 +41,6 @@ class MenuLateralOrganism extends StatelessWidget {
   Widget build(BuildContext context) {
     final mostrarTexto = !isWebMode || isExpanded;
 
-    // Cor do texto no cabeçalho baseada no brilho do fundo
     final bool fundoEscuro =
         ThemeData.estimateBrightnessForColor(corPrimaria) == Brightness.dark;
     final Color corTextoCabecalho = fundoEscuro ? Colors.white : Colors.black87;
@@ -51,30 +52,77 @@ class MenuLateralOrganism extends StatelessWidget {
       children: [
         // ── CABEÇALHO DO MENU ──────────────────────────────────────────────
         if (mostrarTexto)
-          DrawerHeader(
+          Container(
+            width: double.infinity,
             decoration: BoxDecoration(color: corPrimaria),
-            child: Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Text(avatarEmoji, style: const TextStyle(fontSize: 40)),
-                  const SizedBox(height: 8),
-                  Text(
-                    nomeUsuario,
-                    style: TextStyle(
-                      color: corTextoCabecalho,
-                      fontSize: 18,
-                      fontWeight: FontWeight.bold,
+            padding: const EdgeInsets.fromLTRB(12, 36, 12, 12),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.center,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                // Linha: logos + botão fechar (mobile)
+                Row(
+                  children: [
+                    // Logo Rumo Quiz
+                    Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(Icons.quiz, size: 13,
+                            color: corTextoCabecalho.withAlpha(200)),
+                        const SizedBox(width: 4),
+                        Text(
+                          'Rumo Quiz',
+                          style: TextStyle(
+                            fontSize: 10,
+                            color: corTextoCabecalho.withAlpha(200),
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ],
                     ),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
+                    if (logoInstituicaoUrl.isNotEmpty) ...[
+                      const SizedBox(width: 8),
+                      ClipRRect(
+                        borderRadius: BorderRadius.circular(3),
+                        child: Image.network(
+                          logoInstituicaoUrl,
+                          height: 18,
+                          fit: BoxFit.contain,
+                          errorBuilder: (context, error, _) => const SizedBox.shrink(),
+                        ),
+                      ),
+                    ],
+                    const Spacer(),
+                    // Botão fechar (somente mobile/drawer)
+                    if (!isWebMode)
+                      GestureDetector(
+                        onTap: () => Navigator.pop(context),
+                        child: Icon(
+                          Icons.chevron_left,
+                          size: 22,
+                          color: corTextoCabecalho,
+                        ),
+                      ),
+                  ],
+                ),
+                const SizedBox(height: 8),
+                Text(avatarEmoji, style: const TextStyle(fontSize: 34)),
+                const SizedBox(height: 4),
+                Text(
+                  nomeUsuario,
+                  style: TextStyle(
+                    color: corTextoCabecalho,
+                    fontSize: 15,
+                    fontWeight: FontWeight.bold,
                   ),
-                  Text(
-                    _tituloPerfil,
-                    style: TextStyle(color: corSubtitulo, fontSize: 13),
-                  ),
-                ],
-              ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+                Text(
+                  _tituloPerfil,
+                  style: TextStyle(color: corSubtitulo, fontSize: 11),
+                ),
+              ],
             ),
           )
         else
@@ -85,11 +133,15 @@ class MenuLateralOrganism extends StatelessWidget {
             ),
           ),
 
-        // ── ITENS DE MENU POR TIPO DE ACESSO ───────────────────────────────
-        ..._buildItensMenu(context, mostrarTexto),
+        // ── ITENS DE MENU (scrolláveis) ────────────────────────────────────
+        Expanded(
+          child: ListView(
+            padding: EdgeInsets.zero,
+            children: _buildItensMenu(context, mostrarTexto),
+          ),
+        ),
 
-        const Spacer(),
-        const Divider(),
+        const Divider(height: 1),
 
         // ── BOTÃO SAIR ──────────────────────────────────────────────────────
         Tooltip(

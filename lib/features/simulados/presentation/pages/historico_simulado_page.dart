@@ -18,6 +18,7 @@ class _HistoricoSimuladoPageState extends State<HistoricoSimuladoPage> {
   // Estados de Filtro
   String _filtroSelecionado = 'ultimas'; // 'ultimas' ou 'categoria'
   String _categoriaSelecionada = 'Todas';
+  bool _filtroExpandido = true;
 
   List<String> _categoriasDisponiveis = ['Todas'];
   bool _carregandoCategorias = true;
@@ -185,7 +186,6 @@ class _HistoricoSimuladoPageState extends State<HistoricoSimuladoPage> {
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 24.0),
                 child: Container(
-                  padding: const EdgeInsets.all(16),
                   decoration: BoxDecoration(
                     color: Colors.white,
                     borderRadius: BorderRadius.circular(12),
@@ -194,98 +194,128 @@ class _HistoricoSimuladoPageState extends State<HistoricoSimuladoPage> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Row(
-                        children: [
-                          Icon(
-                            Icons.filter_alt_outlined,
-                            color: Colors.blue.shade700,
-                            size: 20,
-                          ),
-                          const SizedBox(width: 8),
-                          const Text(
-                            'Filtrar Resultados',
-                            style: TextStyle(
-                              fontWeight: FontWeight.bold,
-                              fontSize: 15,
-                            ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 16),
-                      Row(
-                        children: [
-                          ChoiceChip(
-                            label: const Text('10 Últimos Simulados'),
-                            selected: _filtroSelecionado == 'ultimas',
-                            onSelected: (selected) {
-                              if (selected) {
-                                setState(() {
-                                  _filtroSelecionado = 'ultimas';
-                                  _categoriaSelecionada = 'Todas';
-                                });
-                              }
-                            },
-                          ),
-                          const SizedBox(width: 12),
-                          ChoiceChip(
-                            label: const Text('Por Categoria'),
-                            selected: _filtroSelecionado == 'categoria',
-                            onSelected: (selected) {
-                              if (selected) {
-                                setState(() {
-                                  _filtroSelecionado = 'categoria';
-                                });
-                              }
-                            },
-                          ),
-                        ],
-                      ),
-
-                      if (_filtroSelecionado == 'categoria') ...[
-                        const SizedBox(height: 16),
-                        const Text(
-                          'Selecione a Categoria desejada:',
-                          style: TextStyle(fontSize: 13, color: Colors.black54),
-                        ),
-                        const SizedBox(height: 8),
-                        _carregandoCategorias
-                            ? const LinearProgressIndicator()
-                            : Container(
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 12,
-                                ),
-                                decoration: BoxDecoration(
-                                  borderRadius: BorderRadius.circular(8),
-                                  border: Border.all(
-                                    color: Colors.grey.shade300,
+                      // Cabeçalho clicável para retrair/expandir
+                      InkWell(
+                        onTap: () => setState(
+                            () => _filtroExpandido = !_filtroExpandido),
+                        borderRadius: BorderRadius.circular(12),
+                        child: Padding(
+                          padding: const EdgeInsets.all(16),
+                          child: Row(
+                            children: [
+                              Icon(
+                                Icons.filter_alt_outlined,
+                                color: Colors.blue.shade700,
+                                size: 20,
+                              ),
+                              const SizedBox(width: 8),
+                              const Expanded(
+                                child: Text(
+                                  'Filtrar Resultados',
+                                  style: TextStyle(
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 15,
                                   ),
                                 ),
-                                child: DropdownButtonHideUnderline(
-                                  child: DropdownButton<String>(
-                                    // 🔥 CORREÇÃO DE SEGURANÇA: Garante que o valor selecionado exista na lista antes de renderizar
-                                    value:
-                                        _categoriasDisponiveis.contains(
-                                          _categoriaSelecionada,
-                                        )
-                                        ? _categoriaSelecionada
-                                        : 'Todas',
-                                    isExpanded: true,
-                                    items: _categoriasDisponiveis.map((cat) {
-                                      return DropdownMenuItem(
-                                        value: cat,
-                                        child: Text(cat),
-                                      );
-                                    }).toList(),
-                                    onChanged: (String? novaCategoria) {
-                                      if (novaCategoria != null) {
+                              ),
+                              Icon(
+                                _filtroExpandido
+                                    ? Icons.expand_less
+                                    : Icons.expand_more,
+                                color: Colors.grey.shade600,
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+
+                      if (_filtroExpandido) ...[
+                        const Divider(height: 1),
+                        Padding(
+                          padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Wrap(
+                                spacing: 8,
+                                runSpacing: 8,
+                                children: [
+                                  ChoiceChip(
+                                    label: const Text('10 Últimos Simulados'),
+                                    selected: _filtroSelecionado == 'ultimas',
+                                    onSelected: (selected) {
+                                      if (selected) {
                                         setState(() {
-                                          _categoriaSelecionada = novaCategoria;
+                                          _filtroSelecionado = 'ultimas';
+                                          _categoriaSelecionada = 'Todas';
                                         });
                                       }
                                     },
                                   ),
-                                ),
+                                  ChoiceChip(
+                                    label: const Text('Por Categoria'),
+                                    selected:
+                                        _filtroSelecionado == 'categoria',
+                                    onSelected: (selected) {
+                                      if (selected) {
+                                        setState(() {
+                                          _filtroSelecionado = 'categoria';
+                                        });
+                                      }
+                                    },
+                                  ),
+                                ],
                               ),
+                              if (_filtroSelecionado == 'categoria') ...[
+                                const SizedBox(height: 16),
+                                const Text(
+                                  'Selecione a Categoria desejada:',
+                                  style: TextStyle(
+                                      fontSize: 13, color: Colors.black54),
+                                ),
+                                const SizedBox(height: 8),
+                                _carregandoCategorias
+                                    ? const LinearProgressIndicator()
+                                    : Container(
+                                        padding: const EdgeInsets.symmetric(
+                                            horizontal: 12),
+                                        decoration: BoxDecoration(
+                                          borderRadius:
+                                              BorderRadius.circular(8),
+                                          border: Border.all(
+                                              color: Colors.grey.shade300),
+                                        ),
+                                        child: DropdownButtonHideUnderline(
+                                          child: DropdownButton<String>(
+                                            value: _categoriasDisponiveis
+                                                    .contains(
+                                                        _categoriaSelecionada)
+                                                ? _categoriaSelecionada
+                                                : 'Todas',
+                                            isExpanded: true,
+                                            items: _categoriasDisponiveis
+                                                .map((cat) =>
+                                                    DropdownMenuItem(
+                                                      value: cat,
+                                                      child: Text(cat),
+                                                    ))
+                                                .toList(),
+                                            onChanged:
+                                                (String? novaCategoria) {
+                                              if (novaCategoria != null) {
+                                                setState(() {
+                                                  _categoriaSelecionada =
+                                                      novaCategoria;
+                                                });
+                                              }
+                                            },
+                                          ),
+                                        ),
+                                      ),
+                              ],
+                            ],
+                          ),
+                        ),
                       ],
                     ],
                   ),

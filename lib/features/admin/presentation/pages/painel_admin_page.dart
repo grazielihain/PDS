@@ -74,6 +74,7 @@ class _PainelAdminPageState extends State<PainelAdminPage>
   String _roleSelecionada = 'Acess3';
   bool _ocultarSenha = true;
   bool _salvandoUsuario = false;
+  bool _formularioUsuarioExpandido = true;
 
   @override
   void initState() {
@@ -206,11 +207,24 @@ class _PainelAdminPageState extends State<PainelAdminPage>
 
   Future<void> _selecionarImagem(
       {required void Function(Uint8List, String) onBytes}) async {
-    final result = await FilePicker.platform.pickFiles(
-      type: FileType.custom,
-      allowedExtensions: ['png', 'jpg', 'jpeg'],
-      withData: true,
-    );
+    late final FilePickerResult? result;
+    try {
+      result = await FilePicker.platform.pickFiles(
+        type: FileType.custom,
+        allowedExtensions: ['png', 'jpg', 'jpeg'],
+        withData: true,
+      );
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Não foi possível abrir o seletor de arquivos: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+      return;
+    }
     if (result == null || result.files.isEmpty) return;
     final file = result.files.first;
     if (file.bytes == null) return;
@@ -728,17 +742,18 @@ class _PainelAdminPageState extends State<PainelAdminPage>
           const SizedBox(height: 16),
           // ── Patrocinadores ──
           Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text(
-                'Patrocinadores no Rodapé (${_patrocinadoresUrls.length + _patrocinadorBytes.length}/5)',
-                style: const TextStyle(
-                    fontSize: 16, fontWeight: FontWeight.bold),
+              Expanded(
+                child: Text(
+                  'Patrocinadores no Rodapé (${_patrocinadoresUrls.length + _patrocinadorBytes.length}/5)',
+                  style: const TextStyle(
+                      fontSize: 16, fontWeight: FontWeight.bold),
+                ),
               ),
               TextButton.icon(
                 onPressed: _adicionarPatrocinador,
                 icon: const Icon(Icons.add_photo_alternate_outlined),
-                label: const Text('Adicionar Logo'),
+                label: const Text('Add Logo'),
               ),
             ],
           ),
@@ -961,7 +976,7 @@ class _PainelAdminPageState extends State<PainelAdminPage>
             ElevatedButton.icon(
               onPressed: onSelecionar,
               icon: const Icon(Icons.upload_outlined, size: 16),
-              label: const Text('Selecionar Imagem'),
+              label: const Text('Selecionar'),
               style: ElevatedButton.styleFrom(
                 backgroundColor: const Color(0xFF1E3A8A),
                 foregroundColor: Colors.white,
@@ -994,15 +1009,36 @@ class _PainelAdminPageState extends State<PainelAdminPage>
       final isMobile = constraints.maxWidth < 700;
       final uid = FirebaseAuth.instance.currentUser?.uid;
 
-      final formulario = Form(
-        key: _formKeyUsuario,
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Text('Inclusão de Novos Usuários',
-                style: TextStyle(
-                    fontSize: 16, fontWeight: FontWeight.bold)),
+      final formulario = Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          InkWell(
+            onTap: () => setState(
+                () => _formularioUsuarioExpandido = !_formularioUsuarioExpandido),
+            borderRadius: BorderRadius.circular(8),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(vertical: 4),
+              child: Row(
+                children: [
+                  const Expanded(
+                    child: Text('Cadastro de Novos Usuários',
+                        style: TextStyle(
+                            fontSize: 16, fontWeight: FontWeight.bold)),
+                  ),
+                  Icon(_formularioUsuarioExpandido
+                      ? Icons.expand_less
+                      : Icons.expand_more),
+                ],
+              ),
+            ),
+          ),
+          if (_formularioUsuarioExpandido) ...[
             const SizedBox(height: 12),
+            Form(
+              key: _formKeyUsuario,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
             TextFormField(
               controller: _nomeUsuarioController,
               decoration:
@@ -1066,23 +1102,26 @@ class _PainelAdminPageState extends State<PainelAdminPage>
                 ),
               ),
             ],
-            SizedBox(
-              width: double.infinity,
-              child: ElevatedButton(
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFF1E3A8A),
-                  foregroundColor: Colors.white,
+                SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton(
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFF1E3A8A),
+                      foregroundColor: Colors.white,
+                    ),
+                    onPressed:
+                        _salvandoUsuario ? null : _cadastrarNovoUsuario,
+                    child: _salvandoUsuario
+                        ? const CircularProgressIndicator(
+                            color: Colors.white)
+                        : const Text('Registrar Usuário'),
+                  ),
                 ),
-                onPressed:
-                    _salvandoUsuario ? null : _cadastrarNovoUsuario,
-                child: _salvandoUsuario
-                    ? const CircularProgressIndicator(
-                        color: Colors.white)
-                    : const Text('Registrar Usuário'),
-              ),
-            ),
-          ],
-        ),
+                ],      // fecha children do Form > Column
+              ),        // fecha Column interno do Form
+            ),          // fecha Form
+          ],            // fecha if (_formularioUsuarioExpandido) ...[
+        ],              // fecha children do Column externo
       );
 
       var query = _db
@@ -1267,13 +1306,24 @@ class _PainelAdminPageState extends State<PainelAdminPage>
       );
 
       if (isMobile) {
-        return SingleChildScrollView(
-          padding: const EdgeInsets.all(16),
+        return Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16),
           child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              formulario,
-              const Divider(height: 40),
-              SizedBox(height: 300, child: lista),
+              const SizedBox(height: 16),
+              // Form: altura dinâmica — só cabeçalho quando recolhido
+              AnimatedContainer(
+                duration: const Duration(milliseconds: 200),
+                constraints: BoxConstraints(
+                  maxHeight: _formularioUsuarioExpandido ? 400 : 58,
+                ),
+                child: SingleChildScrollView(child: formulario),
+              ),
+              const Divider(height: 24),
+              // Lista preenche todo o espaço restante até o rodapé
+              Expanded(child: lista),
+              const SizedBox(height: 16),
             ],
           ),
         );
@@ -1302,6 +1352,7 @@ class _PainelAdminPageState extends State<PainelAdminPage>
           .collection('auditoria')
           .where('instituicaoId',
               isEqualTo: widget.substituicaoInstituicaoId)
+          .limit(50)
           .snapshots(),
       builder: (context, snap) {
         if (snap.hasError) {
@@ -1310,17 +1361,17 @@ class _PainelAdminPageState extends State<PainelAdminPage>
         if (snap.connectionState == ConnectionState.waiting) {
           return const Center(child: CircularProgressIndicator());
         }
-        final auditDocs = List<QueryDocumentSnapshot>.from(
-          snap.data?.docs ?? [],
-        )..sort((a, b) {
-          final aTs = (a.data() as Map<String, dynamic>)['dataHora'] as Timestamp?;
-          final bTs = (b.data() as Map<String, dynamic>)['dataHora'] as Timestamp?;
-          if (aTs == null && bTs == null) return 0;
-          if (aTs == null) return 1;
-          if (bTs == null) return -1;
-          return bTs.compareTo(aTs);
-        });
-        if (auditDocs.isEmpty) {
+        final auditDocs = List<QueryDocumentSnapshot>.from(snap.data?.docs ?? [])
+          ..sort((a, b) {
+            final aTs = (a.data() as Map<String, dynamic>)['dataHora'] as Timestamp?;
+            final bTs = (b.data() as Map<String, dynamic>)['dataHora'] as Timestamp?;
+            if (aTs == null && bTs == null) return 0;
+            if (aTs == null) return 1;
+            if (bTs == null) return -1;
+            return bTs.compareTo(aTs);
+          });
+        final top10 = auditDocs.take(10).toList();
+        if (top10.isEmpty) {
           return const Center(
             child: Text('Nenhuma atividade registrada.',
                 style: TextStyle(color: Colors.grey)),
@@ -1330,10 +1381,10 @@ class _PainelAdminPageState extends State<PainelAdminPage>
           thumbVisibility: true,
           child: ListView.builder(
             padding: const EdgeInsets.all(16),
-            itemCount: auditDocs.length,
+            itemCount: top10.length,
             itemBuilder: (context, i) {
               final d =
-                  auditDocs[i].data() as Map<String, dynamic>;
+                  top10[i].data() as Map<String, dynamic>;
               final ts = d['dataHora'] as Timestamp?;
               final dataStr = ts != null
                   ? ts.toDate().toLocal().toString().substring(0, 16)

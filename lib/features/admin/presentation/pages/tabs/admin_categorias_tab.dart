@@ -193,63 +193,19 @@ class _AdminCategoriasTabState extends State<AdminCategoriasTab> {
   // ──────────────────────────── DIALOGS ─────────────────────────────────────
 
   Future<void> _abrirDialogCategoria({String? docId, String? nomeAtual}) async {
-    final formKey = GlobalKey<FormState>();
-    final ctrl = TextEditingController(text: nomeAtual ?? '');
-    bool salvando = false;
-
-    await showDialog(
+    final salvo = await showDialog<bool>(
       context: context,
-      builder: (ctx) => StatefulBuilder(
-        builder: (ctx, setS) => AlertDialog(
-          title: Text(docId == null ? 'Nova Categoria' : 'Editar Categoria'),
-          content: Form(
-            key: formKey,
-            child: TextFormField(
-              controller: ctrl,
-              autofocus: true,
-              decoration: const InputDecoration(labelText: 'Nome *'),
-              validator: (v) =>
-                  v == null || v.trim().isEmpty ? 'Campo obrigatório' : null,
-            ),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(ctx),
-              child: const Text('Cancelar'),
-            ),
-            FilledButton(
-              onPressed: salvando
-                  ? null
-                  : () async {
-                      if (!formKey.currentState!.validate()) return;
-                      setS(() => salvando = true);
-                      try {
-                        if (docId == null) {
-                          await _criarCategoria(ctrl.text);
-                          _showSuccess('Categoria criada!');
-                        } else {
-                          await _editarCategoria(docId, nomeAtual ?? '', ctrl.text);
-                          _showSuccess('Categoria atualizada!');
-                        }
-                        if (ctx.mounted) Navigator.pop(ctx);
-                      } catch (e) {
-                        _showError('Erro: $e');
-                        setS(() => salvando = false);
-                      }
-                    },
-              child: salvando
-                  ? const SizedBox(
-                      width: 18,
-                      height: 18,
-                      child: CircularProgressIndicator(strokeWidth: 2),
-                    )
-                  : const Text('Salvar'),
-            ),
-          ],
-        ),
+      builder: (_) => _NomeDialog(
+        title: docId == null ? 'Nova Categoria' : 'Editar Categoria',
+        nomeAtual: nomeAtual ?? '',
+        onSave: (nome) => docId == null
+            ? _criarCategoria(nome)
+            : _editarCategoria(docId, nomeAtual ?? '', nome),
       ),
     );
-    ctrl.dispose();
+    if (salvo == true && mounted) {
+      _showSuccess(docId == null ? 'Categoria criada!' : 'Categoria atualizada!');
+    }
   }
 
   Future<void> _abrirDialogAssunto(
@@ -257,63 +213,19 @@ class _AdminCategoriasTabState extends State<AdminCategoriasTab> {
     String? docId,
     String? nomeAtual,
   }) async {
-    final formKey = GlobalKey<FormState>();
-    final ctrl = TextEditingController(text: nomeAtual ?? '');
-    bool salvando = false;
-
-    await showDialog(
+    final salvo = await showDialog<bool>(
       context: context,
-      builder: (ctx) => StatefulBuilder(
-        builder: (ctx, setS) => AlertDialog(
-          title: Text(docId == null ? 'Novo Assunto' : 'Editar Assunto'),
-          content: Form(
-            key: formKey,
-            child: TextFormField(
-              controller: ctrl,
-              autofocus: true,
-              decoration: const InputDecoration(labelText: 'Nome *'),
-              validator: (v) =>
-                  v == null || v.trim().isEmpty ? 'Campo obrigatório' : null,
-            ),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(ctx),
-              child: const Text('Cancelar'),
-            ),
-            FilledButton(
-              onPressed: salvando
-                  ? null
-                  : () async {
-                      if (!formKey.currentState!.validate()) return;
-                      setS(() => salvando = true);
-                      try {
-                        if (docId == null) {
-                          await _criarAssunto(categoriaId, ctrl.text);
-                          _showSuccess('Assunto criado!');
-                        } else {
-                          await _editarAssunto(docId, nomeAtual ?? '', ctrl.text);
-                          _showSuccess('Assunto atualizado!');
-                        }
-                        if (ctx.mounted) Navigator.pop(ctx);
-                      } catch (e) {
-                        _showError('Erro: $e');
-                        setS(() => salvando = false);
-                      }
-                    },
-              child: salvando
-                  ? const SizedBox(
-                      width: 18,
-                      height: 18,
-                      child: CircularProgressIndicator(strokeWidth: 2),
-                    )
-                  : const Text('Salvar'),
-            ),
-          ],
-        ),
+      builder: (_) => _NomeDialog(
+        title: docId == null ? 'Novo Assunto' : 'Editar Assunto',
+        nomeAtual: nomeAtual ?? '',
+        onSave: (nome) => docId == null
+            ? _criarAssunto(categoriaId, nome)
+            : _editarAssunto(docId, nomeAtual ?? '', nome),
       ),
     );
-    ctrl.dispose();
+    if (salvo == true && mounted) {
+      _showSuccess(docId == null ? 'Assunto criado!' : 'Assunto atualizado!');
+    }
   }
 
   Future<void> _abrirDialogTipoSimulado(
@@ -321,18 +233,6 @@ class _AdminCategoriasTabState extends State<AdminCategoriasTab> {
     String? docId,
     Map<String, dynamic>? dadosAtuais,
   }) async {
-    final formKey = GlobalKey<FormState>();
-    final qtdCtrl = TextEditingController(
-      text: dadosAtuais?['quantidadeMaxima']?.toString() ?? '',
-    );
-
-    String modo = dadosAtuais?['modo'] ?? 'assunto';
-    List<Map<String, dynamic>> assuntosPorQtd = List<Map<String, dynamic>>.from(
-      dadosAtuais?['assuntosPorQuantidade'] ?? [],
-    );
-    bool salvando = false;
-
-    // Carrega assuntos da categoria para o modo 'completo'
     List<QueryDocumentSnapshot> assuntosDisponiveis = [];
     try {
       final snap = await _db
@@ -343,256 +243,22 @@ class _AdminCategoriasTabState extends State<AdminCategoriasTab> {
       assuntosDisponiveis = snap.docs;
     } catch (_) {}
 
-    // Mapa de quantidade por assuntoId para modo completo
-    final Map<String, TextEditingController> qtdPorAssunto = {};
-    for (final a in assuntosDisponiveis) {
-      final existente = assuntosPorQtd
-          .where((e) => e['assuntoId'] == a.id)
-          .toList();
-      qtdPorAssunto[a.id] = TextEditingController(
-        text: existente.isNotEmpty
-            ? existente.first['quantidade'].toString()
-            : '',
-      );
-    }
-
     if (!mounted) return;
 
-    await showDialog(
+    final salvo = await showDialog<bool>(
       context: context,
-      builder: (ctx) => StatefulBuilder(
-        builder: (ctx, setS) {
-          int somaAtual = 0;
-          if (modo == 'completo') {
-            for (final ctrl in qtdPorAssunto.values) {
-              somaAtual += int.tryParse(ctrl.text) ?? 0;
-            }
-          }
-
-          return AlertDialog(
-            title: Text(
-              docId == null ? 'Novo Tipo de Simulado' : 'Editar Tipo de Simulado',
-            ),
-            content: SingleChildScrollView(
-              child: Form(
-                key: formKey,
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Text(
-                      'Modo do Simulado',
-                      style: TextStyle(fontWeight: FontWeight.bold),
-                    ),
-                    RadioGroup<String>(
-                      groupValue: modo,
-                      onChanged: (v) => setS(() => modo = v!),
-                      child: Column(
-                        children: const [
-                          RadioListTile<String>(
-                            title: Text('Por Assunto'),
-                            value: 'assunto',
-                            contentPadding: EdgeInsets.zero,
-                          ),
-                          RadioListTile<String>(
-                            title: Text('Prova Completa'),
-                            value: 'completo',
-                            contentPadding: EdgeInsets.zero,
-                          ),
-                        ],
-                      ),
-                    ),
-                    const SizedBox(height: 12),
-                    TextFormField(
-                      controller: qtdCtrl,
-                      keyboardType: TextInputType.number,
-                      inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-                      decoration: const InputDecoration(
-                        labelText: 'Quantidade Máxima *',
-                      ),
-                      onChanged: (_) => setS(() {}),
-                      validator: (v) {
-                        if (v == null || v.trim().isEmpty) {
-                          return 'Campo obrigatório';
-                        }
-                        if ((int.tryParse(v) ?? 0) <= 0) {
-                          return 'Informe um valor positivo';
-                        }
-                        return null;
-                      },
-                    ),
-                    if (modo == 'completo') ...[
-                      const SizedBox(height: 16),
-                      const Text(
-                        'Questões por Assunto',
-                        style: TextStyle(fontWeight: FontWeight.bold),
-                      ),
-                      const SizedBox(height: 4),
-                      if (assuntosDisponiveis.isEmpty)
-                        const Padding(
-                          padding: EdgeInsets.symmetric(vertical: 8),
-                          child: Text(
-                            'Nenhum assunto cadastrado nesta categoria.',
-                            style: TextStyle(color: Colors.grey, fontSize: 12),
-                          ),
-                        )
-                      else ...[
-                        ...assuntosDisponiveis.map((a) {
-                          final dados = a.data() as Map<String, dynamic>;
-                          return Padding(
-                            padding: const EdgeInsets.symmetric(vertical: 4),
-                            child: Row(
-                              children: [
-                                Expanded(
-                                  child: Text(
-                                    dados['nome'] ?? a.id,
-                                    style: const TextStyle(fontSize: 13),
-                                  ),
-                                ),
-                                const SizedBox(width: 8),
-                                SizedBox(
-                                  width: 80,
-                                  child: TextFormField(
-                                    controller: qtdPorAssunto[a.id],
-                                    keyboardType: TextInputType.number,
-                                    inputFormatters: [
-                                      FilteringTextInputFormatter.digitsOnly,
-                                    ],
-                                    decoration: const InputDecoration(
-                                      hintText: '0',
-                                      isDense: true,
-                                    ),
-                                    onChanged: (_) => setS(() {}),
-                                  ),
-                                ),
-                              ],
-                            ),
-                          );
-                        }),
-                        const SizedBox(height: 8),
-                        Builder(builder: (_) {
-                          final maxQtd = int.tryParse(qtdCtrl.text) ?? 0;
-                          final excede = maxQtd > 0 && somaAtual > maxQtd;
-                          return Text(
-                            'Soma atual: $somaAtual / $maxQtd',
-                            style: TextStyle(
-                              fontWeight: FontWeight.bold,
-                              color: excede ? Colors.red : Colors.grey.shade700,
-                              fontSize: 12,
-                            ),
-                          );
-                        }),
-                      ],
-                    ],
-                  ],
-                ),
-              ),
-            ),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.pop(ctx),
-                child: const Text('Cancelar'),
-              ),
-              FilledButton(
-                onPressed: salvando
-                    ? null
-                    : () async {
-                        if (!formKey.currentState!.validate()) return;
-
-                        final maxQtd = int.parse(qtdCtrl.text.trim());
-
-                        if (modo == 'completo') {
-                          final assuntosComQtd = assuntosDisponiveis
-                              .where((a) {
-                                final v = int.tryParse(
-                                  qtdPorAssunto[a.id]?.text ?? '',
-                                ) ?? 0;
-                                return v > 0;
-                              })
-                              .toList();
-
-                          if (assuntosComQtd.length < 2) {
-                            _showError(
-                              'Prova Completa requer pelo menos 2 assuntos com quantidade.',
-                            );
-                            return;
-                          }
-
-                          int soma = 0;
-                          for (final a in assuntosDisponiveis) {
-                            soma += int.tryParse(
-                                  qtdPorAssunto[a.id]?.text ?? '',
-                                ) ??
-                                0;
-                          }
-                          if (soma > maxQtd) {
-                            _showError(
-                              'A soma ($soma) excede a quantidade máxima ($maxQtd).',
-                            );
-                            return;
-                          }
-                        }
-
-                        setS(() => salvando = true);
-
-                        final listaAssuntosPorQtd = modo == 'completo'
-                            ? assuntosDisponiveis
-                                .where((a) {
-                                  final v = int.tryParse(
-                                    qtdPorAssunto[a.id]?.text ?? '',
-                                  ) ?? 0;
-                                  return v > 0;
-                                })
-                                .map((a) => {
-                                  'assuntoId': a.id,
-                                  'quantidade': int.parse(
-                                    qtdPorAssunto[a.id]!.text,
-                                  ),
-                                })
-                                .toList()
-                            : <Map<String, dynamic>>[];
-
-                        final payload = {
-                          'modo': modo,
-                          'quantidadeMaxima': maxQtd,
-                          'assuntosPorQuantidade': listaAssuntosPorQtd,
-                        };
-
-                        try {
-                          if (docId == null) {
-                            await _criarTipoSimulado(categoriaId, payload);
-                            _showSuccess('Tipo de simulado criado!');
-                          } else {
-                            await _editarTipoSimulado(
-                              docId,
-                              dadosAtuais ?? {},
-                              payload,
-                            );
-                            _showSuccess('Tipo de simulado atualizado!');
-                          }
-                          if (ctx.mounted) Navigator.pop(ctx);
-                        } catch (e) {
-                          _showError('Erro: $e');
-                          setS(() => salvando = false);
-                        }
-                      },
-                child: salvando
-                    ? const SizedBox(
-                        width: 18,
-                        height: 18,
-                        child: CircularProgressIndicator(strokeWidth: 2),
-                      )
-                    : const Text('Salvar'),
-              ),
-            ],
-          );
-        },
+      builder: (_) => _TipoSimuladoDialog(
+        isEdit: docId != null,
+        dadosAtuais: dadosAtuais,
+        assuntosDisponiveis: assuntosDisponiveis,
+        onSave: (payload) => docId == null
+            ? _criarTipoSimulado(categoriaId, payload)
+            : _editarTipoSimulado(docId, dadosAtuais ?? {}, payload),
       ),
     );
-
-    qtdCtrl.dispose();
-    for (final c in qtdPorAssunto.values) {
-      c.dispose();
+    if (salvo == true && mounted) {
+      _showSuccess(
+          docId == null ? 'Tipo de simulado criado!' : 'Tipo de simulado atualizado!');
     }
   }
 
@@ -627,8 +293,8 @@ class _AdminCategoriasTabState extends State<AdminCategoriasTab> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
                 'Categorias e Conteúdo',
@@ -636,12 +302,14 @@ class _AdminCategoriasTabState extends State<AdminCategoriasTab> {
                   fontWeight: FontWeight.bold,
                 ),
               ),
-              if (_isAdmin)
+              if (_isAdmin) ...[
+                const SizedBox(height: 8),
                 FilledButton.icon(
                   onPressed: _abrirDialogCategoria,
                   icon: const Icon(Icons.add, size: 18),
                   label: const Text('Nova Categoria'),
                 ),
+              ],
             ],
           ),
           if (!_isAdmin)
@@ -1022,5 +690,371 @@ class _AdminCategoriasTabState extends State<AdminCategoriasTab> {
     } catch (e) {
       _showError('Erro ao excluir: $e');
     }
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Dialog: Nome (Categoria / Assunto)
+// ─────────────────────────────────────────────────────────────────────────────
+
+class _NomeDialog extends StatefulWidget {
+  final String title;
+  final String nomeAtual;
+  final Future<void> Function(String nome) onSave;
+
+  const _NomeDialog({
+    required this.title,
+    required this.nomeAtual,
+    required this.onSave,
+  });
+
+  @override
+  State<_NomeDialog> createState() => _NomeDialogState();
+}
+
+class _NomeDialogState extends State<_NomeDialog> {
+  final _formKey = GlobalKey<FormState>();
+  late final TextEditingController _ctrl;
+  bool _salvando = false;
+  String? _erro;
+
+  @override
+  void initState() {
+    super.initState();
+    _ctrl = TextEditingController(text: widget.nomeAtual);
+  }
+
+  @override
+  void dispose() {
+    _ctrl.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      title: Text(widget.title),
+      content: Form(
+        key: _formKey,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            TextFormField(
+              controller: _ctrl,
+              autofocus: true,
+              decoration: const InputDecoration(labelText: 'Nome *'),
+              validator: (v) =>
+                  v == null || v.trim().isEmpty ? 'Campo obrigatório' : null,
+            ),
+            if (_erro != null) ...[
+              const SizedBox(height: 8),
+              Text(
+                _erro!,
+                style: const TextStyle(color: Colors.red, fontSize: 12),
+              ),
+            ],
+          ],
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: _salvando ? null : () => Navigator.pop(context),
+          child: const Text('Cancelar'),
+        ),
+        FilledButton(
+          onPressed: _salvando
+              ? null
+              : () async {
+                  if (!_formKey.currentState!.validate()) return;
+                  setState(() {
+                    _salvando = true;
+                    _erro = null;
+                  });
+                  try {
+                    await widget.onSave(_ctrl.text);
+                    if (!mounted) return;
+                    // ignore: use_build_context_synchronously
+                    Navigator.pop(context, true);
+                  } catch (e) {
+                    if (mounted) {
+                      setState(() {
+                        _salvando = false;
+                        _erro = 'Erro: $e';
+                      });
+                    }
+                  }
+                },
+          child: _salvando
+              ? const SizedBox(
+                  width: 18,
+                  height: 18,
+                  child: CircularProgressIndicator(strokeWidth: 2),
+                )
+              : const Text('Salvar'),
+        ),
+      ],
+    );
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Dialog: Tipo de Simulado
+// ─────────────────────────────────────────────────────────────────────────────
+
+class _TipoSimuladoDialog extends StatefulWidget {
+  final bool isEdit;
+  final Map<String, dynamic>? dadosAtuais;
+  final List<QueryDocumentSnapshot> assuntosDisponiveis;
+  final Future<void> Function(Map<String, dynamic> payload) onSave;
+
+  const _TipoSimuladoDialog({
+    required this.isEdit,
+    required this.dadosAtuais,
+    required this.assuntosDisponiveis,
+    required this.onSave,
+  });
+
+  @override
+  State<_TipoSimuladoDialog> createState() => _TipoSimuladoDialogState();
+}
+
+class _TipoSimuladoDialogState extends State<_TipoSimuladoDialog> {
+  final _formKey = GlobalKey<FormState>();
+  late final TextEditingController _qtdCtrl;
+  late final Map<String, TextEditingController> _qtdPorAssunto;
+  late String _modo;
+  bool _salvando = false;
+  String? _erro;
+
+  @override
+  void initState() {
+    super.initState();
+    _modo = widget.dadosAtuais?['modo'] ?? 'assunto';
+    _qtdCtrl = TextEditingController(
+      text: widget.dadosAtuais?['quantidadeMaxima']?.toString() ?? '',
+    );
+    final assuntosPorQtd = List<Map<String, dynamic>>.from(
+      widget.dadosAtuais?['assuntosPorQuantidade'] ?? [],
+    );
+    _qtdPorAssunto = {
+      for (final a in widget.assuntosDisponiveis)
+        a.id: TextEditingController(
+          text: assuntosPorQtd
+                  .where((e) => e['assuntoId'] == a.id)
+                  .firstOrNull?['quantidade']
+                  ?.toString() ??
+              '',
+        ),
+    };
+  }
+
+  @override
+  void dispose() {
+    _qtdCtrl.dispose();
+    for (final c in _qtdPorAssunto.values) {
+      c.dispose();
+    }
+    super.dispose();
+  }
+
+  int get _somaAtual {
+    if (_modo != 'completo') return 0;
+    return _qtdPorAssunto.values
+        .fold(0, (acc, c) => acc + (int.tryParse(c.text) ?? 0));
+  }
+
+  Future<void> _onSalvar() async {
+    if (!_formKey.currentState!.validate()) return;
+    final maxQtd = int.parse(_qtdCtrl.text.trim());
+
+    if (_modo == 'completo') {
+      final comQtd = widget.assuntosDisponiveis
+          .where((a) => (int.tryParse(_qtdPorAssunto[a.id]?.text ?? '') ?? 0) > 0)
+          .length;
+      if (comQtd < 2) {
+        setState(() =>
+            _erro = 'Prova Completa requer pelo menos 2 assuntos com quantidade.');
+        return;
+      }
+      if (_somaAtual > maxQtd) {
+        setState(() =>
+            _erro = 'A soma ($_somaAtual) excede a quantidade máxima ($maxQtd).');
+        return;
+      }
+    }
+
+    setState(() {
+      _salvando = true;
+      _erro = null;
+    });
+
+    final lista = _modo == 'completo'
+        ? widget.assuntosDisponiveis
+            .where((a) => (int.tryParse(_qtdPorAssunto[a.id]?.text ?? '') ?? 0) > 0)
+            .map((a) => {
+                  'assuntoId': a.id,
+                  'quantidade': int.parse(_qtdPorAssunto[a.id]!.text),
+                })
+            .toList()
+        : <Map<String, dynamic>>[];
+
+    final payload = {
+      'modo': _modo,
+      'quantidadeMaxima': maxQtd,
+      'assuntosPorQuantidade': lista,
+    };
+
+    try {
+      await widget.onSave(payload);
+      if (!mounted) return;
+      // ignore: use_build_context_synchronously
+      Navigator.pop(context, true);
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _salvando = false;
+          _erro = 'Erro: $e';
+        });
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final somaAtual = _somaAtual;
+    final maxQtd = int.tryParse(_qtdCtrl.text) ?? 0;
+    final excede = maxQtd > 0 && somaAtual > maxQtd;
+
+    return AlertDialog(
+      title: Text(widget.isEdit ? 'Editar Tipo de Simulado' : 'Novo Tipo de Simulado'),
+      content: SingleChildScrollView(
+        child: Form(
+          key: _formKey,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text(
+                'Modo do Simulado',
+                style: TextStyle(fontWeight: FontWeight.bold),
+              ),
+              RadioGroup<String>(
+                groupValue: _modo,
+                onChanged: (v) => setState(() => _modo = v!),
+                child: Column(
+                  children: [
+                    RadioListTile<String>(
+                      title: const Text('Por Assunto'),
+                      value: 'assunto',
+                      contentPadding: EdgeInsets.zero,
+                    ),
+                    RadioListTile<String>(
+                      title: const Text('Prova Completa'),
+                      value: 'completo',
+                      contentPadding: EdgeInsets.zero,
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 12),
+              TextFormField(
+                controller: _qtdCtrl,
+                keyboardType: TextInputType.number,
+                inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                decoration: const InputDecoration(labelText: 'Quantidade Máxima *'),
+                onChanged: (_) => setState(() {}),
+                validator: (v) {
+                  if (v == null || v.trim().isEmpty) return 'Campo obrigatório';
+                  if ((int.tryParse(v) ?? 0) <= 0) return 'Informe um valor positivo';
+                  return null;
+                },
+              ),
+              if (_modo == 'completo') ...[
+                const SizedBox(height: 16),
+                const Text(
+                  'Questões por Assunto',
+                  style: TextStyle(fontWeight: FontWeight.bold),
+                ),
+                const SizedBox(height: 4),
+                if (widget.assuntosDisponiveis.isEmpty)
+                  const Padding(
+                    padding: EdgeInsets.symmetric(vertical: 8),
+                    child: Text(
+                      'Nenhum assunto cadastrado nesta categoria.',
+                      style: TextStyle(color: Colors.grey, fontSize: 12),
+                    ),
+                  )
+                else ...[
+                  ...widget.assuntosDisponiveis.map((a) {
+                    final dados = a.data() as Map<String, dynamic>;
+                    return Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 4),
+                      child: Row(
+                        children: [
+                          Expanded(
+                            child: Text(
+                              dados['nome'] ?? a.id,
+                              style: const TextStyle(fontSize: 13),
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          SizedBox(
+                            width: 80,
+                            child: TextFormField(
+                              controller: _qtdPorAssunto[a.id],
+                              keyboardType: TextInputType.number,
+                              inputFormatters: [
+                                FilteringTextInputFormatter.digitsOnly,
+                              ],
+                              decoration: const InputDecoration(
+                                hintText: '0',
+                                isDense: true,
+                              ),
+                              onChanged: (_) => setState(() {}),
+                            ),
+                          ),
+                        ],
+                      ),
+                    );
+                  }),
+                  const SizedBox(height: 8),
+                  Text(
+                    'Soma atual: $somaAtual / $maxQtd',
+                    style: TextStyle(
+                      fontWeight: FontWeight.bold,
+                      color: excede ? Colors.red : Colors.grey.shade700,
+                      fontSize: 12,
+                    ),
+                  ),
+                ],
+              ],
+              if (_erro != null) ...[
+                const SizedBox(height: 8),
+                Text(
+                  _erro!,
+                  style: const TextStyle(color: Colors.red, fontSize: 12),
+                ),
+              ],
+            ],
+          ),
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: _salvando ? null : () => Navigator.pop(context),
+          child: const Text('Cancelar'),
+        ),
+        FilledButton(
+          onPressed: _salvando ? null : _onSalvar,
+          child: _salvando
+              ? const SizedBox(
+                  width: 18,
+                  height: 18,
+                  child: CircularProgressIndicator(strokeWidth: 2),
+                )
+              : const Text('Salvar'),
+        ),
+      ],
+    );
   }
 }

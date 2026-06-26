@@ -21,8 +21,8 @@ import 'package:rumo_quiz/features/admin/presentation/pages/painel_admin_page.da
 import 'package:rumo_quiz/features/admin/presentation/pages/painel_master_page.dart';
 
 /// Busca nome do aluno, mensagem de resultado e dados da instituição em paralelo.
-/// Retorna (nome, mensagem, nomeInstituicao, logoUrl).
-Future<(String, String, String, String?)> _fetchResultadoMeta(
+/// Retorna (nome, mensagem, nomeInstituicao, logoUrl, imagemUrlMensagem).
+Future<(String, String, String, String?, String?)> _fetchResultadoMeta(
   String? uid,
   Map<String, dynamic> dados,
   double taxaAcerto,
@@ -31,8 +31,9 @@ Future<(String, String, String, String?)> _fetchResultadoMeta(
   String mensagem = '';
   String instituicao = dados['instituicaoDoAluno'] as String? ?? dados['instituicao'] as String? ?? 'Minha Instituição';
   String? logoUrl = dados['logoUrl'] as String?;
+  String? imagemUrlMensagem;
 
-  if (uid == null) return (nome, mensagem, instituicao, logoUrl);
+  if (uid == null) return (nome, mensagem, instituicao, logoUrl, imagemUrlMensagem);
 
   try {
     final userDoc = await FirebaseFirestore.instance.collection('usuarios').doc(uid).get();
@@ -59,6 +60,7 @@ Future<(String, String, String, String?)> _fetchResultadoMeta(
         final ate = (md['ate'] as num? ?? 100).toDouble();
         if (taxaAcerto >= de && taxaAcerto <= ate) {
           mensagem = md['texto'] as String? ?? '';
+          imagemUrlMensagem = md['imagemUrl'] as String?;
           break;
         }
       }
@@ -76,7 +78,7 @@ Future<(String, String, String, String?)> _fetchResultadoMeta(
     debugPrint('Aviso: erro ao buscar meta do resultado: $e');
   }
 
-  return (nome, mensagem, instituicao, logoUrl);
+  return (nome, mensagem, instituicao, logoUrl, imagemUrlMensagem);
 }
 
 class AppRouter {
@@ -235,7 +237,7 @@ class AppRouter {
 
               final uid = FirebaseAuth.instance.currentUser?.uid;
 
-              return FutureBuilder<(String, String, String, String?)>(
+              return FutureBuilder<(String, String, String, String?, String?)>(
                 future: _fetchResultadoMeta(uid, dados, taxaAcerto),
                 builder: (context, snapshot) {
                   final meta = snapshot.data;
@@ -243,6 +245,7 @@ class AppRouter {
                   final mensagem = meta?.$2 ?? '';
                   final instituicao = meta?.$3 ?? dados['instituicaoDoAluno'] ?? dados['instituicao'] ?? 'Minha Instituição';
                   final logoUrl = meta?.$4 ?? dados['logoUrl'] as String?;
+                  final imagemUrlMensagem = meta?.$5;
 
                   return ResultadoSimuladoPage(
                     tituloSimulado:
@@ -260,6 +263,7 @@ class AppRouter {
                         (dados['tempoUtilizadoSegundos'] as num?)?.toInt() ?? 0,
                     revisaoQuestoes: listaModelos,
                     mensagemFinalizacaoAdmin: mensagem,
+                    imagemUrlMensagem: imagemUrlMensagem,
                     pontosGamificacao:
                         (dados['pontosGamificacao'] as num?)?.toInt() ?? 0,
                     nomeDoAluno: nomeAluno,

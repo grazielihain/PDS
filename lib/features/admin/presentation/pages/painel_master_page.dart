@@ -32,18 +32,18 @@ class _PainelMasterPageState extends State<PainelMasterPage>
   bool _salvando = false;
 
   static const List<Map<String, dynamic>> _coresPredefinidas = [
-    {'nome': 'Azul Royal', 'hex': '#1565C0'},
-    {'nome': 'Índigo', 'hex': '#283593'},
-    {'nome': 'Ciano Escuro', 'hex': '#006064'},
-    {'nome': 'Verde', 'hex': '#2E7D32'},
-    {'nome': 'Teal', 'hex': '#00695C'},
+    {'nome': 'Azul Escuro', 'hex': '#1565C0'},
+    {'nome': 'Azul Médio', 'hex': '#1E88E5'},
+    {'nome': 'Azul Claro', 'hex': '#42A5F5'},
+    {'nome': 'Verde Escuro', 'hex': '#2E7D32'},
+    {'nome': 'Verde Médio', 'hex': '#43A047'},
+    {'nome': 'Verde Claro', 'hex': '#66BB6A'},
     {'nome': 'Roxo', 'hex': '#6A1B9A'},
-    {'nome': 'Rosa Escuro', 'hex': '#880E4F'},
-    {'nome': 'Vermelho', 'hex': '#B71C1C'},
-    {'nome': 'Laranja Escuro', 'hex': '#E65100'},
-    {'nome': 'Âmbar', 'hex': '#F57F17'},
-    {'nome': 'Marrom', 'hex': '#4E342E'},
-    {'nome': 'Cinza', 'hex': '#37474F'},
+    {'nome': 'Roxo Claro', 'hex': '#AB47BC'},
+    {'nome': 'Laranja', 'hex': '#E65100'},
+    {'nome': 'Laranja Claro', 'hex': '#FFA726'},
+    {'nome': 'Vermelho', 'hex': '#C62828'},
+    {'nome': 'Cinza Azulado', 'hex': '#37474F'},
   ];
 
   @override
@@ -523,25 +523,31 @@ class _PainelMasterPageState extends State<PainelMasterPage>
         // Barra de ação
         Padding(
           padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
-          child: Row(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               const Text(
                 'Instituições Cadastradas',
                 style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
               ),
-              const Spacer(),
-              if (!_mostrarFormInstituicao)
+              if (!_mostrarFormInstituicao) ...[
+                const SizedBox(height: 8),
                 FilledButton.icon(
                   onPressed: _iniciarNovaInstituicao,
-                  icon: const Icon(Icons.add_business_outlined),
-                  label: const Text('Nova Instituição'),
+                  icon: const Icon(Icons.add),
+                  label: const Text('Nova'),
                 ),
+              ],
             ],
           ),
         ),
 
         // Formulário de criação/edição
-        if (_mostrarFormInstituicao) _buildFormInstituicao(),
+        if (_mostrarFormInstituicao)
+          Flexible(
+            flex: 3,
+            child: _buildFormInstituicao(),
+          ),
 
         // Lista de instituições
         Expanded(
@@ -602,7 +608,7 @@ class _PainelMasterPageState extends State<PainelMasterPage>
     return Card(
       margin: const EdgeInsets.fromLTRB(16, 0, 16, 16),
       elevation: 2,
-      child: Padding(
+      child: SingleChildScrollView(
         padding: const EdgeInsets.all(16),
         child: Form(
           key: _formKeyInstituicao,
@@ -860,7 +866,7 @@ class _PainelMasterPageState extends State<PainelMasterPage>
             OutlinedButton.icon(
               onPressed: _selecionarLogo,
               icon: const Icon(Icons.upload_file_outlined),
-              label: const Text('Selecionar Imagem'),
+              label: const Text('Selecionar'),
             ),
             if (_logoNomeArquivo.isNotEmpty) ...[
               const SizedBox(width: 10),
@@ -1121,7 +1127,7 @@ class _PainelMasterPageState extends State<PainelMasterPage>
             stream: _db
                 .collection('auditoria')
                 .orderBy('dataHora', descending: true)
-                .limit(100)
+                .limit(10)
                 .snapshots(),
             builder: (context, snapshot) {
               if (snapshot.hasError) {
@@ -1547,7 +1553,10 @@ class _DialogVerUsuariosState extends State<_DialogVerUsuarios> {
 
             // Formulário de novo usuário
             if (_mostrarFormNovoUsuario)
-              Container(
+              Flexible(
+                flex: 2,
+                child: SingleChildScrollView(
+                child: Container(
                 margin: const EdgeInsets.fromLTRB(16, 0, 16, 8),
                 padding: const EdgeInsets.all(12),
                 decoration: BoxDecoration(
@@ -1676,6 +1685,8 @@ class _DialogVerUsuariosState extends State<_DialogVerUsuarios> {
                   ),
                 ),
               ),
+              ),
+              ),
 
             const Divider(height: 1),
 
@@ -1752,47 +1763,48 @@ class _DialogVerUsuariosState extends State<_DialogVerUsuarios> {
                             u['email'] ?? '-',
                             style: const TextStyle(fontSize: 12),
                           ),
-                          trailing: Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Chip(
-                                label: Text(
-                                  role,
-                                  style: const TextStyle(
-                                    color: Colors.white,
-                                    fontSize: 11,
-                                  ),
-                                ),
-                                backgroundColor: roleColor,
-                                padding: EdgeInsets.zero,
-                                materialTapTargetSize:
-                                    MaterialTapTargetSize.shrinkWrap,
-                              ),
-                              const SizedBox(width: 4),
-                              IconButton(
-                                icon: const Icon(
-                                  Icons.edit_outlined,
-                                  size: 18,
-                                  color: Colors.blueGrey,
-                                ),
-                                tooltip: 'Editar',
-                                onPressed:
-                                    () => _abrirDialogEditarUsuario(doc.id, u),
-                              ),
-                              IconButton(
-                                icon: const Icon(
-                                  Icons.delete_outline,
-                                  size: 18,
-                                  color: Colors.red,
-                                ),
-                                tooltip: 'Excluir',
-                                onPressed:
-                                    () => _excluirUsuario(
-                                      doc.id,
-                                      u['nome'] ?? '-',
+                          trailing: SizedBox(
+                            width: 110,
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Chip(
+                                  label: Text(
+                                    role,
+                                    style: const TextStyle(
+                                      color: Colors.white,
+                                      fontSize: 10,
                                     ),
-                              ),
-                            ],
+                                  ),
+                                  backgroundColor: roleColor,
+                                  padding: EdgeInsets.zero,
+                                  labelPadding: const EdgeInsets.symmetric(
+                                      horizontal: 4),
+                                  materialTapTargetSize:
+                                      MaterialTapTargetSize.shrinkWrap,
+                                ),
+                                IconButton(
+                                  icon: const Icon(Icons.edit_outlined,
+                                      size: 18, color: Colors.blueGrey),
+                                  tooltip: 'Editar',
+                                  padding: EdgeInsets.zero,
+                                  constraints: const BoxConstraints(
+                                      minWidth: 28, minHeight: 28),
+                                  onPressed: () =>
+                                      _abrirDialogEditarUsuario(doc.id, u),
+                                ),
+                                IconButton(
+                                  icon: const Icon(Icons.delete_outline,
+                                      size: 18, color: Colors.red),
+                                  tooltip: 'Excluir',
+                                  padding: EdgeInsets.zero,
+                                  constraints: const BoxConstraints(
+                                      minWidth: 28, minHeight: 28),
+                                  onPressed: () => _excluirUsuario(
+                                      doc.id, u['nome'] ?? '-'),
+                                ),
+                              ],
+                            ),
                           ),
                         ),
                       );

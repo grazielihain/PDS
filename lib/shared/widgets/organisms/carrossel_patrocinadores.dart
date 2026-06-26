@@ -1,9 +1,7 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 
-/// Rodapé White Label com carrossel de patrocinadores.
-/// Sempre exibe 5 slots: primeiros são os patrocinadores cadastrados,
-/// os restantes são preenchidos com a logo da instituição e a logo da Rumo Quiz.
-class CarrosselPatrocinadores extends StatelessWidget {
+class CarrosselPatrocinadores extends StatefulWidget {
   final List<String> logosUrls;
   final String logoInstituicaoUrl;
   final Color? corCustomizadaInstituicao;
@@ -16,28 +14,81 @@ class CarrosselPatrocinadores extends StatelessWidget {
   });
 
   @override
+  State<CarrosselPatrocinadores> createState() =>
+      _CarrosselPatrocinadoresState();
+}
+
+class _CarrosselPatrocinadoresState extends State<CarrosselPatrocinadores> {
+  final ScrollController _scrollController = ScrollController();
+  Timer? _timer;
+  bool _retornando = false;
+  static const Duration _intervalo = Duration(seconds: 3);
+  static const double _passo = 120.0;
+
+  @override
+  void initState() {
+    super.initState();
+    _timer = Timer.periodic(_intervalo, (_) => _scrollar());
+  }
+
+  @override
+  void dispose() {
+    _timer?.cancel();
+    _scrollController.dispose();
+    super.dispose();
+  }
+
+  void _scrollar() {
+    if (!_scrollController.hasClients) return;
+    final max = _scrollController.position.maxScrollExtent;
+    if (max <= 0) return;
+
+    if (_retornando) {
+      _scrollController.jumpTo(0.0);
+      _retornando = false;
+      return;
+    }
+
+    final atual = _scrollController.offset;
+    final proximo = atual + _passo;
+
+    if (proximo >= max) {
+      _scrollController.animateTo(
+        max,
+        duration: const Duration(milliseconds: 600),
+        curve: Curves.easeInOut,
+      );
+      _retornando = true;
+    } else {
+      _scrollController.animateTo(
+        proximo,
+        duration: const Duration(milliseconds: 600),
+        curve: Curves.easeInOut,
+      );
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
-    final corFundo = corCustomizadaInstituicao ?? Colors.blue.shade700;
+    final corFundo =
+        widget.corCustomizadaInstituicao ?? Colors.blue.shade700;
 
     final bool fundoEscuro =
         ThemeData.estimateBrightnessForColor(corFundo) == Brightness.dark;
     final Color corTextoEIcone = fundoEscuro ? Colors.white : Colors.black87;
 
-    // Monta a lista com patrocinadores válidos (máx 5)
-    final logosValidas = logosUrls
+    final logosValidas = widget.logosUrls
         .where((url) => url.trim().isNotEmpty)
         .take(5)
         .toList();
 
-    final List<Widget> itens = logosValidas
-        .map((url) => _buildLogoItem(url))
-        .toList();
+    final List<Widget> itens =
+        logosValidas.map((url) => _buildLogoItem(url)).toList();
 
-    // Preenche os slots restantes até 5 com: logo da instituição → Rumo Quiz
     int i = itens.length;
     while (i < 5) {
-      if (logoInstituicaoUrl.trim().isNotEmpty) {
-        itens.add(_buildLogoItem(logoInstituicaoUrl));
+      if (widget.logoInstituicaoUrl.trim().isNotEmpty) {
+        itens.add(_buildLogoItem(widget.logoInstituicaoUrl));
       } else {
         itens.add(
           _buildFallbackItem(Icons.school, 'Instituição', corTextoEIcone),
@@ -91,6 +142,7 @@ class CarrosselPatrocinadores extends StatelessWidget {
           const SizedBox(width: 12),
           Expanded(
             child: ListView.builder(
+              controller: _scrollController,
               scrollDirection: Axis.horizontal,
               itemCount: itens.length,
               itemBuilder: (context, index) => itens[index],
@@ -115,22 +167,18 @@ class CarrosselPatrocinadores extends StatelessWidget {
           url,
           height: 36,
           fit: BoxFit.contain,
-          errorBuilder: (context, error, stackTrace) => Container(
+          errorBuilder: (context, error, _) => Container(
             padding: const EdgeInsets.symmetric(horizontal: 8),
             color: Colors.grey.shade200,
             child: Row(
               mainAxisSize: MainAxisSize.min,
               children: [
-                Icon(
-                  Icons.broken_image_outlined,
-                  size: 14,
-                  color: Colors.grey.shade600,
-                ),
+                Icon(Icons.broken_image_outlined,
+                    size: 14, color: Colors.grey.shade600),
                 const SizedBox(width: 4),
-                Text(
-                  'Logo',
-                  style: TextStyle(fontSize: 10, color: Colors.grey.shade600),
-                ),
+                Text('Logo',
+                    style: TextStyle(
+                        fontSize: 10, color: Colors.grey.shade600)),
               ],
             ),
           ),
@@ -139,7 +187,8 @@ class CarrosselPatrocinadores extends StatelessWidget {
     );
   }
 
-  Widget _buildFallbackItem(IconData icone, String texto, Color corTexto) {
+  Widget _buildFallbackItem(
+      IconData icone, String texto, Color corTexto) {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 8.0),
       child: Container(

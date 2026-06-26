@@ -164,6 +164,7 @@ class _MainLayoutShellState extends State<MainLayoutShell> {
                   tipoAcesso: tipoAcesso,
                   corPrimaria: corPrimaria,
                   instituicaoId: _instituicaoIdAtual,
+                  logoInstituicaoUrl: logoInstituicaoUrl,
                 ),
           appBar: AppBar(
             backgroundColor: corPrimaria,
@@ -263,6 +264,7 @@ class _MainLayoutShellState extends State<MainLayoutShell> {
                     tipoAcesso: tipoAcesso,
                     corPrimaria: corPrimaria,
                     instituicaoId: _instituicaoIdAtual,
+                    logoInstituicaoUrl: logoInstituicaoUrl,
                   ),
                 ),
               if (isWeb) VerticalDivider(width: 1, color: Colors.grey.shade300),

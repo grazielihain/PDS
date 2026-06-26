@@ -373,21 +373,18 @@ class _AdminGamificacaoTabState extends State<AdminGamificacaoTab> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              const Text(
-                'Regras de Gamificação',
-                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-              ),
-              if (!_mostrarFormulario)
-                FilledButton.icon(
-                  onPressed: _abrirFormularioNovo,
-                  icon: const Icon(Icons.add),
-                  label: const Text('Nova Regra'),
-                ),
-            ],
+          const Text(
+            'Regras de Gamificação',
+            style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
           ),
+          if (!_mostrarFormulario) ...[
+            const SizedBox(height: 8),
+            FilledButton.icon(
+              onPressed: _abrirFormularioNovo,
+              icon: const Icon(Icons.add),
+              label: const Text('Nova Regra'),
+            ),
+          ],
           const SizedBox(height: 12),
 
           if (_mostrarFormulario) _buildFormulario(),

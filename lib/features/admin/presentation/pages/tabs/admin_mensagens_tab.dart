@@ -315,22 +315,18 @@ class _AdminMensagensTabState extends State<AdminMensagensTab> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Cabeçalho + botão nova mensagem
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              const Text(
-                'Mensagens de Resultado',
-                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-              ),
-              if (!_mostrarFormulario && !widget.somenteLeitura)
-                FilledButton.icon(
-                  onPressed: _abrirFormularioNovo,
-                  icon: const Icon(Icons.add),
-                  label: const Text('Nova Mensagem'),
-                ),
-            ],
+          const Text(
+            'Mensagens de Resultado',
+            style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
           ),
+          if (!_mostrarFormulario && !widget.somenteLeitura) ...[
+            const SizedBox(height: 8),
+            FilledButton.icon(
+              onPressed: _abrirFormularioNovo,
+              icon: const Icon(Icons.add),
+              label: const Text('Nova Mensagem'),
+            ),
+          ],
           const SizedBox(height: 12),
 
           // Formulário inline
@@ -468,7 +464,7 @@ class _AdminMensagensTabState extends State<AdminMensagensTab> {
                             widget.mascoteUrl,
                             height: 80,
                             fit: BoxFit.contain,
-                            errorBuilder: (_, _, _) => const Icon(
+                            errorBuilder: (context, error, _) => const Icon(
                               Icons.broken_image,
                               size: 48,
                               color: Colors.grey,

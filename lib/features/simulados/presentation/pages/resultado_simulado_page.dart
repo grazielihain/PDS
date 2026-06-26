@@ -18,6 +18,7 @@ class ResultadoSimuladoPage extends StatelessWidget {
   final int pontosGamificacao;
   final double taxaAcerto;
   final String mensagemFinalizacaoAdmin;
+  final String? imagemUrlMensagem;
   final List<RevisaoQuestaoModel> revisaoQuestoes;
   final int tempoUtilizadoSegundos;
   final bool isPorAssunto;
@@ -36,6 +37,7 @@ class ResultadoSimuladoPage extends StatelessWidget {
     required this.pontosGamificacao,
     required this.taxaAcerto,
     required this.mensagemFinalizacaoAdmin,
+    this.imagemUrlMensagem,
     required this.revisaoQuestoes,
     required this.tempoUtilizadoSegundos,
     this.isPorAssunto = false,
@@ -295,7 +297,7 @@ class ResultadoSimuladoPage extends StatelessWidget {
                   const SizedBox(height: 24),
 
                   // SEÇÃO 5: MENSAGEM DO ADMINISTRADOR
-                  if (mensagemFinalizacaoAdmin.isNotEmpty)
+                  if (mensagemFinalizacaoAdmin.isNotEmpty || (imagemUrlMensagem != null && imagemUrlMensagem!.isNotEmpty))
                     Container(
                       padding: const EdgeInsets.all(16),
                       decoration: BoxDecoration(
@@ -313,8 +315,22 @@ class ResultadoSimuladoPage extends StatelessWidget {
                               const Text('Mensagem da Coordenação', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
                             ],
                           ),
-                          const SizedBox(height: 8),
-                          Text(mensagemFinalizacaoAdmin, style: const TextStyle(color: Color(0xFF4B5563), fontSize: 14, height: 1.4)),
+                          if (imagemUrlMensagem != null && imagemUrlMensagem!.isNotEmpty) ...[
+                            const SizedBox(height: 12),
+                            ClipRRect(
+                              borderRadius: BorderRadius.circular(8),
+                              child: Image.network(
+                                imagemUrlMensagem!,
+                                width: double.infinity,
+                                fit: BoxFit.contain,
+                                errorBuilder: (context, error, _) => const SizedBox.shrink(),
+                              ),
+                            ),
+                          ],
+                          if (mensagemFinalizacaoAdmin.isNotEmpty) ...[
+                            const SizedBox(height: 8),
+                            Text(mensagemFinalizacaoAdmin, style: const TextStyle(color: Color(0xFF4B5563), fontSize: 14, height: 1.4)),
+                          ],
                         ],
                       ),
                     ),

@@ -428,10 +428,20 @@ class _AdminQuestoesTabState extends State<AdminQuestoesTab> {
 
     return Column(
       children: [
+        Container(
+          color: colorScheme.surfaceContainerLow,
+          padding: const EdgeInsets.fromLTRB(12, 12, 12, 0),
+          alignment: Alignment.centerRight,
+          child: FilledButton.icon(
+            onPressed: _formularioAberto ? null : _abrirFormularioNovo,
+            icon: const Icon(Icons.add),
+            label: const Text('Incluir Questão'),
+          ),
+        ),
         _buildBarraFiltros(colorScheme),
         if (_formularioAberto)
-          ConstrainedBox(
-            constraints: const BoxConstraints(maxHeight: 460),
+          Flexible(
+            flex: 2,
             child: _buildFormulario(colorScheme),
           ),
         Expanded(child: _buildListaQuestoes(colorScheme)),
@@ -443,17 +453,11 @@ class _AdminQuestoesTabState extends State<AdminQuestoesTab> {
     return Container(
       color: cs.surfaceContainerLow,
       padding: const EdgeInsets.all(12),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+      child: Wrap(
+        spacing: 12,
+        runSpacing: 8,
+        crossAxisAlignment: WrapCrossAlignment.center,
         children: [
-          Row(
-            children: [
-              Expanded(
-                child: Wrap(
-                  spacing: 12,
-                  runSpacing: 8,
-                  crossAxisAlignment: WrapCrossAlignment.center,
-                  children: [
                     Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
@@ -527,18 +531,6 @@ class _AdminQuestoesTabState extends State<AdminQuestoesTab> {
                               setState(() => _filtroAssuntoId = v),
                         ),
                       ),
-                  ],
-                ),
-              ),
-              const SizedBox(width: 8),
-              FilledButton.icon(
-                onPressed:
-                    _formularioAberto ? null : _abrirFormularioNovo,
-                icon: const Icon(Icons.add),
-                label: const Text('Incluir Questão'),
-              ),
-            ],
-          ),
         ],
       ),
     );
@@ -1051,34 +1043,40 @@ class _AdminQuestoesTabState extends State<AdminQuestoesTab> {
           children: [
             Row(
               children: [
-                if (catNome.isNotEmpty) ...[
-                  Chip(
-                    label: Text(catNome,
-                        style: const TextStyle(fontSize: 11)),
-                    padding: EdgeInsets.zero,
-                    materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                    backgroundColor: cs.secondaryContainer,
+                Expanded(
+                  child: Wrap(
+                    spacing: 6,
+                    runSpacing: 4,
+                    children: [
+                      if (catNome.isNotEmpty)
+                        Chip(
+                          label: Text(catNome,
+                              style: const TextStyle(fontSize: 11)),
+                          padding: EdgeInsets.zero,
+                          materialTapTargetSize:
+                              MaterialTapTargetSize.shrinkWrap,
+                          backgroundColor: cs.secondaryContainer,
+                        ),
+                      if (assuntoNome.isNotEmpty)
+                        Chip(
+                          label: Text(assuntoNome,
+                              style: const TextStyle(fontSize: 11)),
+                          padding: EdgeInsets.zero,
+                          materialTapTargetSize:
+                              MaterialTapTargetSize.shrinkWrap,
+                          backgroundColor: cs.primaryContainer,
+                        ),
+                      Chip(
+                        label: Text('$pontos pt${pontos != 1 ? "s" : ""}',
+                            style: const TextStyle(fontSize: 11)),
+                        padding: EdgeInsets.zero,
+                        materialTapTargetSize:
+                            MaterialTapTargetSize.shrinkWrap,
+                        backgroundColor: cs.tertiaryContainer,
+                      ),
+                    ],
                   ),
-                  const SizedBox(width: 6),
-                ],
-                if (assuntoNome.isNotEmpty) ...[
-                  Chip(
-                    label: Text(assuntoNome,
-                        style: const TextStyle(fontSize: 11)),
-                    padding: EdgeInsets.zero,
-                    materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                    backgroundColor: cs.primaryContainer,
-                  ),
-                  const SizedBox(width: 6),
-                ],
-                Chip(
-                  label: Text('$pontos pt${pontos != 1 ? "s" : ""}',
-                      style: const TextStyle(fontSize: 11)),
-                  padding: EdgeInsets.zero,
-                  materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                  backgroundColor: cs.tertiaryContainer,
                 ),
-                const Spacer(),
                 if (podeEditar) ...[
                   IconButton(
                     tooltip: 'Editar',

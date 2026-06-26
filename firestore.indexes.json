@@ -1,0 +1,61 @@
+{
+  "indexes": [
+    {
+      "collectionGroup": "auditoria",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "instituicaoId", "order": "ASCENDING" },
+        { "fieldPath": "dataHora", "order": "DESCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "questoes",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "instituicaoId", "order": "ASCENDING" },
+        { "fieldPath": "categoriaId", "order": "ASCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "questoes",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "instituicaoId", "order": "ASCENDING" },
+        { "fieldPath": "assuntoId", "order": "ASCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "questoes",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "instituicaoId", "order": "ASCENDING" },
+        { "fieldPath": "criadoPor", "order": "ASCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "assuntos",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "categoriaId", "order": "ASCENDING" },
+        { "fieldPath": "instituicaoId", "order": "ASCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "tipos_simulado",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "categoriaId", "order": "ASCENDING" },
+        { "fieldPath": "instituicaoId", "order": "ASCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "mensagens_resultado",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "instituicaoId", "order": "ASCENDING" },
+        { "fieldPath": "de", "order": "ASCENDING" }
+      ]
+    }
+  ],
+  "fieldOverrides": []
+}
