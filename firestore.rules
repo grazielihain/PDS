@@ -66,7 +66,7 @@ service cloud.firestore {
 
     // ── Categorias ────────────────────────────────────────────────────────────
     match /categorias/{catId} {
-      allow read: if isAuth();
+      allow read: if isAuth() && (isMaster() || resource.data.instituicaoId == myInstId());
       allow create: if isMaster()
         || (isAdmin() && request.resource.data.instituicaoId == myInstId());
       allow update, delete: if isMaster()
@@ -75,7 +75,7 @@ service cloud.firestore {
 
     // ── Assuntos ──────────────────────────────────────────────────────────────
     match /assuntos/{assId} {
-      allow read: if isAuth();
+      allow read: if isAuth() && (isMaster() || resource.data.instituicaoId == myInstId());
       allow create: if isMaster()
         || (isAdmin() && request.resource.data.instituicaoId == myInstId());
       allow update, delete: if isMaster()
@@ -84,7 +84,7 @@ service cloud.firestore {
 
     // ── Tipos de Simulado ─────────────────────────────────────────────────────
     match /tipos_simulado/{tipoId} {
-      allow read: if isAuth();
+      allow read: if isAuth() && (isMaster() || resource.data.instituicaoId == myInstId());
       allow create: if isMaster()
         || (isAdmin() && request.resource.data.instituicaoId == myInstId());
       allow update, delete: if isMaster()
@@ -93,7 +93,7 @@ service cloud.firestore {
 
     // ── Questões ──────────────────────────────────────────────────────────────
     match /questoes/{questId} {
-      allow read: if isAuth();
+      allow read: if isAuth() && (isMaster() || resource.data.instituicaoId == myInstId());
       allow create: if (isAdmin() || isAcess2())
         && request.resource.data.instituicaoId == myInstId();
       allow update: if isAdmin()
@@ -104,7 +104,7 @@ service cloud.firestore {
 
     // ── Mensagens de Resultado ────────────────────────────────────────────────
     match /mensagens_resultado/{msgId} {
-      allow read: if isAuth();
+      allow read: if isAuth() && (isMaster() || resource.data.instituicaoId == myInstId());
       allow create: if isMaster()
         || (isAdmin() && request.resource.data.instituicaoId == myInstId());
       allow update, delete: if isMaster()
@@ -113,7 +113,7 @@ service cloud.firestore {
 
     // ── Gamificação ───────────────────────────────────────────────────────────
     match /gamificacao/{regId} {
-      allow read: if isAuth();
+      allow read: if isAuth() && (isMaster() || resource.data.instituicaoId == myInstId());
       allow create: if isMaster()
         || (isAdmin() && request.resource.data.instituicaoId == myInstId());
       allow update, delete: if isMaster()

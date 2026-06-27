@@ -5,12 +5,14 @@ class CarrosselPatrocinadores extends StatefulWidget {
   final List<String> logosUrls;
   final String logoInstituicaoUrl;
   final Color? corCustomizadaInstituicao;
+  final bool somenteMarca;
 
   const CarrosselPatrocinadores({
     super.key,
     this.logosUrls = const [],
     this.logoInstituicaoUrl = '',
     this.corCustomizadaInstituicao,
+    this.somenteMarca = false,
   });
 
   @override
@@ -77,27 +79,32 @@ class _CarrosselPatrocinadoresState extends State<CarrosselPatrocinadores> {
         ThemeData.estimateBrightnessForColor(corFundo) == Brightness.dark;
     final Color corTextoEIcone = fundoEscuro ? Colors.white : Colors.black87;
 
-    final logosValidas = widget.logosUrls
-        .where((url) => url.trim().isNotEmpty)
-        .take(5)
-        .toList();
+    // Modo Master: exibe apenas a logo da Rumo Quiz sem dados de instituição
+    final List<Widget> itens;
+    if (widget.somenteMarca) {
+      itens = List.generate(5, (_) => _buildLogoRumoQuizItem());
+    } else {
+      final logosValidas = widget.logosUrls
+          .where((url) => url.trim().isNotEmpty)
+          .take(5)
+          .toList();
 
-    final List<Widget> itens =
-        logosValidas.map((url) => _buildLogoItem(url)).toList();
+      itens = logosValidas.map((url) => _buildLogoItem(url)).toList();
 
-    int i = itens.length;
-    while (i < 5) {
-      if (widget.logoInstituicaoUrl.trim().isNotEmpty) {
-        itens.add(_buildLogoItem(widget.logoInstituicaoUrl));
-      } else {
-        itens.add(
-          _buildFallbackItem(Icons.school, 'Instituição', corTextoEIcone),
-        );
-      }
-      i++;
-      if (i < 5) {
-        itens.add(_buildLogoRumoQuizItem());
+      int i = itens.length;
+      while (i < 5) {
+        if (widget.logoInstituicaoUrl.trim().isNotEmpty) {
+          itens.add(_buildLogoItem(widget.logoInstituicaoUrl));
+        } else {
+          itens.add(
+            _buildFallbackItem(Icons.school, 'Instituição', corTextoEIcone),
+          );
+        }
         i++;
+        if (i < 5) {
+          itens.add(_buildLogoRumoQuizItem());
+          i++;
+        }
       }
     }
 

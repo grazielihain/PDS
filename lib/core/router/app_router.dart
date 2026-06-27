@@ -18,15 +18,57 @@ import '../../features/simulados/presentation/pages/simulado_page.dart';
 import 'package:rumo_quiz/features/admin/presentation/pages/painel_admin_page.dart';
 import 'package:rumo_quiz/features/admin/presentation/pages/painel_master_page.dart';
 
+/// Cache de role para redirect síncrono do GoRouter.
+/// Atualizado pelo MainLayoutShell assim que o documento do usuário carrega.
+class UserRoleCache extends ChangeNotifier {
+  static final UserRoleCache _instance = UserRoleCache._();
+  factory UserRoleCache() => _instance;
+  UserRoleCache._();
+
+  String? _role;
+  String? get role => _role;
+
+  void update(String role) {
+    if (_role != role) {
+      _role = role;
+      notifyListeners();
+    }
+  }
+
+  void clear() {
+    _role = null;
+    notifyListeners();
+  }
+}
+
 class AppRouter {
   static final _publicRoutes = {'/login'};
+  static final _adminRoutes = {'/admin-painel', '/admin'};
+  static final _masterRoutes = {'/master-painel'};
 
   static final GoRouter router = GoRouter(
     initialLocation: '/login',
+    refreshListenable: UserRoleCache(),
     redirect: (context, state) {
       final user = FirebaseAuth.instance.currentUser;
       final isPublic = _publicRoutes.contains(state.matchedLocation);
       if (user == null && !isPublic) return '/login';
+
+      if (user != null) {
+        final role = UserRoleCache().role;
+        // Só aplica restrição quando o role já foi carregado
+        if (role != null) {
+          final path = state.matchedLocation;
+          if (_masterRoutes.contains(path) && role != 'Master') {
+            return role == 'Admin' || role == 'Acess2'
+                ? '/admin-painel'
+                : '/quiz-selection';
+          }
+          if (_adminRoutes.contains(path) && role == 'Acess3') {
+            return '/quiz-selection';
+          }
+        }
+      }
       return null;
     },
     routes: [

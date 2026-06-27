@@ -6,6 +6,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../../../shared/widgets/organisms/menu_lateral_organism.dart';
 import 'package:rumo_quiz/shared/widgets/organisms/carrossel_patrocinadores.dart';
+import 'package:rumo_quiz/core/router/app_router.dart';
 
 class MainLayoutShell extends StatefulWidget {
   final Widget child;
@@ -22,6 +23,7 @@ class _MainLayoutShellState extends State<MainLayoutShell> {
   Map<String, dynamic>? _dadosUsuario;
   bool _carregandoUsuario = true;
   StreamSubscription<DocumentSnapshot>? _usuarioSubscription;
+  bool _dialogPrimeiroAcessoMostrado = false;
 
   // Dados da instituição vinculada ao usuário
   Map<String, dynamic>? _dadosInstituicao;
@@ -65,14 +67,36 @@ class _MainLayoutShellState extends State<MainLayoutShell> {
             _carregandoUsuario = false;
           });
 
+          // Alimenta o cache de role após o frame atual para evitar rebuild em cascata
+          final roleAtual = (dados['role'] ?? 'Acess3').toString().trim();
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            UserRoleCache().update(roleAtual);
+          });
+
           // Quando a instituição do usuário mudar, recarrega os dados dela
           final novoId = (dados['instituicaoId'] ?? '').toString();
           if (novoId.isNotEmpty && novoId != _instituicaoIdAtual) {
             _instituicaoIdAtual = novoId;
             _escutarInstituicao(novoId);
           }
+
+          // Primeiro acesso: sugere troca de senha (delay garante que a navegação já concluiu)
+          final primeiroAcesso = dados['primeiroAcesso'] as bool? ?? false;
+          if (primeiroAcesso && !_dialogPrimeiroAcessoMostrado) {
+            _dialogPrimeiroAcessoMostrado = true;
+            Future.delayed(const Duration(milliseconds: 600), () {
+              if (mounted) _mostrarDialogoPrimeiroAcesso(user.uid);
+            });
+          }
         } else {
+          // Documento removido: conta desativada — forçar logout
           setState(() => _carregandoUsuario = false);
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            if (!mounted) return;
+            UserRoleCache().clear();
+            FirebaseAuth.instance.signOut();
+            context.go('/login');
+          });
         }
       },
       onError: (error) {
@@ -98,6 +122,57 @@ class _MainLayoutShellState extends State<MainLayoutShell> {
         }
       },
       onError: (e) => debugPrint('Erro no stream da instituição: $e'),
+    );
+  }
+
+  Future<void> _mostrarDialogoPrimeiroAcesso(String uid) async {
+    Future<void> marcarConcluido() => FirebaseFirestore.instance
+        .collection('usuarios')
+        .doc(uid)
+        .update({'primeiroAcesso': false});
+
+    await showDialog<void>(
+      context: context,
+      barrierDismissible: false,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: const Row(
+          children: [
+            Icon(Icons.lock_outline, color: Color(0xFF1E3A8A)),
+            SizedBox(width: 10),
+            Text('Bem-vindo ao Rumo Quiz!'),
+          ],
+        ),
+        content: const Text(
+          'Esta é sua primeira vez acessando o sistema. '
+          'Recomendamos que você altere a senha padrão cadastrada pelo administrador '
+          'por uma senha pessoal para maior segurança.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () async {
+              Navigator.of(ctx).pop();
+              await marcarConcluido();
+            },
+            child: const Text('Lembrar depois'),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFF1E3A8A),
+              foregroundColor: Colors.white,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(8),
+              ),
+            ),
+            onPressed: () async {
+              Navigator.of(ctx).pop();
+              await marcarConcluido();
+              if (mounted) context.go('/perfil');
+            },
+            child: const Text('Alterar senha agora'),
+          ),
+        ],
+      ),
     );
   }
 
@@ -193,33 +268,57 @@ class _MainLayoutShellState extends State<MainLayoutShell> {
                       width: 1, height: 28, color: corTextoAppBar.withAlpha(80)),
                   const SizedBox(width: 8),
                 ],
-                if (logoInstituicaoUrl.isNotEmpty) ...[
-                  Image.network(
-                    logoInstituicaoUrl,
-                    height: 32,
-                    fit: BoxFit.contain,
-                    errorBuilder: (c, e, s) => Icon(
-                      Icons.school_outlined,
-                      color: corTextoAppBar,
+                if (tipoAcesso == 'Master') ...[
+                  // Master: exibe apenas a marca Rumo Quiz no cabeçalho
+                  if (!isWeb)
+                    Image.asset(
+                      'assets/images/logo_rumo_quiz_sem_slogan.png',
+                      height: 28,
+                      fit: BoxFit.contain,
+                      errorBuilder: (_, _, _) => const SizedBox.shrink(),
+                    ),
+                  if (!isWeb) const SizedBox(width: 8),
+                  Flexible(
+                    child: Text(
+                      'Portal Master',
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 16,
+                        color: corTextoAppBar,
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
                     ),
                   ),
-                  const SizedBox(width: 10),
                 ] else ...[
-                  Icon(Icons.school_outlined, color: corTextoAppBar),
-                  const SizedBox(width: 8),
-                ],
-                Flexible(
-                  child: Text(
-                    nomeInstituicao,
-                    style: TextStyle(
-                      fontWeight: FontWeight.bold,
-                      fontSize: 16,
-                      color: corTextoAppBar,
+                  if (logoInstituicaoUrl.isNotEmpty) ...[
+                    Image.network(
+                      logoInstituicaoUrl,
+                      height: 32,
+                      fit: BoxFit.contain,
+                      errorBuilder: (c, e, s) => Icon(
+                        Icons.school_outlined,
+                        color: corTextoAppBar,
+                      ),
                     ),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
+                    const SizedBox(width: 10),
+                  ] else ...[
+                    Icon(Icons.school_outlined, color: corTextoAppBar),
+                    const SizedBox(width: 8),
+                  ],
+                  Flexible(
+                    child: Text(
+                      nomeInstituicao,
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 16,
+                        color: corTextoAppBar,
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
                   ),
-                ),
+                ],
               ],
             ),
             actions: [
@@ -255,6 +354,7 @@ class _MainLayoutShellState extends State<MainLayoutShell> {
                 onPressed: () async {
                   _usuarioSubscription?.cancel();
                   _instituicaoSubscription?.cancel();
+                  UserRoleCache().clear();
                   await FirebaseAuth.instance.signOut();
                   if (context.mounted) context.go('/login');
                 },
@@ -284,9 +384,10 @@ class _MainLayoutShellState extends State<MainLayoutShell> {
             ],
           ),
           bottomNavigationBar: CarrosselPatrocinadores(
-            logosUrls: patrocinadoresUrls,
-            logoInstituicaoUrl: logoInstituicaoUrl,
+            logosUrls: tipoAcesso == 'Master' ? const [] : patrocinadoresUrls,
+            logoInstituicaoUrl: tipoAcesso == 'Master' ? '' : logoInstituicaoUrl,
             corCustomizadaInstituicao: corPrimaria,
+            somenteMarca: tipoAcesso == 'Master',
           ),
         );
       },

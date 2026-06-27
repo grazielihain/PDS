@@ -424,6 +424,7 @@ class _PainelAdminPageState extends ConsumerState<PainelAdminPage>
         'avatarEmoji': '🦁',
         'pontuacaoAcumulada': 0,
         'criadoPor': FirebaseAuth.instance.currentUser?.uid ?? 'Admin',
+        'primeiroAcesso': true,
       };
 
       await _db.collection('usuarios').doc(uid).set(novoUserMap);

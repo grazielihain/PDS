@@ -195,7 +195,12 @@ class _AdminQuestoesTabState extends ConsumerState<AdminQuestoesTab> {
         alts.map((a) => TextEditingController(text: a)).toList();
 
     if (_formCategoriaId != null) {
-      _assuntosForm = await _carregarAssuntos(_formCategoriaId!);
+      try {
+        _assuntosForm = await _carregarAssuntos(_formCategoriaId!);
+      } catch (e) {
+        _assuntosForm = [];
+        _mostrarErro('Erro ao carregar assuntos: $e');
+      }
     }
 
     setState(() => _formularioAberto = true);
@@ -689,8 +694,12 @@ class _AdminQuestoesTabState extends ConsumerState<AdminQuestoesTab> {
                 _assuntosForm = [];
               });
               if (v != null) {
-                final assuntos = await _carregarAssuntos(v);
-                if (mounted) setState(() => _assuntosForm = assuntos);
+                try {
+                  final assuntos = await _carregarAssuntos(v);
+                  if (mounted) setState(() => _assuntosForm = assuntos);
+                } catch (e) {
+                  _mostrarErro('Erro ao carregar assuntos: $e');
+                }
               }
             },
             validator: (v) => v == null ? 'Selecione a categoria' : null,

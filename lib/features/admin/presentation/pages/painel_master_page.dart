@@ -1341,6 +1341,7 @@ class _DialogVerUsuariosState extends State<_DialogVerUsuarios> {
         'avatarEmoji': '🦁',
         'pontuacaoAcumulada': 0,
         'criadoPor': FirebaseAuth.instance.currentUser?.uid ?? 'Master',
+        'primeiroAcesso': true,
       };
       await widget.db.collection('usuarios').doc(uid).set(novoUserMap);
       await widget.registrarAuditoria(
@@ -1801,48 +1802,45 @@ class _DialogVerUsuariosState extends State<_DialogVerUsuarios> {
                             u['email'] ?? '-',
                             style: const TextStyle(fontSize: 12),
                           ),
-                          trailing: SizedBox(
-                            width: 110,
-                            child: Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                Chip(
-                                  label: Text(
-                                    role,
-                                    style: const TextStyle(
-                                      color: Colors.white,
-                                      fontSize: 10,
-                                    ),
+                          trailing: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Chip(
+                                label: Text(
+                                  role,
+                                  style: const TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 10,
                                   ),
-                                  backgroundColor: roleColor,
-                                  padding: EdgeInsets.zero,
-                                  labelPadding: const EdgeInsets.symmetric(
-                                      horizontal: 4),
-                                  materialTapTargetSize:
-                                      MaterialTapTargetSize.shrinkWrap,
                                 ),
-                                IconButton(
-                                  icon: const Icon(Icons.edit_outlined,
-                                      size: 18, color: Colors.blueGrey),
-                                  tooltip: 'Editar',
-                                  padding: EdgeInsets.zero,
-                                  constraints: const BoxConstraints(
-                                      minWidth: 28, minHeight: 28),
-                                  onPressed: () =>
-                                      _abrirDialogEditarUsuario(doc.id, u),
-                                ),
-                                IconButton(
-                                  icon: const Icon(Icons.delete_outline,
-                                      size: 18, color: Colors.red),
-                                  tooltip: 'Excluir',
-                                  padding: EdgeInsets.zero,
-                                  constraints: const BoxConstraints(
-                                      minWidth: 28, minHeight: 28),
-                                  onPressed: () => _excluirUsuario(
-                                      doc.id, u['nome'] ?? '-'),
-                                ),
-                              ],
-                            ),
+                                backgroundColor: roleColor,
+                                padding: EdgeInsets.zero,
+                                labelPadding: const EdgeInsets.symmetric(
+                                    horizontal: 6),
+                                materialTapTargetSize:
+                                    MaterialTapTargetSize.shrinkWrap,
+                              ),
+                              IconButton(
+                                icon: const Icon(Icons.edit_outlined,
+                                    size: 18, color: Colors.blueGrey),
+                                tooltip: 'Editar',
+                                padding: EdgeInsets.zero,
+                                constraints: const BoxConstraints(
+                                    minWidth: 32, minHeight: 32),
+                                onPressed: () =>
+                                    _abrirDialogEditarUsuario(doc.id, u),
+                              ),
+                              IconButton(
+                                icon: const Icon(Icons.delete_outline,
+                                    size: 18, color: Colors.red),
+                                tooltip: 'Excluir',
+                                padding: EdgeInsets.zero,
+                                constraints: const BoxConstraints(
+                                    minWidth: 32, minHeight: 32),
+                                onPressed: () => _excluirUsuario(
+                                    doc.id, u['nome'] ?? '-'),
+                              ),
+                            ],
                           ),
                         ),
                       );

@@ -266,6 +266,40 @@ class _SimuladoPageState extends ConsumerState<SimuladoPage> {
     }
   }
 
+  Future<void> _confirmarSairSemConcluir() async {
+    final confirmar = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Sair sem concluir?'),
+        content: const Text(
+          'Ao sair, o progresso desta prova será descartado.\n'
+          'Nenhum ponto será computado e o simulado não será registrado no histórico.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Continuar prova'),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.grey.shade700,
+              foregroundColor: Colors.white,
+              shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(8)),
+            ),
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('Sair sem salvar'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmar == true && mounted) {
+      ref.read(quizSessionProvider.notifier).resetarSimulado();
+      context.go('/quiz-selection');
+    }
+  }
+
   String _formatarTempo(int s) {
     final m = s ~/ 60;
     final seg = s % 60;
@@ -759,32 +793,59 @@ class _SimuladoPageState extends ConsumerState<SimuladoPage> {
                       ),
                     ),
 
-                    // ── BOTÃO FINALIZAR ────────────────────────────────
-                    SizedBox(
-                      width: double.infinity,
-                      height: 44,
-                      child: ElevatedButton.icon(
-                        icon: const Icon(Icons.check_circle_outline,
-                            color: Colors.white, size: 18),
-                        label: Text(
-                          isMobile
-                              ? 'Finalizar ($respondidas/$totalQuestoes)'
-                              : 'Finalizar Prova — $respondidas de $totalQuestoes respondidas',
-                          style: const TextStyle(
-                              color: Colors.white,
-                              fontWeight: FontWeight.bold),
+                    // ── BOTÕES FINALIZAR / SAIR SEM CONCLUIR ──────────
+                    Row(
+                      children: [
+                        Expanded(
+                          child: SizedBox(
+                            height: 44,
+                            child: OutlinedButton.icon(
+                              icon: const Icon(Icons.exit_to_app, size: 18),
+                              label: Text(
+                                isMobile ? 'Sair' : 'Sair sem concluir',
+                                style: const TextStyle(
+                                    fontWeight: FontWeight.w500),
+                              ),
+                              onPressed: _confirmarSairSemConcluir,
+                              style: OutlinedButton.styleFrom(
+                                foregroundColor: Colors.grey.shade700,
+                                side: BorderSide(color: Colors.grey.shade400),
+                                shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(8)),
+                              ),
+                            ),
+                          ),
                         ),
-                        onPressed: () => _confirmarFinalizar(
-                          sessionState: sessionState,
-                          controllerNotifier: controllerNotifier,
+                        const SizedBox(width: 10),
+                        Expanded(
+                          flex: 2,
+                          child: SizedBox(
+                            height: 44,
+                            child: ElevatedButton.icon(
+                              icon: const Icon(Icons.check_circle_outline,
+                                  color: Colors.white, size: 18),
+                              label: Text(
+                                isMobile
+                                    ? 'Finalizar ($respondidas/$totalQuestoes)'
+                                    : 'Finalizar Prova — $respondidas de $totalQuestoes respondidas',
+                                style: const TextStyle(
+                                    color: Colors.white,
+                                    fontWeight: FontWeight.bold),
+                              ),
+                              onPressed: () => _confirmarFinalizar(
+                                sessionState: sessionState,
+                                controllerNotifier: controllerNotifier,
+                              ),
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: const Color(0xFF10B981),
+                                shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(8)),
+                                elevation: 0,
+                              ),
+                            ),
+                          ),
                         ),
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: const Color(0xFF10B981),
-                          shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(8)),
-                          elevation: 0,
-                        ),
-                      ),
+                      ],
                     ),
                   ],
                 ),
