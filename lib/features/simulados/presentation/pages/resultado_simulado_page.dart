@@ -70,19 +70,13 @@ class ResultadoSimuladoPage extends StatelessWidget {
         backgroundColor: Colors.white,
         elevation: 1,
         automaticallyImplyLeading: false,
-        title: Row(
-          children: [
-            const Icon(Icons.school, color: Color(0xFF1E3A8A), size: 28),
-            const SizedBox(width: 8),
-            Text(
-              'Rumo Quiz',
-              style: TextStyle(
-                color: const Color(0xFF1E3A8A),
-                fontWeight: FontWeight.bold,
-                fontSize: isMobile ? 18 : 22,
-              ),
-            ),
-          ],
+        title: Text(
+          'Resultado de Simulado',
+          style: TextStyle(
+            color: const Color(0xFF1E3A8A),
+            fontWeight: FontWeight.bold,
+            fontSize: isMobile ? 18 : 22,
+          ),
         ),
       ),
       body: SafeArea(

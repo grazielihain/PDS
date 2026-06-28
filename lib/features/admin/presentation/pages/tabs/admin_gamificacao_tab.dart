@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../providers/admin_provider.dart';
+import 'package:rumo_quiz/shared/widgets/tab_page_header.dart';
 
 class AdminGamificacaoTab extends ConsumerStatefulWidget {
   final String instituicaoId;
@@ -368,32 +369,35 @@ class _AdminGamificacaoTabState extends ConsumerState<AdminGamificacaoTab> {
 
   @override
   Widget build(BuildContext context) {
-    return SingleChildScrollView(
-      padding: const EdgeInsets.all(16),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const Text(
-            'Regras de Gamificação',
-            style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-          ),
-          if (!_mostrarFormulario) ...[
-            const SizedBox(height: 8),
-            FilledButton.icon(
-              onPressed: _abrirFormularioNovo,
-              icon: const Icon(Icons.add),
-              label: const Text('Nova Regra'),
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        tabPageHeader(
+          'Gamificação',
+          'Configure pontuações e regras de gamificação dos simulados.',
+        ),
+        Expanded(
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                if (!_mostrarFormulario) ...[
+                  FilledButton.icon(
+                    onPressed: _abrirFormularioNovo,
+                    icon: const Icon(Icons.add),
+                    label: const Text('Nova Regra'),
+                  ),
+                  const SizedBox(height: 12),
+                ],
+                if (_mostrarFormulario) _buildFormulario(),
+                const SizedBox(height: 16),
+                _buildLista(),
+              ],
             ),
-          ],
-          const SizedBox(height: 12),
-
-          if (_mostrarFormulario) _buildFormulario(),
-
-          const SizedBox(height: 16),
-
-          _buildLista(),
-        ],
-      ),
+          ),
+        ),
+      ],
     );
   }
 

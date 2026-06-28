@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:rumo_quiz/shared/widgets/tab_page_header.dart';
 import '../../providers/admin_provider.dart';
 
 class AdminCategoriasTab extends ConsumerStatefulWidget {
@@ -276,73 +277,71 @@ class _AdminCategoriasTabState extends ConsumerState<AdminCategoriasTab> {
 
   @override
   Widget build(BuildContext context) {
-    return SingleChildScrollView(
-      padding: const EdgeInsets.all(16),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                'Categorias e Conteúdo',
-                style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-              if (_isAdmin) ...[
-                const SizedBox(height: 8),
-                FilledButton.icon(
-                  onPressed: _abrirDialogCategoria,
-                  icon: const Icon(Icons.add, size: 18),
-                  label: const Text('Nova Categoria'),
-                ),
-              ],
-            ],
-          ),
-          if (!_isAdmin)
-            Padding(
-              padding: const EdgeInsets.only(top: 8, bottom: 4),
-              child: Text(
-                'Modo somente leitura. Apenas o Admin pode criar, editar ou excluir.',
-                style: TextStyle(
-                  color: Colors.orange.shade700,
-                  fontSize: 12,
-                  fontStyle: FontStyle.italic,
-                ),
-              ),
-            ),
-          const SizedBox(height: 16),
-          StreamBuilder<QuerySnapshot>(
-            stream: _categoriasStream,
-            builder: (context, snap) {
-              if (snap.hasError) {
-                return Center(
-                  child: Text('Erro ao carregar: ${snap.error}'),
-                );
-              }
-              if (snap.connectionState == ConnectionState.waiting) {
-                return const Center(child: CircularProgressIndicator());
-              }
-              final docs = snap.data?.docs ?? [];
-              if (docs.isEmpty) {
-                return const Center(
-                  child: Padding(
-                    padding: EdgeInsets.symmetric(vertical: 40),
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        tabPageHeader(
+          'Categorias',
+          'Gerencie as categorias e assuntos do banco de questões.',
+        ),
+        Expanded(
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                if (_isAdmin)
+                  FilledButton.icon(
+                    onPressed: _abrirDialogCategoria,
+                    icon: const Icon(Icons.add, size: 18),
+                    label: const Text('Nova Categoria'),
+                  ),
+                if (!_isAdmin)
+                  Padding(
+                    padding: const EdgeInsets.only(top: 8, bottom: 4),
                     child: Text(
-                      'Nenhuma categoria cadastrada.',
-                      style: TextStyle(color: Colors.grey),
+                      'Modo somente leitura. Apenas o Admin pode criar, editar ou excluir.',
+                      style: TextStyle(
+                        color: Colors.orange.shade700,
+                        fontSize: 12,
+                        fontStyle: FontStyle.italic,
+                      ),
                     ),
                   ),
-                );
-              }
-              return Column(
-                children: docs.map(_buildCategoriaCard).toList(),
-              );
-            },
+                const SizedBox(height: 16),
+                StreamBuilder<QuerySnapshot>(
+                  stream: _categoriasStream,
+                  builder: (context, snap) {
+                    if (snap.hasError) {
+                      return Center(
+                        child: Text('Erro ao carregar: ${snap.error}'),
+                      );
+                    }
+                    if (snap.connectionState == ConnectionState.waiting) {
+                      return const Center(child: CircularProgressIndicator());
+                    }
+                    final docs = snap.data?.docs ?? [];
+                    if (docs.isEmpty) {
+                      return const Center(
+                        child: Padding(
+                          padding: EdgeInsets.symmetric(vertical: 40),
+                          child: Text(
+                            'Nenhuma categoria cadastrada.',
+                            style: TextStyle(color: Colors.grey),
+                          ),
+                        ),
+                      );
+                    }
+                    return Column(
+                      children: docs.map(_buildCategoriaCard).toList(),
+                    );
+                  },
+                ),
+              ],
+            ),
           ),
-        ],
-      ),
+        ),
+      ],
     );
   }
 

@@ -9,6 +9,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../providers/admin_provider.dart';
 
+import '../../../../../shared/widgets/tab_page_header.dart';
 import '../../../auth/presentation/pages/meu_perfil_page.dart';
 import 'tabs/admin_categorias_tab.dart';
 import 'tabs/admin_gamificacao_tab.dart';
@@ -626,24 +627,22 @@ class _PainelAdminPageState extends ConsumerState<PainelAdminPage> {
     final uid = FirebaseAuth.instance.currentUser?.uid;
     final inst = widget.substituicaoInstituicaoId;
 
-    return SingleChildScrollView(
-      padding: const EdgeInsets.all(16),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            _roleCriador == 'Acess2'
-                ? 'Painel Acess2'
-                : 'Painel do Administrador',
-            style:
-                const TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
-          ),
-          const Text(
-            'Gerencie conteúdo e acompanhe resultados.',
-            style: TextStyle(color: Colors.grey),
-          ),
-          const SizedBox(height: 20),
-          LayoutBuilder(builder: (context, constraints) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        tabPageHeader(
+          'Home',
+          _roleCriador == 'Acess2'
+              ? 'Acompanhe seus indicadores de conteúdo e alunos cadastrados.'
+              : 'Visão geral com os principais indicadores da instituição.',
+        ),
+        Expanded(
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                LayoutBuilder(builder: (context, constraints) {
             final full = constraints.maxWidth < 600;
             final w = full ? constraints.maxWidth : 220.0;
             return Wrap(
@@ -700,9 +699,12 @@ class _PainelAdminPageState extends ConsumerState<PainelAdminPage> {
                   ),
               ],
             );
-          }),
-        ],
-      ),
+                }),
+              ],
+            ),
+          ),
+        ),
+      ],
     );
   }
 
@@ -763,13 +765,21 @@ class _PainelAdminPageState extends ConsumerState<PainelAdminPage> {
   // ─────────────────────────── PAINEL ADMINISTRATIVO ────────────────────────
 
   Widget _buildPainelAdministrativo() {
-    return SingleChildScrollView(
-      padding: const EdgeInsets.all(16),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // ── Identidade Visual ──
-          const Text('Identidade Visual',
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        tabPageHeader(
+          'Painel Admin',
+          'Configure a identidade visual e os patrocinadores da instituição.',
+        ),
+        Expanded(
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // ── Identidade Visual ──
+                const Text('Identidade Visual',
               style:
                   TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
           const SizedBox(height: 16),
@@ -1029,8 +1039,11 @@ class _PainelAdminPageState extends ConsumerState<PainelAdminPage> {
                         'Salvar ${_patrocinadorBytes.length} Logo(s) de Patrocinador'),
               ),
             ),
-        ],
-      ),
+              ],
+            ),
+          ),
+        ),
+      ],
     );
   }
 
@@ -1181,7 +1194,16 @@ class _PainelAdminPageState extends ConsumerState<PainelAdminPage> {
   // ─────────────────────────── USUÁRIOS ─────────────────────────────────────
 
   Widget _buildUsuarios() {
-    return LayoutBuilder(builder: (context, constraints) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        tabPageHeader(
+          'Usuários',
+          _roleCriador == 'Admin'
+              ? 'Cadastre e gerencie todos os usuários da instituição.'
+              : 'Gerencie os alunos que você cadastrou.',
+        ),
+        Expanded(child: LayoutBuilder(builder: (context, constraints) {
       final isMobile = constraints.maxWidth < 700;
       final uid = FirebaseAuth.instance.currentUser?.uid;
 
@@ -1523,13 +1545,23 @@ class _PainelAdminPageState extends ConsumerState<PainelAdminPage> {
           ],
         ),
       );
-    });
+        })),
+      ],
+    );
   }
 
   // ─────────────────────────── AUDITORIA VIEW ───────────────────────────────
 
   Widget _buildAuditoria() {
-    return StreamBuilder<QuerySnapshot>(
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        tabPageHeader(
+          'Auditoria',
+          'Histórico das ações realizadas no painel administrativo.',
+        ),
+        Expanded(
+          child: StreamBuilder<QuerySnapshot>(
       stream: _auditoriaStream,
       builder: (context, snap) {
         if (snap.hasError) {
@@ -1627,6 +1659,9 @@ class _PainelAdminPageState extends ConsumerState<PainelAdminPage> {
           ),
         );
       },
+          ),
+        ),
+      ],
     );
   }
 }

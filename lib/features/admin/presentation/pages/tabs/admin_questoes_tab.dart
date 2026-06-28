@@ -7,6 +7,7 @@ import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../providers/admin_provider.dart';
+import 'package:rumo_quiz/shared/widgets/tab_page_header.dart';
 
 class AdminQuestoesTab extends ConsumerStatefulWidget {
   final String instituicaoId;
@@ -426,6 +427,10 @@ class _AdminQuestoesTabState extends ConsumerState<AdminQuestoesTab> {
 
       return Column(
         children: [
+          tabPageHeader(
+            'Questões',
+            'Cadastre, edite e exclua questões do banco de dados.',
+          ),
           Container(
             color: colorScheme.surfaceContainerLow,
             padding: const EdgeInsets.fromLTRB(12, 12, 12, 0),

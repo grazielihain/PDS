@@ -6,6 +6,7 @@ import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:file_picker/file_picker.dart';
 import '../../../auth/presentation/pages/meu_perfil_page.dart';
+import 'package:rumo_quiz/shared/widgets/tab_page_header.dart';
 
 class PainelMasterPage extends StatefulWidget {
   final int initialTab;
@@ -373,21 +374,14 @@ class _PainelMasterPageState extends State<PainelMasterPage>
 
   Widget _buildHome() {
     return SingleChildScrollView(
-      padding: const EdgeInsets.all(16),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text(
-            'Painel Master',
-            style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
-          ),
-          const Text(
-            'Visão geral de todas as instituições e usuários.',
-            style: TextStyle(color: Colors.grey),
-          ),
-          const SizedBox(height: 20),
-          StreamBuilder<QuerySnapshot>(
-            stream: _db.collection('usuarios').snapshots(),
+          tabPageHeader('Home', 'Visão geral de todas as instituições e usuários.'),
+          Padding(
+            padding: const EdgeInsets.all(16),
+            child: StreamBuilder<QuerySnapshot>(
+              stream: _db.collection('usuarios').snapshots(),
             builder: (context, snapUsuarios) {
               return StreamBuilder<QuerySnapshot>(
                 stream: _db.collection('instituicoes').snapshots(),
@@ -458,6 +452,7 @@ class _PainelMasterPageState extends State<PainelMasterPage>
               );
             },
           ),
+          ),
         ],
       ),
     );
@@ -522,16 +517,13 @@ class _PainelMasterPageState extends State<PainelMasterPage>
   Widget _buildInstituicoes() {
     return Column(
       children: [
+        tabPageHeader('Instituições', 'Cadastre e gerencie as instituições da plataforma.'),
         // Barra de ação
         Padding(
-          padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+          padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Text(
-                'Instituições Cadastradas',
-                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-              ),
               if (!_mostrarFormInstituicao) ...[
                 const SizedBox(height: 8),
                 FilledButton.icon(
@@ -1106,24 +1098,7 @@ class _PainelMasterPageState extends State<PainelMasterPage>
   Widget _buildAuditoria() {
     return Column(
       children: [
-        Padding(
-          padding: const EdgeInsets.all(16),
-          child: Row(
-            children: [
-              const Text(
-                'Registros de Auditoria',
-                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-              ),
-              const Spacer(),
-              const Icon(Icons.info_outline, size: 16, color: Colors.grey),
-              const SizedBox(width: 4),
-              const Text(
-                'Todas as instituições',
-                style: TextStyle(fontSize: 12, color: Colors.grey),
-              ),
-            ],
-          ),
-        ),
+        tabPageHeader('Auditoria', 'Histórico das ações realizadas em todas as instituições.'),
         Expanded(
           child: StreamBuilder<QuerySnapshot>(
             stream: _db

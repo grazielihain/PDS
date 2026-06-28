@@ -5,6 +5,7 @@ import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../providers/admin_provider.dart';
+import 'package:rumo_quiz/shared/widgets/tab_page_header.dart';
 
 class AdminMensagensTab extends ConsumerStatefulWidget {
   final String instituicaoId;
@@ -307,34 +308,36 @@ class _AdminMensagensTabState extends ConsumerState<AdminMensagensTab> {
 
   @override
   Widget build(BuildContext context) {
-    return SingleChildScrollView(
-      padding: const EdgeInsets.all(16),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const Text(
-            'Mensagens de Resultado',
-            style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-          ),
-          if (!_mostrarFormulario && !widget.somenteLeitura) ...[
-            const SizedBox(height: 8),
-            FilledButton.icon(
-              onPressed: _abrirFormularioNovo,
-              icon: const Icon(Icons.add),
-              label: const Text('Nova Mensagem'),
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        tabPageHeader(
+          'Mensagens',
+          'Crie mensagens de motivação exibidas ao fim dos simulados.',
+        ),
+        Expanded(
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                if (!_mostrarFormulario && !widget.somenteLeitura) ...[
+                  FilledButton.icon(
+                    onPressed: _abrirFormularioNovo,
+                    icon: const Icon(Icons.add),
+                    label: const Text('Nova Mensagem'),
+                  ),
+                  const SizedBox(height: 12),
+                ],
+                if (_mostrarFormulario && !widget.somenteLeitura)
+                  _buildFormulario(),
+                const SizedBox(height: 16),
+                _buildLista(),
+              ],
             ),
-          ],
-          const SizedBox(height: 12),
-
-          // Formulário inline
-          if (_mostrarFormulario && !widget.somenteLeitura) _buildFormulario(),
-
-          const SizedBox(height: 16),
-
-          // Lista de mensagens
-          _buildLista(),
-        ],
-      ),
+          ),
+        ),
+      ],
     );
   }
 
