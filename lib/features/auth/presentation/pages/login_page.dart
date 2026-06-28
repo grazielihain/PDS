@@ -18,6 +18,7 @@ class _LoginPageState extends ConsumerState<LoginPage> {
   final _emailController = TextEditingController();
   final _senhaController = TextEditingController();
   bool _ocultarSenha = true;
+  bool _carregando = false;
 
   @override
   void dispose() {
@@ -100,7 +101,9 @@ class _LoginPageState extends ConsumerState<LoginPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: Center(
+      body: Stack(
+        children: [
+          Center(
         child: SingleChildScrollView(
           padding: const EdgeInsets.all(24.0),
           child: Container(
@@ -168,6 +171,7 @@ class _LoginPageState extends ConsumerState<LoginPage> {
                   ElevatedButton(
                     onPressed: () async {
                       if (_formKey.currentState!.validate()) {
+                        setState(() => _carregando = true);
                         try {
                           // 1. Executa o login real chamando o repositório através do DataSource
                           // (Isso valida se o e-mail e senha existem no Firebase)
@@ -234,7 +238,7 @@ class _LoginPageState extends ConsumerState<LoginPage> {
                             }
                           }
                         } catch (e) {
-                          // Se a senha estiver errada ou o usuário não existir, mostra o erro na tela
+                          if (mounted) setState(() => _carregando = false);
                           if (context.mounted) {
                             ScaffoldMessenger.of(context).showSnackBar(
                               SnackBar(
@@ -256,6 +260,84 @@ class _LoginPageState extends ConsumerState<LoginPage> {
                 ],
               ),
             ),
+          ),
+        ),
+      ),
+          if (_carregando) const _LoadingTransition(),
+        ],
+      ),
+    );
+  }
+}
+
+class _LoadingTransition extends StatefulWidget {
+  const _LoadingTransition();
+
+  @override
+  State<_LoadingTransition> createState() => _LoadingTransitionState();
+}
+
+class _LoadingTransitionState extends State<_LoadingTransition>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _ctrl;
+  late final Animation<double> _fade;
+  late final Animation<double> _scale;
+
+  @override
+  void initState() {
+    super.initState();
+    _ctrl = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 500),
+    )..forward();
+    _fade = CurvedAnimation(parent: _ctrl, curve: Curves.easeOut);
+    _scale = Tween<double>(begin: 0.75, end: 1.0).animate(
+      CurvedAnimation(parent: _ctrl, curve: Curves.easeOutBack),
+    );
+  }
+
+  @override
+  void dispose() {
+    _ctrl.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return FadeTransition(
+      opacity: _fade,
+      child: Container(
+        color: Colors.white,
+        child: Center(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              ScaleTransition(
+                scale: _scale,
+                child: Image.asset(
+                  'assets/images/logo_rumo_quiz.png',
+                  height: 130,
+                  fit: BoxFit.contain,
+                  errorBuilder: (_, _, _) =>
+                      const Icon(Icons.school, size: 80, color: Colors.blue),
+                ),
+              ),
+              const SizedBox(height: 40),
+              const SizedBox(
+                width: 40,
+                height: 40,
+                child: CircularProgressIndicator(strokeWidth: 3),
+              ),
+              const SizedBox(height: 20),
+              const Text(
+                'Entrando...',
+                style: TextStyle(
+                  fontSize: 15,
+                  color: Colors.grey,
+                  letterSpacing: 0.5,
+                ),
+              ),
+            ],
           ),
         ),
       ),
