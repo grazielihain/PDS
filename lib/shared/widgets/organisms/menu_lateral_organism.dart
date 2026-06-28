@@ -426,13 +426,33 @@ class MenuLateralOrganism extends StatelessWidget {
         selectedTileColor: corPrimaria.withAlpha(20),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
         onTap: () {
-          if (!isWebMode) Navigator.pop(context);
+          final router = GoRouter.of(context);
           final fullRoute = tabIndex > 0 ? '$route?tab=$tabIndex' : route;
-          if (instituicaoId.isNotEmpty &&
-              (route == '/admin-painel' || route == '/master-painel')) {
-            context.go(fullRoute, extra: {'instituicaoId': instituicaoId});
+          final extraData =
+              (instituicaoId.isNotEmpty &&
+                      (route == '/admin-painel' ||
+                          route == '/master-painel'))
+                  ? <String, dynamic>{'instituicaoId': instituicaoId}
+                  : null;
+
+          if (!isWebMode) {
+            // Close the drawer first, then navigate on the next frame.
+            // Calling context.go() in the same tick as Navigator.pop() puts
+            // the Navigator in a transitional state that can stall the UI.
+            Navigator.pop(context);
+            WidgetsBinding.instance.addPostFrameCallback((_) {
+              if (extraData != null) {
+                router.go(fullRoute, extra: extraData);
+              } else {
+                router.go(fullRoute);
+              }
+            });
           } else {
-            context.go(fullRoute);
+            if (extraData != null) {
+              context.go(fullRoute, extra: extraData);
+            } else {
+              context.go(fullRoute);
+            }
           }
         },
       ),

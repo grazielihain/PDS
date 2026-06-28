@@ -24,6 +24,26 @@ class AdminCategoriasTab extends ConsumerStatefulWidget {
 class _AdminCategoriasTabState extends ConsumerState<AdminCategoriasTab> {
   bool get _isAdmin => widget.roleCriador == 'Admin';
 
+  late final Stream<QuerySnapshot> _categoriasStream;
+  Stream<QuerySnapshot>? _assuntosStream;
+  final Map<String, Stream<QuerySnapshot>> _tiposStreams = {};
+  final Map<String, bool> _expanded = {};
+
+  Stream<QuerySnapshot> get _assuntosLazy =>
+      _assuntosStream ??= ref.read(adminDataSourceProvider).streamAssuntos(widget.instituicaoId);
+
+  @override
+  void initState() {
+    super.initState();
+    _categoriasStream = ref.read(adminDataSourceProvider).streamCategorias(widget.instituicaoId);
+  }
+
+  Stream<QuerySnapshot> _getTiposStream(String categoriaId) =>
+      _tiposStreams.putIfAbsent(
+        categoriaId,
+        () => ref.read(adminDataSourceProvider).streamTiposSimulado(categoriaId),
+      );
+
   // ──────────────────────────── CRUD CATEGORIAS ────────────────────────────
 
   Future<void> _criarCategoria(String nome) async {
@@ -294,7 +314,7 @@ class _AdminCategoriasTabState extends ConsumerState<AdminCategoriasTab> {
             ),
           const SizedBox(height: 16),
           StreamBuilder<QuerySnapshot>(
-            stream: ref.read(adminDataSourceProvider).streamCategorias(widget.instituicaoId),
+            stream: _categoriasStream,
             builder: (context, snap) {
               if (snap.hasError) {
                 return Center(
@@ -316,12 +336,8 @@ class _AdminCategoriasTabState extends ConsumerState<AdminCategoriasTab> {
                   ),
                 );
               }
-              return ListView.builder(
-                shrinkWrap: true,
-                physics: const NeverScrollableScrollPhysics(),
-                itemCount: docs.length,
-                itemBuilder: (context, i) =>
-                    _buildCategoriaCard(docs[i]),
+              return Column(
+                children: docs.map(_buildCategoriaCard).toList(),
               );
             },
           ),
@@ -338,6 +354,8 @@ class _AdminCategoriasTabState extends ConsumerState<AdminCategoriasTab> {
       margin: const EdgeInsets.only(bottom: 12),
       child: ExpansionTile(
         leading: const Icon(Icons.folder_outlined),
+        onExpansionChanged: (expanded) =>
+            setState(() => _expanded[catDoc.id] = expanded),
         title: Row(
           children: [
             Expanded(
@@ -364,17 +382,18 @@ class _AdminCategoriasTabState extends ConsumerState<AdminCategoriasTab> {
           ],
         ),
         children: [
-          Padding(
-            padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                _buildSecaoAssuntos(catDoc.id),
-                const Divider(height: 32),
-                _buildSecaoTiposSimulado(catDoc.id),
-              ],
+          if (_expanded[catDoc.id] == true)
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  _buildSecaoAssuntos(catDoc.id),
+                  const Divider(height: 32),
+                  _buildSecaoTiposSimulado(catDoc.id),
+                ],
+              ),
             ),
-          ),
         ],
       ),
     );
@@ -427,7 +446,7 @@ class _AdminCategoriasTabState extends ConsumerState<AdminCategoriasTab> {
         ),
         const SizedBox(height: 8),
         StreamBuilder<QuerySnapshot>(
-          stream: ref.read(adminDataSourceProvider).streamAssuntos(widget.instituicaoId),
+          stream: _assuntosLazy,
           builder: (context, snap) {
             if (snap.connectionState == ConnectionState.waiting) {
               return const LinearProgressIndicator();
@@ -537,7 +556,7 @@ class _AdminCategoriasTabState extends ConsumerState<AdminCategoriasTab> {
         ),
         const SizedBox(height: 8),
         StreamBuilder<QuerySnapshot>(
-          stream: ref.read(adminDataSourceProvider).streamTiposSimulado(categoriaId),
+          stream: _getTiposStream(categoriaId),
           builder: (context, snap) {
             if (snap.connectionState == ConnectionState.waiting) {
               return const LinearProgressIndicator();
@@ -587,9 +606,24 @@ class _AdminCategoriasTabState extends ConsumerState<AdminCategoriasTab> {
                       style: const TextStyle(fontSize: 13),
                     ),
                     subtitle: dados['modo'] == 'completo' && listaAssuntos.isNotEmpty
-                        ? Text(
-                            '${listaAssuntos.length} assuntos configurados',
-                            style: const TextStyle(fontSize: 11),
+                        ? Padding(
+                            padding: const EdgeInsets.only(top: 2),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              mainAxisSize: MainAxisSize.min,
+                              children: listaAssuntos.map((a) {
+                                final nome = (a['assuntoNome'] as String?)
+                                            ?.isNotEmpty ==
+                                        true
+                                    ? a['assuntoNome'] as String
+                                    : a['assuntoId'] as String? ?? '?';
+                                final qtdA = a['quantidade'] as int? ?? 0;
+                                return Text(
+                                  '• $nome: $qtdA ${qtdA == 1 ? 'questão' : 'questões'}',
+                                  style: const TextStyle(fontSize: 11),
+                                );
+                              }).toList(),
+                            ),
                           )
                         : null,
                     trailing: _isAdmin
@@ -827,9 +861,9 @@ class _TipoSimuladoDialogState extends State<_TipoSimuladoDialog> {
             _erro = 'Prova Completa requer pelo menos 2 assuntos com quantidade.');
         return;
       }
-      if (_somaAtual > maxQtd) {
-        setState(() =>
-            _erro = 'A soma ($_somaAtual) excede a quantidade máxima ($maxQtd).');
+      if (_somaAtual != maxQtd) {
+        setState(() => _erro =
+            'A soma das questões por assunto ($_somaAtual) deve ser igual ao total máximo ($maxQtd).');
         return;
       }
     }
@@ -844,6 +878,8 @@ class _TipoSimuladoDialogState extends State<_TipoSimuladoDialog> {
             .where((a) => (int.tryParse(_qtdPorAssunto[a.id]?.text ?? '') ?? 0) > 0)
             .map((a) => {
                   'assuntoId': a.id,
+                  'assuntoNome':
+                      (a.data() as Map<String, dynamic>)['nome'] ?? '',
                   'quantidade': int.parse(_qtdPorAssunto[a.id]!.text),
                 })
             .toList()

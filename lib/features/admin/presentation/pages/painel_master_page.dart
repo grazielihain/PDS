@@ -357,6 +357,7 @@ class _PainelMasterPageState extends State<PainelMasterPage>
         constraints: const BoxConstraints(maxWidth: 900),
         child: TabBarView(
           controller: _tabController,
+          physics: const NeverScrollableScrollPhysics(),
           children: [
             _buildHome(),
             _buildInstituicoes(),
@@ -1785,60 +1786,84 @@ class _DialogVerUsuariosState extends State<_DialogVerUsuarios> {
 
                       return Card(
                         margin: const EdgeInsets.symmetric(vertical: 3),
-                        child: ListTile(
-                          dense: true,
-                          leading: CircleAvatar(
-                            backgroundColor: roleColor.withAlpha(25),
-                            child: Text(
-                              u['avatarEmoji'] ?? '👤',
-                              style: const TextStyle(fontSize: 18),
-                            ),
-                          ),
-                          title: Text(
-                            u['nome'] ?? 'Sem nome',
-                            style: const TextStyle(fontWeight: FontWeight.w600),
-                          ),
-                          subtitle: Text(
-                            u['email'] ?? '-',
-                            style: const TextStyle(fontSize: 12),
-                          ),
-                          trailing: Row(
-                            mainAxisSize: MainAxisSize.min,
+                        child: Padding(
+                          padding: const EdgeInsets.fromLTRB(12, 8, 4, 4),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              Chip(
-                                label: Text(
-                                  role,
-                                  style: const TextStyle(
-                                    color: Colors.white,
-                                    fontSize: 10,
+                              Row(
+                                children: [
+                                  CircleAvatar(
+                                    backgroundColor: roleColor.withAlpha(25),
+                                    radius: 18,
+                                    child: Text(
+                                      u['avatarEmoji'] ?? '👤',
+                                      style: const TextStyle(fontSize: 16),
+                                    ),
                                   ),
-                                ),
-                                backgroundColor: roleColor,
-                                padding: EdgeInsets.zero,
-                                labelPadding: const EdgeInsets.symmetric(
-                                    horizontal: 6),
-                                materialTapTargetSize:
-                                    MaterialTapTargetSize.shrinkWrap,
+                                  const SizedBox(width: 10),
+                                  Expanded(
+                                    child: Column(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
+                                      children: [
+                                        Text(
+                                          u['nome'] ?? 'Sem nome',
+                                          style: const TextStyle(
+                                              fontWeight: FontWeight.w600,
+                                              fontSize: 13),
+                                          overflow: TextOverflow.ellipsis,
+                                        ),
+                                        Text(
+                                          u['email'] ?? '-',
+                                          style: const TextStyle(
+                                              fontSize: 11,
+                                              color: Colors.grey),
+                                          overflow: TextOverflow.ellipsis,
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ],
                               ),
-                              IconButton(
-                                icon: const Icon(Icons.edit_outlined,
-                                    size: 18, color: Colors.blueGrey),
-                                tooltip: 'Editar',
-                                padding: EdgeInsets.zero,
-                                constraints: const BoxConstraints(
-                                    minWidth: 32, minHeight: 32),
-                                onPressed: () =>
-                                    _abrirDialogEditarUsuario(doc.id, u),
-                              ),
-                              IconButton(
-                                icon: const Icon(Icons.delete_outline,
-                                    size: 18, color: Colors.red),
-                                tooltip: 'Excluir',
-                                padding: EdgeInsets.zero,
-                                constraints: const BoxConstraints(
-                                    minWidth: 32, minHeight: 32),
-                                onPressed: () => _excluirUsuario(
-                                    doc.id, u['nome'] ?? '-'),
+                              const SizedBox(height: 4),
+                              Row(
+                                children: [
+                                  Chip(
+                                    label: Text(
+                                      role,
+                                      style: const TextStyle(
+                                          color: Colors.white, fontSize: 10),
+                                    ),
+                                    backgroundColor: roleColor,
+                                    padding: EdgeInsets.zero,
+                                    labelPadding:
+                                        const EdgeInsets.symmetric(horizontal: 6),
+                                    materialTapTargetSize:
+                                        MaterialTapTargetSize.shrinkWrap,
+                                  ),
+                                  const Spacer(),
+                                  IconButton(
+                                    icon: const Icon(Icons.edit_outlined,
+                                        size: 18, color: Colors.blueGrey),
+                                    tooltip: 'Editar',
+                                    padding: EdgeInsets.zero,
+                                    constraints: const BoxConstraints(
+                                        minWidth: 32, minHeight: 32),
+                                    onPressed: () =>
+                                        _abrirDialogEditarUsuario(doc.id, u),
+                                  ),
+                                  IconButton(
+                                    icon: const Icon(Icons.delete_outline,
+                                        size: 18, color: Colors.red),
+                                    tooltip: 'Excluir',
+                                    padding: EdgeInsets.zero,
+                                    constraints: const BoxConstraints(
+                                        minWidth: 32, minHeight: 32),
+                                    onPressed: () =>
+                                        _excluirUsuario(doc.id, u['nome'] ?? '-'),
+                                  ),
+                                ],
                               ),
                             ],
                           ),

@@ -1,7 +1,9 @@
+// ignore_for_file: deprecated_member_use
 import 'dart:typed_data';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../providers/admin_provider.dart';
@@ -60,11 +62,24 @@ class _AdminQuestoesTabState extends ConsumerState<AdminQuestoesTab> {
   List<String> _imagensExistentes = [];
   List<_ImagemPendente> _imagensPendentes = [];
 
+  late Stream<QuerySnapshot> _questoesStream;
+
   @override
   void initState() {
     super.initState();
+    _questoesStream = _buildQuestoesStream();
     _carregarCategorias();
     _carregarTodosAssuntos();
+  }
+
+  Stream<QuerySnapshot> _buildQuestoesStream() {
+    final uid = _auth.currentUser?.uid ?? '';
+    return ref.read(adminDataSourceProvider).streamQuestoes(
+      instituicaoId: widget.instituicaoId,
+      categoriaId: _filtroCategId,
+      assuntoId: _filtroAssuntoId,
+      criadoPor: _apenasMinhas ? uid : null,
+    );
   }
 
   @override
@@ -138,16 +153,6 @@ class _AdminQuestoesTabState extends ConsumerState<AdminQuestoesTab> {
     );
   }
 
-  Stream<QuerySnapshot> get _streamQuestoes {
-    final uid = _auth.currentUser?.uid ?? '';
-    return ref.read(adminDataSourceProvider).streamQuestoes(
-      instituicaoId: widget.instituicaoId,
-      categoriaId: _filtroCategId,
-      assuntoId: _filtroAssuntoId,
-      criadoPor: _apenasMinhas ? uid : null,
-    );
-  }
-
   void _abrirFormularioNovo() {
     _limparFormulario();
     setState(() => _formularioAberto = true);
@@ -199,6 +204,7 @@ class _AdminQuestoesTabState extends ConsumerState<AdminQuestoesTab> {
         _assuntosForm = await _carregarAssuntos(_formCategoriaId!);
       } catch (e) {
         _assuntosForm = [];
+        _formAssuntoId = null;
         _mostrarErro('Erro ao carregar assuntos: $e');
       }
     }
@@ -342,7 +348,7 @@ class _AdminQuestoesTabState extends ConsumerState<AdminQuestoesTab> {
     }
   }
 
-  Future<void> _confirmarExcluir(String id, String texto) async {
+  Future<void> _confirmarExcluir(String id, String texto, List<String> imagens) async {
     final confirmar = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
@@ -366,6 +372,11 @@ class _AdminQuestoesTabState extends ConsumerState<AdminQuestoesTab> {
     if (confirmar != true) return;
 
     try {
+      for (final url in imagens) {
+        try {
+          await FirebaseStorage.instance.refFromURL(url).delete();
+        } catch (_) {}
+      }
       await ref.read(adminDataSourceProvider).excluirQuestao(id);
       await widget.onAuditoria(
         'EXCLUIR',
@@ -406,27 +417,35 @@ class _AdminQuestoesTabState extends ConsumerState<AdminQuestoesTab> {
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
 
-    return Column(
-      children: [
-        Container(
-          color: colorScheme.surfaceContainerLow,
-          padding: const EdgeInsets.fromLTRB(12, 12, 12, 0),
-          alignment: Alignment.centerRight,
-          child: FilledButton.icon(
-            onPressed: _formularioAberto ? null : _abrirFormularioNovo,
-            icon: const Icon(Icons.add),
-            label: const Text('Incluir Questão'),
+    return LayoutBuilder(builder: (context, constraints) {
+      final isMobile = constraints.maxWidth < 700;
+
+      if (isMobile && _formularioAberto) {
+        return _buildFormulario(colorScheme);
+      }
+
+      return Column(
+        children: [
+          Container(
+            color: colorScheme.surfaceContainerLow,
+            padding: const EdgeInsets.fromLTRB(12, 12, 12, 0),
+            alignment: Alignment.centerRight,
+            child: FilledButton.icon(
+              onPressed: _formularioAberto ? null : _abrirFormularioNovo,
+              icon: const Icon(Icons.add),
+              label: const Text('Incluir Questão'),
+            ),
           ),
-        ),
-        _buildBarraFiltros(colorScheme),
-        if (_formularioAberto)
-          Flexible(
-            flex: 2,
-            child: _buildFormulario(colorScheme),
-          ),
-        Expanded(child: _buildListaQuestoes(colorScheme)),
-      ],
-    );
+          _buildBarraFiltros(colorScheme),
+          if (_formularioAberto)
+            Flexible(
+              flex: 2,
+              child: _buildFormulario(colorScheme),
+            ),
+          Expanded(child: _buildListaQuestoes(colorScheme)),
+        ],
+      );
+    });
   }
 
   Widget _buildBarraFiltros(ColorScheme cs) {
@@ -443,8 +462,10 @@ class _AdminQuestoesTabState extends ConsumerState<AdminQuestoesTab> {
                       children: [
                         Switch(
                           value: _apenasMinhas,
-                          onChanged: (v) =>
-                              setState(() => _apenasMinhas = v),
+                          onChanged: (v) => setState(() {
+                            _apenasMinhas = v;
+                            _questoesStream = _buildQuestoesStream();
+                          }),
                         ),
                         const SizedBox(width: 4),
                         Text(
@@ -477,6 +498,7 @@ class _AdminQuestoesTabState extends ConsumerState<AdminQuestoesTab> {
                             _filtroCategId = v;
                             _filtroAssuntoId = null;
                             _assuntosFiltro = [];
+                            _questoesStream = _buildQuestoesStream();
                           });
                           if (v != null) {
                             final assuntos = await _carregarAssuntos(v);
@@ -507,8 +529,10 @@ class _AdminQuestoesTabState extends ConsumerState<AdminQuestoesTab> {
                                   child: Text(a['nome'] as String),
                                 )),
                           ],
-                          onChanged: (v) =>
-                              setState(() => _filtroAssuntoId = v),
+                          onChanged: (v) => setState(() {
+                            _filtroAssuntoId = v;
+                            _questoesStream = _buildQuestoesStream();
+                          }),
                         ),
                       ),
         ],
@@ -679,8 +703,10 @@ class _AdminQuestoesTabState extends ConsumerState<AdminQuestoesTab> {
         SizedBox(
           width: 220,
           child: DropdownButtonFormField<String>(
+            key: ValueKey(_formCategoriaId),
             initialValue: _formCategoriaId,
             decoration: const InputDecoration(labelText: 'Categoria *'),
+            hint: const Text('Selecione'),
             items: _categorias
                 .map((c) => DropdownMenuItem(
                       value: c['id'] as String,
@@ -698,6 +724,7 @@ class _AdminQuestoesTabState extends ConsumerState<AdminQuestoesTab> {
                   final assuntos = await _carregarAssuntos(v);
                   if (mounted) setState(() => _assuntosForm = assuntos);
                 } catch (e) {
+                  if (mounted) setState(() => _formAssuntoId = null);
                   _mostrarErro('Erro ao carregar assuntos: $e');
                 }
               }
@@ -708,8 +735,10 @@ class _AdminQuestoesTabState extends ConsumerState<AdminQuestoesTab> {
         SizedBox(
           width: 220,
           child: DropdownButtonFormField<String>(
+            key: ValueKey('assunto_${_formCategoriaId}_$_formAssuntoId'),
             initialValue: _formAssuntoId,
             decoration: const InputDecoration(labelText: 'Assunto *'),
+            hint: const Text('Selecione'),
             items: _assuntosForm
                 .map((a) => DropdownMenuItem(
                       value: a['id'] as String,
@@ -874,60 +903,61 @@ class _AdminQuestoesTabState extends ConsumerState<AdminQuestoesTab> {
           ],
         ),
         const SizedBox(height: 10),
-        RadioGroup<int>(
-          groupValue: _respostaCorretaIndex,
-          onChanged: (v) => setState(() => _respostaCorretaIndex = v),
-          child: Column(
-            children: List.generate(_alternativasControllers.length, (i) {
-              final isCorreta = _respostaCorretaIndex == i;
-              return Padding(
-                padding: const EdgeInsets.only(bottom: 8),
-                child: Row(
-                  children: [
-                    Radio<int>(value: i),
-                    Expanded(
-                      child: TextFormField(
-                        controller: _alternativasControllers[i],
-                        decoration: InputDecoration(
-                          labelText:
-                              'Alternativa ${String.fromCharCode(65 + i)}',
-                          suffixIcon: isCorreta
-                              ? const Icon(Icons.check_circle,
-                                  color: Colors.green)
-                              : null,
-                        ),
-                        validator: (v) => v == null || v.trim().isEmpty
-                            ? 'Preencha a alternativa'
+        Column(
+          children: List.generate(_alternativasControllers.length, (i) {
+            final isCorreta = _respostaCorretaIndex == i;
+            return Padding(
+              padding: const EdgeInsets.only(bottom: 8),
+              child: Row(
+                children: [
+                  Radio<int>(
+                    value: i,
+                    groupValue: _respostaCorretaIndex,
+                    onChanged: (v) =>
+                        setState(() => _respostaCorretaIndex = v),
+                  ),
+                  Expanded(
+                    child: TextFormField(
+                      controller: _alternativasControllers[i],
+                      decoration: InputDecoration(
+                        labelText:
+                            'Alternativa ${String.fromCharCode(65 + i)}',
+                        suffixIcon: isCorreta
+                            ? const Icon(Icons.check_circle,
+                                color: Colors.green)
                             : null,
                       ),
+                      validator: (v) => v == null || v.trim().isEmpty
+                          ? 'Preencha a alternativa'
+                          : null,
                     ),
-                    const SizedBox(width: 4),
-                    IconButton(
-                      tooltip: 'Remover alternativa',
-                      icon: const Icon(Icons.remove_circle_outline,
-                          color: Colors.red),
-                      onPressed: _alternativasControllers.length <= 2
-                          ? null
-                          : () {
-                              setState(() {
-                                _alternativasControllers[i].dispose();
-                                _alternativasControllers.removeAt(i);
-                                if (_respostaCorretaIndex != null) {
-                                  if (_respostaCorretaIndex == i) {
-                                    _respostaCorretaIndex = null;
-                                  } else if (_respostaCorretaIndex! > i) {
-                                    _respostaCorretaIndex =
-                                        _respostaCorretaIndex! - 1;
-                                  }
+                  ),
+                  const SizedBox(width: 4),
+                  IconButton(
+                    tooltip: 'Remover alternativa',
+                    icon: const Icon(Icons.remove_circle_outline,
+                        color: Colors.red),
+                    onPressed: _alternativasControllers.length <= 2
+                        ? null
+                        : () {
+                            setState(() {
+                              _alternativasControllers[i].dispose();
+                              _alternativasControllers.removeAt(i);
+                              if (_respostaCorretaIndex != null) {
+                                if (_respostaCorretaIndex == i) {
+                                  _respostaCorretaIndex = null;
+                                } else if (_respostaCorretaIndex! > i) {
+                                  _respostaCorretaIndex =
+                                      _respostaCorretaIndex! - 1;
                                 }
-                              });
-                            },
-                    ),
-                  ],
-                ),
-              );
-            }),
-          ),
+                              }
+                            });
+                          },
+                  ),
+                ],
+              ),
+            );
+          }),
         ),
         TextButton.icon(
           onPressed: _alternativasControllers.length >= 6
@@ -945,7 +975,7 @@ class _AdminQuestoesTabState extends ConsumerState<AdminQuestoesTab> {
 
   Widget _buildListaQuestoes(ColorScheme cs) {
     return StreamBuilder<QuerySnapshot>(
-      stream: _streamQuestoes,
+      stream: _questoesStream,
       builder: (context, snapshot) {
         if (snapshot.hasError) {
           return Center(
@@ -1071,7 +1101,7 @@ class _AdminQuestoesTabState extends ConsumerState<AdminQuestoesTab> {
                     tooltip: 'Excluir',
                     icon: const Icon(Icons.delete_outline,
                         size: 20, color: Colors.red),
-                    onPressed: () => _confirmarExcluir(id, texto),
+                    onPressed: () => _confirmarExcluir(id, texto, imagens),
                   ),
                 ],
               ],

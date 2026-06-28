@@ -87,35 +87,46 @@ class AppRouter {
         routes: [
           GoRoute(
             path: '/master-painel',
-            builder: (context, state) {
+            pageBuilder: (context, state) {
               final tabIndex =
                   int.tryParse(state.uri.queryParameters['tab'] ?? '') ?? 0;
-              return PainelMasterPage(initialTab: tabIndex);
+              return MaterialPage(
+                key: const ValueKey('master-painel'),
+                child: PainelMasterPage(initialTab: tabIndex),
+              );
             },
           ),
           GoRoute(
             path: '/admin-painel',
-            builder: (context, state) {
+            pageBuilder: (context, state) {
               final tabIndex =
                   int.tryParse(state.uri.queryParameters['tab'] ?? '') ?? 0;
               final params = state.extra as Map<String, dynamic>? ?? {};
-              return PainelAdminPage(
-                substituicaoInstituicaoId:
-                    params['instituicaoId']?.toString() ?? 'ulbra-01',
-                initialTab: tabIndex,
+              final instId =
+                  params['instituicaoId']?.toString() ?? 'ulbra-01';
+              return MaterialPage(
+                key: const ValueKey('admin-painel'),
+                child: PainelAdminPage(
+                  substituicaoInstituicaoId: instId,
+                  initialTab: tabIndex,
+                ),
               );
             },
           ),
           GoRoute(
             path: '/admin',
-            builder: (context, state) {
+            pageBuilder: (context, state) {
               final tabIndex =
                   int.tryParse(state.uri.queryParameters['tab'] ?? '') ?? 0;
               final params = state.extra as Map<String, dynamic>? ?? {};
-              return PainelAdminPage(
-                substituicaoInstituicaoId:
-                    params['instituicaoId']?.toString() ?? 'ulbra-01',
-                initialTab: tabIndex,
+              final instId =
+                  params['instituicaoId']?.toString() ?? 'ulbra-01';
+              return MaterialPage(
+                key: ValueKey('admin-$instId'),
+                child: PainelAdminPage(
+                  substituicaoInstituicaoId: instId,
+                  initialTab: tabIndex,
+                ),
               );
             },
           ),

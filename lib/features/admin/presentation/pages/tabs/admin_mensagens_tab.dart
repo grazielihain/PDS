@@ -42,6 +42,14 @@ class _AdminMensagensTabState extends ConsumerState<AdminMensagensTab> {
 
   bool _salvando = false;
 
+  late final Stream<QuerySnapshot> _mensagensStream;
+
+  @override
+  void initState() {
+    super.initState();
+    _mensagensStream = ref.read(adminDataSourceProvider).streamMensagens(widget.instituicaoId);
+  }
+
   @override
   void dispose() {
     _deController.dispose();
@@ -572,9 +580,7 @@ class _AdminMensagensTabState extends ConsumerState<AdminMensagensTab> {
 
   Widget _buildLista() {
     return StreamBuilder<QuerySnapshot>(
-      stream: ref
-          .read(adminDataSourceProvider)
-          .streamMensagens(widget.instituicaoId),
+      stream: _mensagensStream,
       builder: (context, snapshot) {
         if (snapshot.hasError) {
           return Text('Erro ao carregar mensagens: ${snapshot.error}');

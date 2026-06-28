@@ -4,6 +4,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_core/firebase_core.dart';
+import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../providers/admin_provider.dart';
@@ -28,9 +29,8 @@ class PainelAdminPage extends ConsumerStatefulWidget {
   ConsumerState<PainelAdminPage> createState() => _PainelAdminPageState();
 }
 
-class _PainelAdminPageState extends ConsumerState<PainelAdminPage>
-    with TickerProviderStateMixin {
-  late TabController _tabController;
+class _PainelAdminPageState extends ConsumerState<PainelAdminPage> {
+  late PageController _pageController;
 
   // Getter de compatibilidade — operações de painel que ainda não migraram
   // para AdminRemoteDataSource usam este getter enquanto a refatoração avança.
@@ -39,6 +39,7 @@ class _PainelAdminPageState extends ConsumerState<PainelAdminPage>
   // Role and loading
   String _roleCriador = '';
   bool _carregando = true;
+  Stream<QuerySnapshot>? _auditoriaStream;
 
   // Painel Administrativo – identidade visual
   final _formKeyIdentidade = GlobalKey<FormState>();
@@ -84,22 +85,26 @@ class _PainelAdminPageState extends ConsumerState<PainelAdminPage>
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 1, vsync: this);
+    _pageController = PageController(initialPage: widget.initialTab);
     _carregarPerfil();
   }
 
   @override
   void didUpdateWidget(PainelAdminPage oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (oldWidget.initialTab != widget.initialTab &&
-        widget.initialTab < _tabController.length) {
-      _tabController.animateTo(widget.initialTab);
+    if (oldWidget.initialTab != widget.initialTab) {
+      // jumpToPage bypasses TabBarView's warp logic, which caused a
+      // re-entrant _handlePageController → _warpToCurrentIndex loop that
+      // left the PageView stuck between the target page and the next one.
+      if (_pageController.hasClients) {
+        _pageController.jumpToPage(widget.initialTab);
+      }
     }
   }
 
   @override
   void dispose() {
-    _tabController.dispose();
+    _pageController.dispose();
     _nomeEscolaController.dispose();
     _nomeUsuarioController.dispose();
     _emailUsuarioController.dispose();
@@ -148,15 +153,23 @@ class _PainelAdminPageState extends ConsumerState<PainelAdminPage>
   }
 
   void _reinicializarController(String role) {
-    final old = _tabController;
-    final length = role == 'Admin' ? 9 : 6;
-    _tabController = TabController(
-      length: length,
-      vsync: this,
-      initialIndex: widget.initialTab.clamp(0, length - 1),
+    _auditoriaStream = ref.read(adminDataSourceProvider).streamAuditoria(
+      widget.substituicaoInstituicaoId,
     );
-    if (mounted) setState(() {});
-    WidgetsBinding.instance.addPostFrameCallback((_) => old.dispose());
+    if (mounted) {
+      setState(() {});
+      // Jump to the requested tab after the PageView is laid out with
+      // the correct number of children for this role.
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) return;
+        final maxPage = role == 'Admin' ? 8 : 5;
+        final target = widget.initialTab.clamp(0, maxPage);
+        if (_pageController.hasClients &&
+            (_pageController.page?.round() ?? 0) != target) {
+          _pageController.jumpToPage(target);
+        }
+      });
+    }
   }
 
   // ─────────────────────────── AUDITORIA ────────────────────────────────────
@@ -254,6 +267,64 @@ class _PainelAdminPageState extends ConsumerState<PainelAdminPage>
           storagePath: path,
           contentType: 'image/$ext',
         );
+  }
+
+  Future<void> _excluirImagem({
+    required String tipo,
+    required String url,
+    required VoidCallback onClear,
+  }) async {
+    final isLogo = tipo == 'logo';
+    final confirmar = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text('Excluir ${isLogo ? 'Logo' : 'Mascote'}'),
+        content: Text(
+          'Deseja remover ${isLogo ? 'a logo' : 'o mascote'} da instituição?\n'
+          'Esta ação não pode ser desfeita.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Cancelar'),
+          ),
+          TextButton(
+            style: TextButton.styleFrom(foregroundColor: Colors.red),
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('Excluir'),
+          ),
+        ],
+      ),
+    );
+    if (confirmar != true || !mounted) return;
+
+    try {
+      if (url.isNotEmpty) {
+        try {
+          await FirebaseStorage.instance.refFromURL(url).delete();
+        } catch (_) {}
+      }
+      await _db
+          .collection('instituicoes')
+          .doc(widget.substituicaoInstituicaoId)
+          .update({'${tipo}Url': ''});
+      onClear();
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              isLogo ? 'Logo removida com sucesso!' : 'Mascote removido com sucesso!',
+            ),
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Erro ao remover: $e')),
+        );
+      }
+    }
   }
 
   // ─────────────────────────── IDENTIDADE VISUAL ────────────────────────────
@@ -540,8 +611,9 @@ class _PainelAdminPageState extends ConsumerState<PainelAdminPage>
     return Center(
       child: ConstrainedBox(
         constraints: const BoxConstraints(maxWidth: 900),
-        child: TabBarView(
-          controller: _tabController,
+        child: PageView(
+          controller: _pageController,
+          physics: const NeverScrollableScrollPhysics(),
           children: tabViews,
         ),
       ),
@@ -735,6 +807,24 @@ class _PainelAdminPageState extends ConsumerState<PainelAdminPage>
                       _logoNomeArquivo = n;
                     }),
                   ),
+                  onExcluir: () {
+                    if (_logoBytes != null) {
+                      setState(() {
+                        _logoBytes = null;
+                        _logoNomeArquivo = '';
+                      });
+                      return;
+                    }
+                    _excluirImagem(
+                      tipo: 'logo',
+                      url: _logoUrl,
+                      onClear: () => setState(() {
+                        _logoUrl = '';
+                        _logoBytes = null;
+                        _logoNomeArquivo = '';
+                      }),
+                    );
+                  },
                 ),
                 const SizedBox(height: 20),
                 const Text('Mascote da Instituição',
@@ -750,6 +840,24 @@ class _PainelAdminPageState extends ConsumerState<PainelAdminPage>
                       _mascoteNomeArquivo = n;
                     }),
                   ),
+                  onExcluir: () {
+                    if (_mascoteBytes != null) {
+                      setState(() {
+                        _mascoteBytes = null;
+                        _mascoteNomeArquivo = '';
+                      });
+                      return;
+                    }
+                    _excluirImagem(
+                      tipo: 'mascote',
+                      url: _mascoteUrl,
+                      onClear: () => setState(() {
+                        _mascoteUrl = '';
+                        _mascoteBytes = null;
+                        _mascoteNomeArquivo = '';
+                      }),
+                    );
+                  },
                 ),
                 const SizedBox(height: 24),
                 SizedBox(
@@ -976,6 +1084,7 @@ class _PainelAdminPageState extends ConsumerState<PainelAdminPage>
     required String urlExistente,
     required String nomeArquivo,
     required VoidCallback onSelecionar,
+    VoidCallback? onExcluir,
   }) {
     Widget preview;
     if (bytes != null) {
@@ -1034,6 +1143,22 @@ class _PainelAdminPageState extends ConsumerState<PainelAdminPage>
                 textStyle: const TextStyle(fontSize: 13),
               ),
             ),
+            if (onExcluir != null && (bytes != null || urlExistente.isNotEmpty)) ...[
+              const SizedBox(height: 4),
+              TextButton.icon(
+                onPressed: onExcluir,
+                icon: const Icon(Icons.delete_outline, size: 16, color: Colors.red),
+                label: const Text(
+                  'Excluir',
+                  style: TextStyle(color: Colors.red, fontSize: 12),
+                ),
+                style: TextButton.styleFrom(
+                  padding: EdgeInsets.zero,
+                  minimumSize: Size.zero,
+                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                ),
+              ),
+            ],
             const SizedBox(height: 4),
             Text(
               bytes != null
@@ -1175,6 +1300,184 @@ class _PainelAdminPageState extends ConsumerState<PainelAdminPage>
         ],              // fecha children do Column externo
       );
 
+      final usuariosStreamWidget = StreamBuilder<QuerySnapshot>(
+        stream: ref.read(adminDataSourceProvider).streamUsuarios(
+              instituicaoId: widget.substituicaoInstituicaoId,
+              role: _roleCriador == 'Acess2' ? 'Acess3' : null,
+              criadoPor: _roleCriador == 'Acess2' ? uid : null,
+            ),
+        builder: (context, snap) {
+          if (!snap.hasData) {
+            return const Center(
+                child: CircularProgressIndicator());
+          }
+          final docs = snap.data!.docs;
+          if (docs.isEmpty) {
+            return const Text('Nenhum usuário cadastrado.',
+                style:
+                    TextStyle(color: Colors.grey, fontSize: 12));
+          }
+          return ListView.builder(
+            shrinkWrap: isMobile,
+            physics: isMobile ? const NeverScrollableScrollPhysics() : null,
+            itemCount: docs.length,
+            itemBuilder: (context, i) {
+              final u =
+                  docs[i].data() as Map<String, dynamic>;
+              final podeDeletar = _roleCriador == 'Admin' ||
+                  u['criadoPor'] == uid;
+              return Card(
+                child: ListTile(
+                  dense: true,
+                  leading: const Icon(Icons.person_outline),
+                  title: Text(u['nome'] ?? 'Sem nome'),
+                  subtitle: Text(
+                      '${u['email']} • ${u['role']}'),
+                  trailing: podeDeletar
+                      ? Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            IconButton(
+                              icon: const Icon(
+                                  Icons.edit_outlined,
+                                  color: Colors.blue,
+                                  size: 18),
+                              tooltip: 'Editar usuário',
+                              onPressed: () async {
+                                final nomeCtrl = TextEditingController(text: u['nome'] ?? '');
+                                final emailCtrl = TextEditingController(text: u['email'] ?? '');
+                                final formKey = GlobalKey<FormState>();
+                                String editRole = u['role'] ?? 'Acess3';
+                                final salvo = await showDialog<bool>(
+                                  context: context,
+                                  builder: (dlgCtx) => StatefulBuilder(
+                                    builder: (ctx, setDlg) => AlertDialog(
+                                      title: const Text('Editar Usuário'),
+                                      content: Form(
+                                        key: formKey,
+                                        child: Column(
+                                          mainAxisSize: MainAxisSize.min,
+                                          children: [
+                                            TextFormField(
+                                              controller: nomeCtrl,
+                                              decoration: const InputDecoration(labelText: 'Nome *'),
+                                              validator: (v) => v == null || v.trim().isEmpty ? 'Obrigatório' : null,
+                                            ),
+                                            const SizedBox(height: 12),
+                                            TextFormField(
+                                              controller: emailCtrl,
+                                              decoration: const InputDecoration(labelText: 'E-mail'),
+                                              keyboardType: TextInputType.emailAddress,
+                                            ),
+                                            if (_roleCriador == 'Admin') ...[
+                                              const SizedBox(height: 12),
+                                              DropdownButtonFormField<String>(
+                                                key: ValueKey(editRole),
+                                                initialValue: editRole,
+                                                decoration: const InputDecoration(labelText: 'Nível de Acesso'),
+                                                items: const [
+                                                  DropdownMenuItem(value: 'Acess2', child: Text('Acess2 (Gestor)')),
+                                                  DropdownMenuItem(value: 'Acess3', child: Text('Acess3 (Aluno)')),
+                                                ],
+                                                onChanged: (v) => setDlg(() => editRole = v ?? editRole),
+                                              ),
+                                            ],
+                                          ],
+                                        ),
+                                      ),
+                                      actions: [
+                                        TextButton(
+                                          onPressed: () => Navigator.pop(dlgCtx, false),
+                                          child: const Text('Cancelar'),
+                                        ),
+                                        FilledButton(
+                                          onPressed: () {
+                                            if (formKey.currentState!.validate()) {
+                                              Navigator.pop(dlgCtx, true);
+                                            }
+                                          },
+                                          child: const Text('Salvar'),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                );
+                                if (salvo == true) {
+                                  final novoNome = nomeCtrl.text.trim();
+                                  final novoEmail = emailCtrl.text.trim();
+                                  await ref.read(adminDataSourceProvider).editarUsuario(docs[i].id, {
+                                    'nome': novoNome,
+                                    if (novoEmail.isNotEmpty) 'email': novoEmail,
+                                    if (_roleCriador == 'Admin') 'role': editRole,
+                                  });
+                                  await _registrarAuditoria(
+                                    'ALTERAR',
+                                    'Usuários',
+                                    'Editou usuário ${u['nome']} → $novoNome (role: $editRole)',
+                                    u.toString(),
+                                    'nome: $novoNome, email: $novoEmail, role: $editRole',
+                                  );
+                                }
+                                nomeCtrl.dispose();
+                                emailCtrl.dispose();
+                              },
+                            ),
+                            IconButton(
+                              icon: const Icon(
+                                  Icons.delete_outline,
+                                  color: Colors.red,
+                                  size: 18),
+                              tooltip: 'Excluir usuário',
+                              onPressed: () async {
+                                final confirm =
+                                    await showDialog<bool>(
+                                  context: context,
+                                  builder: (dlgCtx) => AlertDialog(
+                                    title: const Text(
+                                        'Excluir Usuário'),
+                                    content: Text(
+                                        'Excluir ${u['nome']}?'),
+                                    actions: [
+                                      TextButton(
+                                          onPressed: () =>
+                                              Navigator.pop(
+                                                  dlgCtx, false),
+                                          child: const Text(
+                                              'Cancelar')),
+                                      TextButton(
+                                          onPressed: () =>
+                                              Navigator.pop(
+                                                  dlgCtx, true),
+                                          child: const Text(
+                                              'Excluir',
+                                              style: TextStyle(
+                                                  color:
+                                                      Colors.red))),
+                                    ],
+                                  ),
+                                );
+                                if (confirm == true) {
+                                  await ref.read(adminDataSourceProvider).excluirUsuario(docs[i].id);
+                                  await _registrarAuditoria(
+                                    'EXCLUIR',
+                                    'Usuários',
+                                    'Excluiu ${u['nome']} (${u['role']})',
+                                    u.toString(),
+                                    'Excluído',
+                                  );
+                                }
+                              },
+                            ),
+                          ],
+                        )
+                      : null,
+                ),
+              );
+            },
+          );
+        },
+      );
+
       final lista = Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -1182,189 +1485,28 @@ class _PainelAdminPageState extends ConsumerState<PainelAdminPage>
           const Text('Últimos Usuários da Instituição',
               style: TextStyle(fontWeight: FontWeight.bold)),
           const SizedBox(height: 8),
-          Expanded(
-            child: StreamBuilder<QuerySnapshot>(
-              stream: ref.read(adminDataSourceProvider).streamUsuarios(
-                    instituicaoId: widget.substituicaoInstituicaoId,
-                    role: _roleCriador == 'Acess2' ? 'Acess3' : null,
-                    criadoPor: _roleCriador == 'Acess2' ? uid : null,
-                  ),
-              builder: (context, snap) {
-                if (!snap.hasData) {
-                  return const Center(
-                      child: CircularProgressIndicator());
-                }
-                final docs = snap.data!.docs;
-                if (docs.isEmpty) {
-                  return const Text('Nenhum usuário cadastrado.',
-                      style:
-                          TextStyle(color: Colors.grey, fontSize: 12));
-                }
-                return ListView.builder(
-                  itemCount: docs.length,
-                  itemBuilder: (context, i) {
-                    final u =
-                        docs[i].data() as Map<String, dynamic>;
-                    final podeDeletar = _roleCriador == 'Admin' ||
-                        u['criadoPor'] == uid;
-                    return Card(
-                      child: ListTile(
-                        dense: true,
-                        leading: const Icon(Icons.person_outline),
-                        title: Text(u['nome'] ?? 'Sem nome'),
-                        subtitle: Text(
-                            '${u['email']} • ${u['role']}'),
-                        trailing: podeDeletar
-                            ? Row(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  IconButton(
-                                    icon: const Icon(
-                                        Icons.edit_outlined,
-                                        color: Colors.blue,
-                                        size: 18),
-                                    tooltip: 'Editar usuário',
-                                    onPressed: () async {
-                                      final nomeCtrl = TextEditingController(text: u['nome'] ?? '');
-                                      final emailCtrl = TextEditingController(text: u['email'] ?? '');
-                                      final formKey = GlobalKey<FormState>();
-                                      final salvo = await showDialog<bool>(
-                                        context: context,
-                                        builder: (dlgCtx) => AlertDialog(
-                                          title: const Text('Editar Usuário'),
-                                          content: Form(
-                                            key: formKey,
-                                            child: Column(
-                                              mainAxisSize: MainAxisSize.min,
-                                              children: [
-                                                TextFormField(
-                                                  controller: nomeCtrl,
-                                                  decoration: const InputDecoration(labelText: 'Nome *'),
-                                                  validator: (v) => v == null || v.trim().isEmpty ? 'Obrigatório' : null,
-                                                ),
-                                                const SizedBox(height: 12),
-                                                TextFormField(
-                                                  controller: emailCtrl,
-                                                  decoration: const InputDecoration(labelText: 'E-mail'),
-                                                  keyboardType: TextInputType.emailAddress,
-                                                ),
-                                              ],
-                                            ),
-                                          ),
-                                          actions: [
-                                            TextButton(
-                                              onPressed: () => Navigator.pop(dlgCtx, false),
-                                              child: const Text('Cancelar'),
-                                            ),
-                                            FilledButton(
-                                              onPressed: () {
-                                                if (formKey.currentState!.validate()) {
-                                                  Navigator.pop(dlgCtx, true);
-                                                }
-                                              },
-                                              child: const Text('Salvar'),
-                                            ),
-                                          ],
-                                        ),
-                                      );
-                                      if (salvo == true) {
-                                        final novoNome = nomeCtrl.text.trim();
-                                        final novoEmail = emailCtrl.text.trim();
-                                        await ref.read(adminDataSourceProvider).editarUsuario(docs[i].id, {
-                                          'nome': novoNome,
-                                          if (novoEmail.isNotEmpty) 'email': novoEmail,
-                                        });
-                                        await _registrarAuditoria(
-                                          'ALTERAR',
-                                          'Usuários',
-                                          'Editou usuário ${u['nome']} → $novoNome',
-                                          u.toString(),
-                                          'nome: $novoNome, email: $novoEmail',
-                                        );
-                                      }
-                                      nomeCtrl.dispose();
-                                      emailCtrl.dispose();
-                                    },
-                                  ),
-                                  IconButton(
-                                    icon: const Icon(
-                                        Icons.delete_outline,
-                                        color: Colors.red,
-                                        size: 18),
-                                    tooltip: 'Excluir usuário',
-                                    onPressed: () async {
-                                      final confirm =
-                                          await showDialog<bool>(
-                                        context: context,
-                                        builder: (dlgCtx) => AlertDialog(
-                                          title: const Text(
-                                              'Excluir Usuário'),
-                                          content: Text(
-                                              'Excluir ${u['nome']}?'),
-                                          actions: [
-                                            TextButton(
-                                                onPressed: () =>
-                                                    Navigator.pop(
-                                                        dlgCtx, false),
-                                                child: const Text(
-                                                    'Cancelar')),
-                                            TextButton(
-                                                onPressed: () =>
-                                                    Navigator.pop(
-                                                        dlgCtx, true),
-                                                child: const Text(
-                                                    'Excluir',
-                                                    style: TextStyle(
-                                                        color:
-                                                            Colors.red))),
-                                          ],
-                                        ),
-                                      );
-                                      if (confirm == true) {
-                                        await ref.read(adminDataSourceProvider).excluirUsuario(docs[i].id);
-                                        await _registrarAuditoria(
-                                          'EXCLUIR',
-                                          'Usuários',
-                                          'Excluiu ${u['nome']} (${u['role']})',
-                                          u.toString(),
-                                          'Excluído',
-                                        );
-                                      }
-                                    },
-                                  ),
-                                ],
-                              )
-                            : null,
-                      ),
-                    );
-                  },
-                );
-              },
-            ),
-          ),
+          if (isMobile) usuariosStreamWidget else Expanded(child: usuariosStreamWidget),
         ],
       );
 
       if (isMobile) {
         return Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              const SizedBox(height: 16),
-              // Form: altura dinâmica — só cabeçalho quando recolhido
-              AnimatedContainer(
-                duration: const Duration(milliseconds: 200),
-                constraints: BoxConstraints(
-                  maxHeight: _formularioUsuarioExpandido ? 400 : 58,
-                ),
-                child: SingleChildScrollView(child: formulario),
-              ),
-              const Divider(height: 24),
-              // Lista preenche todo o espaço restante até o rodapé
-              Expanded(child: lista),
-              const SizedBox(height: 16),
-            ],
+          padding: EdgeInsets.only(
+            left: 16,
+            right: 16,
+            bottom: MediaQuery.of(context).viewInsets.bottom,
+          ),
+          child: SingleChildScrollView(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                const SizedBox(height: 16),
+                formulario,
+                const Divider(height: 24),
+                lista,
+                const SizedBox(height: 16),
+              ],
+            ),
           ),
         );
       }
@@ -1388,8 +1530,7 @@ class _PainelAdminPageState extends ConsumerState<PainelAdminPage>
 
   Widget _buildAuditoria() {
     return StreamBuilder<QuerySnapshot>(
-      stream: ref.read(adminDataSourceProvider).streamAuditoria(
-            widget.substituicaoInstituicaoId),
+      stream: _auditoriaStream,
       builder: (context, snap) {
         if (snap.hasError) {
           return Center(child: Text('Erro: ${snap.error}'));

@@ -46,9 +46,12 @@ class _AdminGamificacaoTabState extends ConsumerState<AdminGamificacaoTab> {
   bool _carregandoAssuntos = false;
   bool _salvando = false;
 
+  late final Stream<QuerySnapshot> _gamificacaoStream;
+
   @override
   void initState() {
     super.initState();
+    _gamificacaoStream = ref.read(adminDataSourceProvider).streamGamificacao(widget.instituicaoId);
     _carregarCategorias();
     _carregarTodosParaLabels();
   }
@@ -592,9 +595,7 @@ class _AdminGamificacaoTabState extends ConsumerState<AdminGamificacaoTab> {
 
   Widget _buildLista() {
     return StreamBuilder<QuerySnapshot>(
-      stream: ref
-          .read(adminDataSourceProvider)
-          .streamGamificacao(widget.instituicaoId),
+      stream: _gamificacaoStream,
       builder: (context, snapshot) {
         if (snapshot.hasError) {
           return Text('Erro ao carregar regras: ${snapshot.error}');
