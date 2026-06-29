@@ -18,10 +18,8 @@ migrate_working_dir/
 *.iws
 .idea/
 
-# The .vscode folder contains launch configuration and tasks you configure in
-# VS Code which you may wish to be included in version control, so this line
-# is commented out by default.
-#.vscode/
+# VS Code
+.vscode/
 
 # Flutter/Dart/Pub related
 **/doc/api/
@@ -48,6 +46,21 @@ app.*.map.json
 *.md
 README.md
 
-# Ignorar as regras de segurança locais do Storage
-storage.rules
-firestore.rules
+# Ignora arquivos de credenciais locais com chaves secretas do app
+android/app/google-services.json
+lib/firebase_options.dart
+*.json.secret
+*.local
+
+# Firebase iOS / macOS
+ios/Runner/GoogleService-Info.plist
+macos/Runner/GoogleService-Info.plist
+
+# Android signing keys
+*.keystore
+*.jks
+key.properties
+
+# Google Cloud / Firebase service account keys
+**/service-account*.json
+**/*-credentials.json

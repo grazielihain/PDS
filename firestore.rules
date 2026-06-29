@@ -3,6 +3,8 @@ service cloud.firestore {
   match /databases/{database}/documents {
 
     // ── Funções auxiliares ────────────────────────────────────────────────────
+    // role e instituicaoId vêm do Custom Claim do token JWT — zero leituras extras.
+    // Definidos pela Cloud Function 'sincronizarCustomClaims' ao criar/alterar usuário.
 
     function isAuth() {
       return request.auth != null;
@@ -12,13 +14,13 @@ service cloud.firestore {
       return request.auth.uid;
     }
 
-    // Documento do usuário autenticado (cacheado pelo engine por request)
-    function userDoc() {
-      return get(/databases/$(database)/documents/usuarios/$(request.auth.uid)).data;
+    function myRole() {
+      return request.auth.token.get('role', '');
     }
 
-    function myRole()   { return userDoc().role; }
-    function myInstId() { return userDoc().instituicaoId; }
+    function myInstId() {
+      return request.auth.token.get('instituicaoId', '');
+    }
 
     function isMaster() { return isAuth() && myRole() == 'Master'; }
     function isAdmin()  { return isAuth() && myRole() == 'Admin'; }
@@ -47,12 +49,22 @@ service cloud.firestore {
         || (isAcess2()
             && request.resource.data.role == 'Acess3'
             && request.resource.data.instituicaoId == myInstId());
-      // Usuário atualiza o próprio perfil; Admin atualiza usuários da sua inst.
+      // Usuário atualiza o próprio perfil; Admin atualiza usuários da sua inst.;
+      // Acess2 pode editar nome/e-mail de Acess3 que criou, sem mudar o role.
       allow update: if uid() == userId
         || isMaster()
-        || (isAdmin() && resource.data.instituicaoId == myInstId());
+        || (isAdmin() && resource.data.instituicaoId == myInstId())
+        || (isAcess2()
+            && resource.data.role == 'Acess3'
+            && resource.data.criadoPor == uid()
+            && resource.data.instituicaoId == myInstId()
+            && request.resource.data.role == 'Acess3');
       allow delete: if isMaster()
-        || (isAdmin() && resource.data.instituicaoId == myInstId());
+        || (isAdmin() && resource.data.instituicaoId == myInstId())
+        || (isAcess2()
+            && resource.data.role == 'Acess3'
+            && resource.data.criadoPor == uid()
+            && resource.data.instituicaoId == myInstId());
     }
 
     // Histórico de simulados — imutável após gravação (registros de prova)

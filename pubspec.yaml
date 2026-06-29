@@ -80,8 +80,7 @@ flutter:
   uses-material-design: true
 
   assets:
-    - assets/images/logo_rumo_quiz.png
-    - assets/images/logo_rumo_quiz_sem_slogan.png
+    - assets/images/
 
   # An image asset can refer to one or more resolution-specific "variants", see
   # https://flutter.dev/to/resolution-aware-images

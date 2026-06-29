@@ -26,18 +26,24 @@ class _AdminCategoriasTabState extends ConsumerState<AdminCategoriasTab> {
   bool get _isAdmin => widget.roleCriador == 'Admin';
 
   late final Stream<QuerySnapshot> _categoriasStream;
-  Stream<QuerySnapshot>? _assuntosStream;
+  final Map<String, Stream<QuerySnapshot>> _assuntosStreams = {};
   final Map<String, Stream<QuerySnapshot>> _tiposStreams = {};
   final Map<String, bool> _expanded = {};
-
-  Stream<QuerySnapshot> get _assuntosLazy =>
-      _assuntosStream ??= ref.read(adminDataSourceProvider).streamAssuntos(widget.instituicaoId);
 
   @override
   void initState() {
     super.initState();
     _categoriasStream = ref.read(adminDataSourceProvider).streamCategorias(widget.instituicaoId);
   }
+
+  // Cada categoria tem sua própria stream de assuntos para evitar que
+  // múltiplos StreamBuilders compartilhem uma broadcast stream e o segundo
+  // assinante fique preso em ConnectionState.waiting sem receber dados.
+  Stream<QuerySnapshot> _getAssuntosStream(String categoriaId) =>
+      _assuntosStreams.putIfAbsent(
+        categoriaId,
+        () => ref.read(adminDataSourceProvider).streamAssuntos(widget.instituicaoId),
+      );
 
   Stream<QuerySnapshot> _getTiposStream(String categoriaId) =>
       _tiposStreams.putIfAbsent(
@@ -445,7 +451,7 @@ class _AdminCategoriasTabState extends ConsumerState<AdminCategoriasTab> {
         ),
         const SizedBox(height: 8),
         StreamBuilder<QuerySnapshot>(
-          stream: _assuntosLazy,
+          stream: _getAssuntosStream(categoriaId),
           builder: (context, snap) {
             if (snap.connectionState == ConnectionState.waiting) {
               return const LinearProgressIndicator();

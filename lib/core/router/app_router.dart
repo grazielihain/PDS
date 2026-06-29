@@ -1,4 +1,5 @@
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -17,6 +18,7 @@ import '../presentation/pages/main_layout_shell.dart';
 import '../../features/simulados/presentation/pages/simulado_page.dart';
 import 'package:rumo_quiz/features/admin/presentation/pages/painel_admin_page.dart';
 import 'package:rumo_quiz/features/admin/presentation/pages/painel_master_page.dart';
+import 'package:rumo_quiz/features/landing/presentation/pages/landing_page.dart';
 
 /// Cache de role para redirect síncrono do GoRouter.
 /// Atualizado pelo MainLayoutShell assim que o documento do usuário carrega.
@@ -42,17 +44,25 @@ class UserRoleCache extends ChangeNotifier {
 }
 
 class AppRouter {
-  static final _publicRoutes = {'/login'};
+  static final _publicRoutes = {'/login', '/'};
   static final _adminRoutes = {'/admin-painel', '/admin'};
   static final _masterRoutes = {'/master-painel'};
 
   static final GoRouter router = GoRouter(
-    initialLocation: '/login',
+    initialLocation: kIsWeb ? '/' : '/login',
     refreshListenable: UserRoleCache(),
     redirect: (context, state) {
       final user = FirebaseAuth.instance.currentUser;
-      final isPublic = _publicRoutes.contains(state.matchedLocation);
-      if (user == null && !isPublic) return '/login';
+      final path = state.matchedLocation;
+
+      // Landing page é exclusiva da web — redireciona mobile para login
+      if (!kIsWeb && path == '/') return '/login';
+
+      // Usuário autenticado na landing page → entra no app
+      if (user != null && path == '/') return '/quiz-selection';
+
+      final isPublic = _publicRoutes.contains(path);
+      if (user == null && !isPublic) return kIsWeb ? '/' : '/login';
 
       if (user != null) {
         final role = UserRoleCache().role;
@@ -72,6 +82,16 @@ class AppRouter {
       return null;
     },
     routes: [
+      // Landing page pública (web) — menu superior com Início, Login e Contato
+      GoRoute(
+        path: '/',
+        builder: (context, state) {
+          final tab =
+              int.tryParse(state.uri.queryParameters['tab'] ?? '') ?? 0;
+          return LandingPage(initialTab: tab);
+        },
+      ),
+
       // Rota de login (fora do shell — sem cabeçalho/rodapé)
       GoRoute(path: '/login', builder: (context, state) => const LoginPage()),
 

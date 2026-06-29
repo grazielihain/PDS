@@ -1346,8 +1346,7 @@ class _PainelAdminPageState extends ConsumerState<PainelAdminPage> {
             itemBuilder: (context, i) {
               final u =
                   docs[i].data() as Map<String, dynamic>;
-              final podeDeletar = _roleCriador == 'Admin' ||
-                  u['criadoPor'] == uid;
+              final podeDeletar = _roleCriador == 'Admin' || u['criadoPor'] == uid;
               return Card(
                 child: ListTile(
                   dense: true,

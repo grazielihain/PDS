@@ -1,4 +1,5 @@
-const { onDocumentDeleted, onDocumentUpdated } = require("firebase-functions/v2/firestore");
+const { onDocumentDeleted, onDocumentUpdated, onDocumentWritten } = require("firebase-functions/v2/firestore");
+const { onRequest } = require("firebase-functions/v2/https");
 const admin = require("firebase-admin");
 
 admin.initializeApp();
@@ -36,6 +37,32 @@ exports.sincronizarEmailAuth = onDocumentUpdated(
       await admin.auth().updateUser(userId, { email: after.email });
     } catch (error) {
       // E-mail duplicado ou usuário não encontrado — não propagar.
+    }
+  }
+);
+
+exports.sincronizarCustomClaims = onDocumentWritten(
+  "usuarios/{userId}",
+  async (event) => {
+    // Documento excluído: sem claims para definir
+    if (!event.data.after.exists) return;
+
+    const after = event.data.after.data();
+    const before = event.data.before?.exists ? event.data.before.data() : {};
+    const userId = event.params.userId;
+
+    const role = after.role ?? null;
+    const instituicaoId = after.instituicaoId ?? null;
+
+    // Só regrava se role ou instituicaoId mudaram (evita invocações extras)
+    if (before.role === role && before.instituicaoId === instituicaoId) return;
+
+    if (!role || !instituicaoId) return;
+
+    try {
+      await admin.auth().setCustomUserClaims(userId, { role, instituicaoId });
+    } catch (error) {
+      // Usuário Auth inexistente (ex.: documento criado antes do Auth) — ignorar.
     }
   }
 );
