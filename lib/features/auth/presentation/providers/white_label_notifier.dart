@@ -16,15 +16,15 @@ class WhiteLabelNotifier extends StateNotifier<WhiteLabelState> {
 
   WhiteLabelNotifier() : super(WhiteLabelState());
 
-  // 🟢 FUNÇÃO ECONÔMICA: Só bate no banco se realmente precisar carregar os dados comerciais
+  // FUNÇÃO DE ECONOMIA: Só vai no banco se realmente precisar carregar os dados comerciais
   Future<void> inicializarIdentidade(String instituicaoId, String logoUrl) async {
-    // Se a instituição já estiver na memória, não gasta leitura no Firebase!
+    // Se a instituição já estiver na memória, não gasta leitura no Firebase
     if (state.instituicao?.id == instituicaoId) return;
 
     state = WhiteLabelState(logoUrl: logoUrl, isLoading: true);
 
     try {
-      // Faz uma única leitura do documento da instituição (Ex: /instituicoes/ulbra-01)
+      // Faz uma única leitura do documento da instituição 
       final doc = await _firestore.collection('instituicoes').doc(instituicaoId).get();
       
       if (doc.exists) {

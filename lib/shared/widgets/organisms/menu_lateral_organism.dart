@@ -50,7 +50,7 @@ class MenuLateralOrganism extends StatelessWidget {
 
     Widget conteudoMenu = Column(
       children: [
-        // ── CABEÇALHO DO MENU ──────────────────────────────────────────────
+        // CABEÇALHO DO MENU 
         if (mostrarTexto)
           Container(
             width: double.infinity,
@@ -143,7 +143,7 @@ class MenuLateralOrganism extends StatelessWidget {
             ),
           ),
 
-        // ── ITENS DE MENU (scrolláveis) ────────────────────────────────────
+        // ITENS DE MENU (scrolláveis) 
         Expanded(
           child: ListView(
             padding: EdgeInsets.zero,
@@ -153,7 +153,7 @@ class MenuLateralOrganism extends StatelessWidget {
 
         const Divider(height: 1),
 
-        // ── BOTÃO SAIR ──────────────────────────────────────────────────────
+        // BOTÃO SAIR 
         Tooltip(
           message: mostrarTexto ? '' : 'Sair do Aplicativo',
           child: ListTile(
@@ -435,10 +435,7 @@ class MenuLateralOrganism extends StatelessWidget {
                   ? <String, dynamic>{'instituicaoId': instituicaoId}
                   : null;
 
-          if (!isWebMode) {
-            // Close the drawer first, then navigate on the next frame.
-            // Calling context.go() in the same tick as Navigator.pop() puts
-            // the Navigator in a transitional state that can stall the UI.
+          if (!isWebMode) {        
             Navigator.pop(context);
             WidgetsBinding.instance.addPostFrameCallback((_) {
               if (extraData != null) {

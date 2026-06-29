@@ -2,8 +2,8 @@ import 'dart:async';
 import 'dart:math';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-/// 📦 MODELO DE ESTADO DA SESSÃO DO QUIZ
-/// Armazena o estado imutável do simulado em execução conforme regras do Figma Make.
+/// MODELO DE ESTADO DA SESSÃO DO QUIZ
+/// Armazena o estado imutável do simulado em execução.
 class QuizSessionState {
   final bool emExecucao;
   final String categoriaId;
@@ -66,14 +66,14 @@ class QuizSessionState {
   }
 }
 
-/// 🧠 NOTIFIER: GERENCIADOR DE ESTADO INDEPENDENTE (Clean Architecture)
+/// NOTIFIER: GERENCIADOR DE ESTADO INDEPENDENTE 
 /// Centraliza a lógica do simulado sem usar BuildContext.
 class QuizSessionNotifier extends StateNotifier<QuizSessionState> {
   QuizSessionNotifier() : super(QuizSessionState());
 
   Timer? _cronometroTimer;
 
-  /// 🚀 1. INICIAR SIMULADO (Com lógica de Sorteio Antirrepetição)
+  /// 1. INICIAR SIMULADO (lógica de Sorteio Antirrepetição)
   void iniciarSimulado({
     required String categoriaId,
     String categoriaNome = '',
@@ -83,7 +83,7 @@ class QuizSessionNotifier extends StateNotifier<QuizSessionState> {
     required int qtdSolicitada,
     int? tempoMinutos,
   }) {
-    // Filtrar questões extraindo os dados com segurança, seja objeto ou mapa
+    // Filtra questões extraindo os dados com segurança, seja objeto ou mapa
     List<dynamic> questoesFiltradas = questoesDisponiveisNoBanco.where((q) {
       final String qCategoriaId = (q is Map)
           ? (q['categoriaId'] ?? '')
@@ -111,7 +111,7 @@ class QuizSessionNotifier extends StateNotifier<QuizSessionState> {
         .take(qtdFinalAQuizzar)
         .toList();
 
-    // 🔥 Proteção Anti-Pausa: Define rigidamente o horário exato em que a prova deve terminar
+    // Proteção Anti-Pausa: Define rigidamente o horário exato em que a prova deve terminar
     DateTime? limiteTermino;
     int segundosTotais = 0;
     if (tempoMinutos != null && tempoMinutos > 0) {
@@ -131,7 +131,7 @@ class QuizSessionNotifier extends StateNotifier<QuizSessionState> {
       tempoRestanteSegundos: segundosTotais,
       tempoEncerrado: false,
       mostrarAviso5Minutos: false,
-      horarioTermino: limiteTermino, // ✅ Fixado na largada da prova
+      horarioTermino: limiteTermino, // Fixado no início da prova
     );
 
     if (limiteTermino != null) {
@@ -139,7 +139,7 @@ class QuizSessionNotifier extends StateNotifier<QuizSessionState> {
     }
   }
 
-  /// ⏱️ 2. CONTROLO DO CRONÔMETRO REGRESSIVO INALTERÁVEL
+  /// 2. CONTROLE DO CRONÔMETRO REGRESSIVO INALTERÁVEL
   void _iniciarRelogioAbsoluto() {
     _cronometroTimer?.cancel();
 
@@ -175,7 +175,7 @@ class QuizSessionNotifier extends StateNotifier<QuizSessionState> {
     });
   }
 
-  /// 🔘 3. SELECIONAR ALTERNATIVA
+  /// 3. SELECIONAR ALTERNATIVA
   void selecionarAlternativa(String questaoId, String alternativaLetra) {
     final novasRespostas = Map<String, String>.from(
       state.respostasSelecionadas,
@@ -184,7 +184,7 @@ class QuizSessionNotifier extends StateNotifier<QuizSessionState> {
     state = state.copyWith(respostasSelecionadas: novasRespostas);
   }
 
-  /// ⏭️ 4. NAVEGAÇÃO ENTRE QUESTÕES (Avançar / Voltar / Direta)
+  /// 4. NAVEGAÇÃO ENTRE QUESTÕES (Avançar / Voltar / Direta)
   void proximaQuestao() {
     if (state.indiceQuestaoAtual < state.questoes.length - 1) {
       state = state.copyWith(indiceQuestaoAtual: state.indiceQuestaoAtual + 1);
@@ -203,18 +203,18 @@ class QuizSessionNotifier extends StateNotifier<QuizSessionState> {
     }
   }
 
-  /// 📴 5. CONSUMIR AVISO DE 5 MINUTOS
+  /// 5. MOSTRAR AVISO DE 5 MINUTOS
   void limparAviso5Minutos() {
     state = state.copyWith(mostrarAviso5Minutos: false);
   }
 
-  /// 🏁 6. ENCERRAMENTO FORÇADO PELO FIM DO TEMPO
+  /// 6. ENCERRAMENTO FORÇADO PELO FIM DO TEMPO
   void finalizarSimuladoForcado() {
     _cronometroTimer?.cancel();
     state = state.copyWith(emExecucao: false);
   }
 
-  /// 🛑 7. CANCELAR OU RESETAR SESSÃO
+  /// 7. CANCELAR OU RESETAR SESSÃO
   void resetarSimulado() {
     _cronometroTimer?.cancel();
     state = QuizSessionState();
@@ -227,7 +227,7 @@ class QuizSessionNotifier extends StateNotifier<QuizSessionState> {
   }
 }
 
-/// 🌍 PROVIDER GLOBAL DISPONÍVEL PARA OS WIDGETS OBSERVADOS
+/// PROVIDER GLOBAL DISPONÍVEL PARA OS WIDGETS OBSERVADOS
 final quizSessionProvider =
     StateNotifierProvider<QuizSessionNotifier, QuizSessionState>((ref) {
       return QuizSessionNotifier();

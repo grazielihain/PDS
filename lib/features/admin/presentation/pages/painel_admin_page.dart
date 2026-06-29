@@ -1,5 +1,4 @@
 import 'dart:typed_data';
-
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -8,7 +7,6 @@ import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../providers/admin_provider.dart';
-
 import '../../../../../shared/widgets/tab_page_header.dart';
 import '../../../auth/presentation/pages/meu_perfil_page.dart';
 import 'tabs/admin_categorias_tab.dart';
@@ -33,8 +31,8 @@ class PainelAdminPage extends ConsumerStatefulWidget {
 class _PainelAdminPageState extends ConsumerState<PainelAdminPage> {
   late PageController _pageController;
 
-  // Getter de compatibilidade — operações de painel que ainda não migraram
-  // para AdminRemoteDataSource usam este getter enquanto a refatoração avança.
+  // Getter de compatibilidade — operações que ainda não migraram
+  // para AdminRemoteDataSource usam getter
   FirebaseFirestore get _db => FirebaseFirestore.instance;
 
   // Role and loading
@@ -93,10 +91,7 @@ class _PainelAdminPageState extends ConsumerState<PainelAdminPage> {
   @override
   void didUpdateWidget(PainelAdminPage oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (oldWidget.initialTab != widget.initialTab) {
-      // jumpToPage bypasses TabBarView's warp logic, which caused a
-      // re-entrant _handlePageController → _warpToCurrentIndex loop that
-      // left the PageView stuck between the target page and the next one.
+    if (oldWidget.initialTab != widget.initialTab) {      
       if (_pageController.hasClients) {
         _pageController.jumpToPage(widget.initialTab);
       }
@@ -159,8 +154,6 @@ class _PainelAdminPageState extends ConsumerState<PainelAdminPage> {
     );
     if (mounted) {
       setState(() {});
-      // Jump to the requested tab after the PageView is laid out with
-      // the correct number of children for this role.
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (!mounted) return;
         final maxPage = role == 'Admin' ? 8 : 5;
@@ -173,9 +166,9 @@ class _PainelAdminPageState extends ConsumerState<PainelAdminPage> {
     }
   }
 
-  // ─────────────────────────── AUDITORIA ────────────────────────────────────
+  // AUDITORIA
 
-  /// Converte o toString() de um Map em linhas legíveis (• chave: valor)
+  /// Converte o toString() de um Map em linhas legíveis (chave: valor)
   String _formatarRegistroAuditoria(String? raw) {
     if (raw == null || raw.isEmpty) return '—';
     final text = raw.trim();
@@ -214,8 +207,7 @@ class _PainelAdminPageState extends ConsumerState<PainelAdminPage> {
     );
   }
 
-  // ─────────────────────────── IMAGEM HELPERS ───────────────────────────────
-
+  // IMAGEM HELPERS
   Future<void> _selecionarImagem(
       {required void Function(Uint8List, String) onBytes}) async {
     late final FilePickerResult? result;
@@ -252,7 +244,7 @@ class _PainelAdminPageState extends ConsumerState<PainelAdminPage> {
   }
 
   // Logo e mascote usam path fixo (sobrescreve o arquivo anterior no Storage).
-  // Patrocinadores usam timestamp pois múltiplos arquivos coexistem.
+  // Patrocinadores usam timestamp pq múltiplos arquivos coexistem.
   Future<String> _uploadImagem(
       Uint8List bytes, String nome, String pasta) async {
     final ext =
@@ -328,7 +320,7 @@ class _PainelAdminPageState extends ConsumerState<PainelAdminPage> {
     }
   }
 
-  // ─────────────────────────── IDENTIDADE VISUAL ────────────────────────────
+  // IDENTIDADE VISUAL
 
   Future<void> _salvarIdentidade() async {
     if (!_formKeyIdentidade.currentState!.validate()) return;
@@ -460,7 +452,7 @@ class _PainelAdminPageState extends ConsumerState<PainelAdminPage> {
     }
   }
 
-  // ─────────────────────────── USUÁRIOS ─────────────────────────────────────
+  // USUÁRIOS 
 
   Future<void> _cadastrarNovoUsuario() async {
     if (!_formKeyUsuario.currentState!.validate()) return;
@@ -550,7 +542,7 @@ class _PainelAdminPageState extends ConsumerState<PainelAdminPage> {
     }
   }
 
-  // ─────────────────────────── BUILD ────────────────────────────────────────
+  // BUILD 
 
   @override
   Widget build(BuildContext context) {
@@ -621,7 +613,7 @@ class _PainelAdminPageState extends ConsumerState<PainelAdminPage> {
     );
   }
 
-  // ─────────────────────────── HOME ─────────────────────────────────────────
+  // HOME 
 
   Widget _buildHome() {
     final uid = FirebaseAuth.instance.currentUser?.uid;
@@ -762,7 +754,7 @@ class _PainelAdminPageState extends ConsumerState<PainelAdminPage> {
     );
   }
 
-  // ─────────────────────────── PAINEL ADMINISTRATIVO ────────────────────────
+  // PAINEL ADMINISTRATIVO 
 
   Widget _buildPainelAdministrativo() {
     return Column(
@@ -778,7 +770,7 @@ class _PainelAdminPageState extends ConsumerState<PainelAdminPage> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // ── Identidade Visual ──
+                // Identidade Visual
                 const Text('Identidade Visual',
               style:
                   TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
@@ -891,7 +883,7 @@ class _PainelAdminPageState extends ConsumerState<PainelAdminPage> {
           const SizedBox(height: 32),
           const Divider(),
           const SizedBox(height: 16),
-          // ── Patrocinadores ──
+          // Patrocinadores
           Row(
             children: [
               Expanded(
@@ -987,7 +979,7 @@ class _PainelAdminPageState extends ConsumerState<PainelAdminPage> {
                   ),
                 ),
               )),
-          // Logos staged (aguardando upload)
+          // Logos aguardando upload
           ..._patrocinadorBytes.asMap().entries.map((e) => Card(
                 margin: const EdgeInsets.symmetric(vertical: 4),
                 color: Colors.orange.shade50,
@@ -1191,7 +1183,7 @@ class _PainelAdminPageState extends ConsumerState<PainelAdminPage> {
     );
   }
 
-  // ─────────────────────────── USUÁRIOS ─────────────────────────────────────
+  // USUÁRIOS
 
   Widget _buildUsuarios() {
     return Column(
@@ -1315,11 +1307,11 @@ class _PainelAdminPageState extends ConsumerState<PainelAdminPage> {
                         : const Text('Registrar Usuário'),
                   ),
                 ),
-                ],      // fecha children do Form > Column
-              ),        // fecha Column interno do Form
-            ),          // fecha Form
-          ],            // fecha if (_formularioUsuarioExpandido) ...[
-        ],              // fecha children do Column externo
+                ],      
+              ),  
+            ),    
+          ],           
+        ],             
       );
 
       final usuariosStreamWidget = StreamBuilder<QuerySnapshot>(
@@ -1549,7 +1541,7 @@ class _PainelAdminPageState extends ConsumerState<PainelAdminPage> {
     );
   }
 
-  // ─────────────────────────── AUDITORIA VIEW ───────────────────────────────
+  // AUDITORIA VIEW
 
   Widget _buildAuditoria() {
     return Column(

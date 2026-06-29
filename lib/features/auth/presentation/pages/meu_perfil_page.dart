@@ -31,8 +31,8 @@ class __MeuPerfilPageState extends State<MeuPerfilPage> {
     '🐼',
     '🐨',
     '🐯',
-    '🐻',
-    '🐵',
+    '🐧',
+    '🦆',
   ];
   String _avatarSelecionado = '🐱';
   bool _carregando = true;
@@ -108,7 +108,7 @@ class __MeuPerfilPageState extends State<MeuPerfilPage> {
       final novoEmail = _emailController.text.trim();
       final novoNome = _nomeController.text.trim();
 
-      // 1. 🔥 A CORREÇÃO: Atualiza o perfil nativo do Firebase Auth para o GoRouter ler instantaneamente
+      // 1. Atualiza o perfil nativo do Firebase Auth para o GoRouter ler instantaneamente
       await user.updateDisplayName(novoNome);
 
       if (novoEmail != user.email) {

@@ -154,7 +154,7 @@ class _MainLayoutShellState extends State<MainLayoutShell> {
               Navigator.of(ctx).pop();
               await marcarConcluido();
             },
-            child: const Text('Lembrar depois'),
+            child: const Text('Fechar Lembrete'),
           ),
           ElevatedButton(
             style: ElevatedButton.styleFrom(
@@ -199,7 +199,7 @@ class _MainLayoutShellState extends State<MainLayoutShell> {
     final String tipoAcesso =
         (_dadosUsuario?['role'] ?? 'Acess3').toString().trim();
 
-    // Dados da instituição (fonte de verdade: coleção 'instituicoes')
+    // Dados da instituição (coleção 'instituicoes')
     final String nomeInstituicao =
         _dadosInstituicao?['nome'] ?? 'Instituição';
     final String logoInstituicaoUrl =

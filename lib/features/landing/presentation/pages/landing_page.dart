@@ -26,7 +26,7 @@ class _LandingPageState extends ConsumerState<LandingPage>
   bool _ocultarSenha = true;
   bool _carregando = false;
 
-  // ── Paleta Rumo Quiz (verde-teal + laranja) ────────────────────────────────
+  // Paleta Cores Rumo Quiz (verde-teal + laranja) 
   static const _verdePrimario = Color(0xFF0A3D34); // verde escuro base
   static const _verdeAqua = Color(0xFF2D9C8B);     // verde aqua médio
   static const _menta = Color(0xFF82C9BF);          // menta claro
@@ -37,11 +37,10 @@ class _LandingPageState extends ConsumerState<LandingPage>
   static const _cremeBg = Color(0xFFFBFDF8);        // fundo creme
   static const _whatsapp = Color(0xFF25D366);
 
-  // ── Dados de contato ───────────────────────────────────────────────────────
+  // Dados de contato
   static const _email = 'rumoquiz@gmail.com';
   static const _whatsappNumero = '+55 (51) 9 9330-9135';
-  // ────────────────────────────────────────────────────────────────────────────
-
+  
   @override
   void initState() {
     super.initState();
@@ -194,10 +193,8 @@ class _LandingPageState extends ConsumerState<LandingPage>
     );
   }
 
-  // ══════════════════════════════════════════════════════════════════════════════
   //  BUILD PRINCIPAL
-  // ══════════════════════════════════════════════════════════════════════════════
-
+  
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -255,10 +252,8 @@ class _LandingPageState extends ConsumerState<LandingPage>
     );
   }
 
-  // ══════════════════════════════════════════════════════════════════════════════
   //  ABA INÍCIO
-  // ══════════════════════════════════════════════════════════════════════════════
-
+  
   Widget _buildInicio() {
     final largura = MediaQuery.of(context).size.width;
     final isMobile = largura < 700;
@@ -278,7 +273,7 @@ class _LandingPageState extends ConsumerState<LandingPage>
     );
   }
 
-  // ── HERO ────────────────────────────────────────────────────────────────────
+  // HERO 
 
   Widget _buildHero(bool isMobile, double hPad) {
     return Container(
@@ -414,7 +409,7 @@ class _LandingPageState extends ConsumerState<LandingPage>
     );
   }
 
-  // ── SEÇÃO DISPOSITIVOS ───────────────────────────────────────────────────────
+  // SEÇÃO DISPOSITIVOS
 
   Widget _buildDispositivosSection(bool isMobile, double hPad) {
     return Container(
@@ -423,7 +418,7 @@ class _LandingPageState extends ConsumerState<LandingPage>
       child: Column(
         children: [
           const Text(
-            'Disponível na Web e no Mobile',
+            'Disponível na Web e no Mobile (Android)',
             textAlign: TextAlign.center,
             style: TextStyle(
               fontSize: 26,
@@ -448,7 +443,7 @@ class _LandingPageState extends ConsumerState<LandingPage>
                           'Acesse diretamente pelo navegador, sem instalação. '
                           'Interface adaptada para telas grandes com painel completo.',
                       cor: _verdeAqua,
-                      mockup: _buildBrowserMockup(_screenshot('assets/images/screenshot_home_estudante.png', _buildDashboardMockupContent())),
+                      mockup: _buildBrowserMockup(_screenshot('assets/images/screenshot_home_estudante.png', _buildPlaceholder())),
                     ),
                     const SizedBox(height: 32),
                     _buildDispositivoCard(
@@ -458,7 +453,7 @@ class _LandingPageState extends ConsumerState<LandingPage>
                           'Interface otimizada para smartphones. '
                           'Realize simulados onde estiver, de forma rápida e prática.',
                       cor: _laranja,
-                      mockup: _buildPhoneMockup(_screenshot('assets/images/screenshot_mobile_quiz.png', _buildQuizMockupContent())),
+                      mockup: _buildPhoneMockup(_screenshot('assets/images/screenshot_mobile_quiz.png', _buildPlaceholder())),
                     ),
                   ],
                 )
@@ -475,7 +470,7 @@ class _LandingPageState extends ConsumerState<LandingPage>
                               'Interface adaptada para telas grandes com painel completo.',
                           cor: _verdeAqua,
                           mockup:
-                              _buildBrowserMockup(_screenshot('assets/images/screenshot_home_estudante.png', _buildDashboardMockupContent())),
+                              _buildBrowserMockup(_screenshot('assets/images/screenshot_home_estudante.png', _buildPlaceholder())),
                         ),
                       ),
                       const SizedBox(width: 28),
@@ -487,7 +482,7 @@ class _LandingPageState extends ConsumerState<LandingPage>
                               'Interface otimizada para smartphones. '
                               'Realize simulados onde estiver, de forma rápida e prática.',
                           cor: _laranja,
-                          mockup: _buildPhoneMockup(_screenshot('assets/images/screenshot_mobile_quiz.png', _buildQuizMockupContent())),
+                          mockup: _buildPhoneMockup(_screenshot('assets/images/screenshot_mobile_quiz.png', _buildPlaceholder())),
                         ),
                       ),
                     ],
@@ -556,7 +551,7 @@ class _LandingPageState extends ConsumerState<LandingPage>
     );
   }
 
-  // ── COMO FUNCIONA ────────────────────────────────────────────────────────────
+  // COMO FUNCIONA 
 
   Widget _buildComoFunciona(bool isMobile, double hPad) {
     return Column(
@@ -593,7 +588,7 @@ class _LandingPageState extends ConsumerState<LandingPage>
           bgColor: _verdeBg,
           hPad: hPad,
           isMobile: isMobile,
-          mockup: _buildBrowserMockup(_screenshot('assets/images/screenshot_admin_categorias.png', _buildAdminMockupContent())),
+          mockup: _buildBrowserMockup(_screenshot('assets/images/screenshot_admin_categorias.png', _buildPlaceholder())),
           mockupNaDireita: true,
         ),
         _buildPassoSection(
@@ -606,7 +601,7 @@ class _LandingPageState extends ConsumerState<LandingPage>
           bgColor: _laranjaBg,
           hPad: hPad,
           isMobile: isMobile,
-          mockup: _buildPhoneMockup(_screenshot('assets/images/screenshot_mobile_quiz.png', _buildQuizMockupContent())),
+          mockup: _buildPhoneMockup(_screenshot('assets/images/screenshot_mobile_quiz.png', _buildPlaceholder())),
           mockupNaDireita: false,
         ),
         _buildPassoSection(
@@ -619,7 +614,7 @@ class _LandingPageState extends ConsumerState<LandingPage>
           bgColor: _verdeBg,
           hPad: hPad,
           isMobile: isMobile,
-          mockup: _buildBrowserMockup(_screenshot('assets/images/screenshot_resultado_simulado.png', _buildResultadoMockupContent())),
+          mockup: _buildBrowserMockup(_screenshot('assets/images/screenshot_resultado_simulado.png', _buildPlaceholder())),
           mockupNaDireita: true,
         ),
       ],
@@ -710,7 +705,7 @@ class _LandingPageState extends ConsumerState<LandingPage>
     );
   }
 
-  // ── RECURSOS ─────────────────────────────────────────────────────────────────
+  // RECURSOS
 
   Widget _buildRecursos(bool isMobile, double hPad) {
     return Container(
@@ -751,7 +746,7 @@ class _LandingPageState extends ConsumerState<LandingPage>
               ),
               _buildRecursoItem(
                 Icons.devices_outlined,
-                'Web e mobile — sem instalação',
+                'Web(sem instalação) e mobile (Android)',
               ),
               _buildRecursoItem(
                 Icons.palette_outlined,
@@ -807,12 +802,12 @@ class _LandingPageState extends ConsumerState<LandingPage>
     );
   }
 
-  // ── SCREENSHOT HELPER ────────────────────────────────────────────────────────
+  // SCREENSHOT Auxiliar
   // Tenta carregar asset real; usa widget Flutter como fallback se não encontrar.
   Widget _screenshot(String assetPath, Widget fallback) {
     return Image.asset(
       assetPath,
-      fit: BoxFit.cover,
+      fit: BoxFit.fitWidth,
       alignment: Alignment.topCenter,
       width: double.infinity,
       height: double.infinity,
@@ -820,7 +815,7 @@ class _LandingPageState extends ConsumerState<LandingPage>
     );
   }
 
-  // ── FOOTER ────────────────────────────────────────────────────────────────────
+  // FOOTER 
 
   Widget _buildFooter(bool isMobile) {
     return Container(
@@ -882,14 +877,12 @@ class _LandingPageState extends ConsumerState<LandingPage>
     );
   }
 
-  // ══════════════════════════════════════════════════════════════════════════════
   //  DEVICE MOCKUPS — FRAME
-  // ══════════════════════════════════════════════════════════════════════════════
-
+  
   Widget _buildBrowserMockup(Widget content) {
     return Container(
-      width: 480,
-      height: 320,
+      width: 638,
+      height: 480,
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(12),
@@ -904,35 +897,50 @@ class _LandingPageState extends ConsumerState<LandingPage>
       clipBehavior: Clip.antiAlias,
       child: Column(
         children: [
-          // Chrome do navegador
+          // Barra de título — estilo Windows
           Container(
-            height: 32,
-            color: const Color(0xFFF0F0F0),
+            height: 28,
+            color: const Color(0xFFDEDEDE),
             padding: const EdgeInsets.symmetric(horizontal: 10),
             child: Row(
               children: [
-                _dot(const Color(0xFFFF5F57)),
+                const Icon(Icons.language_outlined, size: 13, color: Color(0xFF555555)),
                 const SizedBox(width: 6),
-                _dot(const Color(0xFFFFBD2E)),
-                const SizedBox(width: 6),
-                _dot(const Color(0xFF28C840)),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Container(
-                    height: 16,
-                    decoration: BoxDecoration(
-                      color: Colors.white,
-                      borderRadius: BorderRadius.circular(4),
-                    ),
-                    child: const Center(
-                      child: Text(
-                        'rumoquiz.com.br',
-                        style: TextStyle(fontSize: 9, color: Colors.grey),
-                      ),
-                    ),
+                const Expanded(
+                  child: Text(
+                    'rumoquiz.com.br',
+                    style: TextStyle(fontSize: 11, color: Color(0xFF444444)),
+                    overflow: TextOverflow.ellipsis,
                   ),
                 ),
+                _winBtn(Icons.remove, const Color(0xFF666666)),
+                _winBtn(Icons.crop_square_outlined, const Color(0xFF666666)),
+                _winBtn(Icons.close, Colors.red),
               ],
+            ),
+          ),
+          // Barra de endereço
+          Container(
+            height: 24,
+            color: const Color(0xFFF2F2F2),
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+            child: Container(
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(3),
+                border: Border.all(color: Colors.grey.shade300, width: 0.5),
+              ),
+              padding: const EdgeInsets.symmetric(horizontal: 8),
+              child: Row(
+                children: [
+                  const Icon(Icons.lock_outline, size: 9, color: Colors.grey),
+                  const SizedBox(width: 4),
+                  const Text(
+                    'rumoquiz.com.br',
+                    style: TextStyle(fontSize: 9, color: Colors.grey),
+                  ),
+                ],
+              ),
             ),
           ),
           Expanded(child: content),
@@ -982,481 +990,20 @@ class _LandingPageState extends ConsumerState<LandingPage>
     );
   }
 
-  Widget _dot(Color color) => CircleAvatar(radius: 4, backgroundColor: color);
+  Widget _winBtn(IconData icon, Color color) => Padding(
+        padding: const EdgeInsets.only(left: 6),
+        child: Icon(icon, size: 12, color: color),
+      );
 
-  // ══════════════════════════════════════════════════════════════════════════════
-  //  DEVICE MOCKUPS — CONTEÚDO (mini UI da aplicação)
-  // ══════════════════════════════════════════════════════════════════════════════
-
-  // Dashboard do aluno (para seção dispositivos)
-  Widget _buildDashboardMockupContent() {
-    return Container(
-      color: const Color(0xFFF4FAF8),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Container(
-            height: 22,
-            color: _verdePrimario,
-            padding: const EdgeInsets.symmetric(horizontal: 8),
-            child: Row(
-              children: [
-                const Icon(Icons.quiz, size: 8, color: Colors.white),
-                const SizedBox(width: 4),
-                const Text(
-                  'Rumo Quiz',
-                  style: TextStyle(
-                    fontSize: 7,
-                    color: Colors.white,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-                const Spacer(),
-                const Icon(Icons.person_outline, size: 8, color: Colors.white),
-              ],
-            ),
-          ),
-          Padding(
-            padding: const EdgeInsets.all(6),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Text(
-                  'Olá, Estudante!',
-                  style: TextStyle(
-                    fontSize: 8,
-                    fontWeight: FontWeight.bold,
-                    color: _verdePrimario,
-                  ),
-                ),
-                const SizedBox(height: 5),
-                Row(
-                  children: [
-                    _miniMetricCard('12', 'Simulados', _verdeAqua),
-                    const SizedBox(width: 4),
-                    _miniMetricCard('87%', 'Acertos', _laranja),
-                    const SizedBox(width: 4),
-                    _miniMetricCard('340', 'Pontos', _menta),
-                  ],
-                ),
-                const SizedBox(height: 6),
-                const Text(
-                  'Categorias',
-                  style: TextStyle(
-                    fontSize: 7,
-                    fontWeight: FontWeight.bold,
-                    color: _verdePrimario,
-                  ),
-                ),
-                const SizedBox(height: 3),
-                _miniCatRow(Icons.calculate_outlined, 'Matemática', 0.7),
-                const SizedBox(height: 2),
-                _miniCatRow(Icons.language_outlined, 'Português', 0.5),
-                const SizedBox(height: 2),
-                _miniCatRow(Icons.history_edu_outlined, 'História', 0.85),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  // Painel admin — configuração (passo 1)
-  Widget _buildAdminMockupContent() {
-    return Container(
-      color: const Color(0xFFF4FAF8),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Container(
-            height: 22,
-            color: _verdePrimario,
-            padding: const EdgeInsets.symmetric(horizontal: 8),
-            child: const Row(
-              children: [
-                Icon(Icons.settings, size: 8, color: Colors.white),
-                SizedBox(width: 4),
-                Text(
-                  'Painel Admin',
-                  style: TextStyle(
-                    fontSize: 7,
-                    color: Colors.white,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-              ],
-            ),
-          ),
-          Padding(
-            padding: const EdgeInsets.all(7),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  children: [
-                    const Text(
-                      'Categorias',
-                      style: TextStyle(
-                        fontSize: 7,
-                        fontWeight: FontWeight.bold,
-                        color: _verdePrimario,
-                      ),
-                    ),
-                    const Spacer(),
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 5,
-                        vertical: 2,
-                      ),
-                      decoration: BoxDecoration(
-                        color: _laranja,
-                        borderRadius: BorderRadius.circular(3),
-                      ),
-                      child: const Text(
-                        '+ Nova',
-                        style: TextStyle(fontSize: 6, color: Colors.white),
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 5),
-                _adminCatRow(Icons.calculate_outlined, 'Matemática', '45 questões', Colors.blue.shade300),
-                const SizedBox(height: 3),
-                _adminCatRow(Icons.language_outlined, 'Português', '38 questões', Colors.green.shade300),
-                const SizedBox(height: 3),
-                _adminCatRow(Icons.history_edu_outlined, 'História', '29 questões', Colors.orange.shade300),
-                const SizedBox(height: 3),
-                _adminCatRow(Icons.science_outlined, 'Ciências', '21 questões', Colors.purple.shade300),
-                const SizedBox(height: 6),
-                Container(
-                  height: 1,
-                  color: Colors.grey.shade200,
-                ),
-                const SizedBox(height: 5),
-                Row(
-                  children: [
-                    const Icon(Icons.people_outline, size: 8, color: Colors.grey),
-                    const SizedBox(width: 3),
-                    const Text(
-                      '48 usuários cadastrados',
-                      style: TextStyle(fontSize: 6, color: Colors.grey),
-                    ),
-                  ],
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  // Quiz — realização do simulado (passo 2 / seção mobile)
-  Widget _buildQuizMockupContent() {
-    return Container(
-      color: Colors.grey.shade50,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Container(
-            padding: const EdgeInsets.all(6),
-            color: _verdeAqua,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  children: [
-                    const Text(
-                      'Simulado • 3/10',
-                      style: TextStyle(
-                        fontSize: 7,
-                        color: Colors.white,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                    const Spacer(),
-                    const Icon(Icons.timer_outlined, size: 8, color: Colors.white),
-                    const SizedBox(width: 2),
-                    const Text(
-                      '4:32',
-                      style: TextStyle(fontSize: 7, color: Colors.white),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 4),
-                ClipRRect(
-                  borderRadius: BorderRadius.circular(2),
-                  child: LinearProgressIndicator(
-                    value: 0.3,
-                    minHeight: 4,
-                    backgroundColor: Colors.white.withAlpha(60),
-                    valueColor: const AlwaysStoppedAnimation(Colors.white),
-                  ),
-                ),
-              ],
-            ),
-          ),
-          Padding(
-            padding: const EdgeInsets.all(6),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Text(
-                  'Qual é a capital do Brasil?',
-                  style: TextStyle(
-                    fontSize: 8,
-                    fontWeight: FontWeight.bold,
-                    color: _verdePrimario,
-                    height: 1.3,
-                  ),
-                ),
-                const SizedBox(height: 7),
-                _quizOption('São Paulo', false),
-                const SizedBox(height: 3),
-                _quizOption('Brasília', true),
-                const SizedBox(height: 3),
-                _quizOption('Rio de Janeiro', false),
-                const SizedBox(height: 3),
-                _quizOption('Belo Horizonte', false),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  // Resultado do simulado (passo 3)
-  Widget _buildResultadoMockupContent() {
-    return Container(
-      color: const Color(0xFFF4FAF8),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          Container(
-            height: 22,
-            color: _verdePrimario,
-            child: const Center(
-              child: Text(
-                'Resultado de Simulado',
-                style: TextStyle(
-                  fontSize: 7,
-                  color: Colors.white,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-            ),
-          ),
-          Expanded(
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                children: [
-                  SizedBox(
-                    width: 60,
-                    height: 60,
-                    child: Stack(
-                      alignment: Alignment.center,
-                      children: [
-                        CircularProgressIndicator(
-                          value: 0.8,
-                          strokeWidth: 6,
-                          backgroundColor: Colors.grey.shade200,
-                          valueColor: const AlwaysStoppedAnimation(_verdeAqua),
-                        ),
-                        const Text(
-                          '80%',
-                          style: TextStyle(
-                            fontSize: 10,
-                            fontWeight: FontWeight.bold,
-                            color: _verdePrimario,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      _resultBadge('8 acertos', Colors.green.shade400),
-                      const SizedBox(width: 6),
-                      _resultBadge('2 erros', Colors.red.shade300),
-                    ],
-                  ),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      const Icon(Icons.stars, size: 10, color: _laranja),
-                      const SizedBox(width: 3),
-                      const Text(
-                        '+120 pontos',
-                        style: TextStyle(
-                          fontSize: 8,
-                          color: _laranja,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                    ],
-                  ),
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 10,
-                      vertical: 4,
-                    ),
-                    decoration: BoxDecoration(
-                      color: _verdeAqua,
-                      borderRadius: BorderRadius.circular(4),
-                    ),
-                    child: const Text(
-                      'Ver revisão completa',
-                      style: TextStyle(fontSize: 7, color: Colors.white),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  // ── Mini helpers para os mockups ─────────────────────────────────────────────
-
-  Widget _miniMetricCard(String valor, String label, Color cor) {
-    return Expanded(
-      child: Container(
-        padding: const EdgeInsets.symmetric(vertical: 4),
-        decoration: BoxDecoration(
-          color: cor.withAlpha(30),
-          borderRadius: BorderRadius.circular(4),
+  Widget _buildPlaceholder() => Container(
+        color: _verdeBg,
+        child: const Center(
+          child: Icon(Icons.image_outlined, color: _menta, size: 32),
         ),
-        child: Column(
-          children: [
-            Text(
-              valor,
-              style: TextStyle(
-                fontSize: 9,
-                fontWeight: FontWeight.bold,
-                color: cor,
-              ),
-            ),
-            Text(
-              label,
-              style: const TextStyle(fontSize: 5, color: Colors.grey),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
+      );
 
-  Widget _miniCatRow(IconData icon, String label, double progress) {
-    return Row(
-      children: [
-        Icon(icon, size: 8, color: _verdeAqua),
-        const SizedBox(width: 3),
-        Text(label, style: const TextStyle(fontSize: 6)),
-        const SizedBox(width: 4),
-        Expanded(
-          child: ClipRRect(
-            borderRadius: BorderRadius.circular(2),
-            child: LinearProgressIndicator(
-              value: progress,
-              minHeight: 3,
-              backgroundColor: Colors.grey.shade200,
-              valueColor: const AlwaysStoppedAnimation(_verdeAqua),
-            ),
-          ),
-        ),
-      ],
-    );
-  }
 
-  Widget _adminCatRow(IconData icon, String label, String count, Color cor) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 3),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(3),
-        border: Border.all(color: Colors.grey.shade100),
-      ),
-      child: Row(
-        children: [
-          Icon(icon, size: 8, color: cor),
-          const SizedBox(width: 4),
-          Text(label, style: const TextStyle(fontSize: 7)),
-          const Spacer(),
-          Text(count, style: const TextStyle(fontSize: 6, color: Colors.grey)),
-          const SizedBox(width: 2),
-          const Icon(Icons.chevron_right, size: 8, color: Colors.grey),
-        ],
-      ),
-    );
-  }
-
-  Widget _quizOption(String texto, bool selected) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
-      decoration: BoxDecoration(
-        color: selected ? _verdeAqua.withAlpha(40) : Colors.white,
-        borderRadius: BorderRadius.circular(4),
-        border: Border.all(
-          color: selected ? _verdeAqua : Colors.grey.shade200,
-          width: selected ? 1.2 : 0.8,
-        ),
-      ),
-      child: Row(
-        children: [
-          Container(
-            width: 8,
-            height: 8,
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              border: Border.all(
-                color: selected ? _verdeAqua : Colors.grey.shade400,
-                width: 0.8,
-              ),
-              color: selected ? _verdeAqua : Colors.transparent,
-            ),
-          ),
-          const SizedBox(width: 5),
-          Text(
-            texto,
-            style: TextStyle(
-              fontSize: 7,
-              color: selected ? _verdeAqua : Colors.grey.shade700,
-              fontWeight: selected ? FontWeight.bold : FontWeight.normal,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _resultBadge(String texto, Color cor) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-      decoration: BoxDecoration(
-        color: cor.withAlpha(30),
-        borderRadius: BorderRadius.circular(3),
-      ),
-      child: Text(
-        texto,
-        style: TextStyle(
-          fontSize: 7,
-          color: cor,
-          fontWeight: FontWeight.bold,
-        ),
-      ),
-    );
-  }
-
-  // ══════════════════════════════════════════════════════════════════════════════
   //  ABA ACESSAR (LOGIN)
-  // ══════════════════════════════════════════════════════════════════════════════
 
   Widget _buildLogin() {
     return Center(
@@ -1576,9 +1123,7 @@ class _LandingPageState extends ConsumerState<LandingPage>
     );
   }
 
-  // ══════════════════════════════════════════════════════════════════════════════
   //  ABA CONTATO
-  // ══════════════════════════════════════════════════════════════════════════════
 
   Widget _buildContato() {
     return Center(

@@ -3,8 +3,7 @@ import '../../domain/entities/questao_entity.dart';
 import '../../domain/repositories/simulado_repository.dart';
 import '../datasources/simulado_remote_data_source.dart';
 
-// 🟢 O INTERFONE DO REPOSITÓRIO (Provider do Riverpod): 
-// É ele que as telas e os controllers vão chamar para pedir as questões!
+// Provider do Riverpod: chamado pelas telas e os controllers para pedir as questões
 final simuladoRepositoryProvider = Provider<SimuladoRepository>((ref) {
   final dataSource = ref.read(simuladoDataSourceProvider);
   return SimuladoRepositoryImpl(dataSource: dataSource);
@@ -22,7 +21,7 @@ class SimuladoRepositoryImpl implements SimuladoRepository {
     String? assuntoId,
   }) async {
     try {
-      // 1. Chama o garçom (DataSource) para buscar os modelos brutos do Firebase
+      // 1. Chama o DataSource para buscar os modelos brutos do Firebase
       final modelos = await _dataSource.buscarQuestoesPorFiltro(
         institutionId: institutionId,
         categoriaId: categoriaId,

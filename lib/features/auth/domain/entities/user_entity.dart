@@ -4,7 +4,7 @@ class UserEntity {
   final String email;
   final String role; // Master, Admin, Acess2 (Professor), Acess3 (Estudante)
   final String
-  institutionId; // Garante o isolamento dos dados no modelo White Label
+  institutionId; // Garante o isolamento dos dados para White Label
 
   const UserEntity({
     required this.id,

@@ -25,14 +25,14 @@ class Validators {
     return null;
   }
 
-  /// Valida se a password cumpre os requisitos mínimos de segurança
+  /// Valida se a senha cumpre os requisitos mínimos de segurança
   static String? validatePassword(String? value) {
     if (value == null || value.isEmpty) {
-      return 'A password é obrigatória.';
+      return 'A senha é obrigatória.';
     }
 
     if (value.length < 6) {
-      return 'A password deve ter pelo menos 6 caracteres.';
+      return 'A senha deve ter pelo menos 6 caracteres.';
     }
 
     return null;

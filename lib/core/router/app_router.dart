@@ -3,7 +3,6 @@ import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-
 import 'package:rumo_quiz/features/simulados/data/datasources/simulado_remote_data_source.dart';
 import 'package:rumo_quiz/features/simulados/data/models/questao_model.dart';
 import 'package:rumo_quiz/features/simulados/data/models/revisao_questao_model.dart';
@@ -58,7 +57,7 @@ class AppRouter {
       // Landing page é exclusiva da web — redireciona mobile para login
       if (!kIsWeb && path == '/') return '/login';
 
-      // Usuário autenticado na landing page → entra no app
+      // Usuário autenticado na landing page = entra no app
       if (user != null && path == '/') return '/quiz-selection';
 
       final isPublic = _publicRoutes.contains(path);
@@ -171,7 +170,7 @@ class AppRouter {
             builder: (context, state) => const HistoricoSimuladoPage(),
           ),
 
-          // Resultado do simulado — dados buscados via datasource (não mais no router)
+          // Resultado do simulado — dados buscados via datasource 
           GoRoute(
             path: '/resultado',
             builder: (context, state) {

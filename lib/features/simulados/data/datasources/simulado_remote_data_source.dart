@@ -89,7 +89,7 @@ abstract class SimuladoRemoteDataSource {
   Future<DashboardAlunoModel> buscarDashboardAluno(String uid);
 }
 
-// 🟢 O GARÇOM (DataSource): Vai no Firebase e traz as questões da escola certa
+// DataSource: Vai no Firebase e traz as questões da escola certa
 class SimuladoRemoteDataSourceImpl implements SimuladoRemoteDataSource {
   final FirebaseFirestore _firestore;
 
@@ -103,19 +103,19 @@ class SimuladoRemoteDataSourceImpl implements SimuladoRemoteDataSource {
     String? assuntoId,
   }) async {
     try {
-      // 1. Iniciamos a query filtrando estritamente pela Instituição e pela Categoria selecionada
-      // Nota: Mantemos o mapeamento exato de chaves do seu banco NoSQL desnormalizado (Sprint 2)
+      // 1. Inicia a query filtrando somente pela Instituição e pela Categoria selecionada
+      // Obs.: Mantido o mapeamento exato de chaves do banco NoSQL
       Query query = _firestore
           .collection('questoes')
           .where('instituicaoId', isEqualTo: institutionId)
           .where('categoriaId', isEqualTo: categoriaId);
 
-      // 2. Se o usuário (Acess3) escolheu uma prova "Por Assunto", filtramos também pelo assunto específico
+      // 2. Se o usuário (Acess3) escolheu uma prova "Por Assunto", filtrar também pelo assunto específico
       if (assuntoId != null && assuntoId.isNotEmpty) {
         query = query.where('assuntoId', isEqualTo: assuntoId);
       }
 
-      // ⏱️ Forçamos um limite de 5 segundos. Se o Firebase congelar, ele cancela e avisa!
+      // Força um limite de 5 segundos. Se o Firebase congelar, ele cancela e avisa!
       final QuerySnapshot querySnapshot = await query.get().timeout(
         const Duration(seconds: 5),
         onTimeout: () => throw Exception(

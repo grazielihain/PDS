@@ -5,14 +5,14 @@ import 'package:flutter/foundation.dart';
 class MotorProvaService {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
 
-  /// US 13: Verifica o estoque físico real de questões disponíveis para um assunto específico
+  /// Verifica o estoque físico real de questões disponíveis para um assunto específico
   /// Retorna a quantidade exata de documentos para evitar leituras excessivas.
   Future<int> verificarEstoqueQuestoes({
     required String instituicaoId,
     required String assuntoId,
   }) async {
     try {
-      // Usamos .count() que é extremamente otimizado no Firestore e consome frações mínimas da cota grátis
+      // Usa .count() que é extremamente otimizado no Firestore e consome frações mínimas da cota grátis
       final querySnapshot = await _firestore
           .collection('questoes')
           .where('instituicaoId', isEqualTo: instituicaoId)
@@ -27,7 +27,7 @@ class MotorProvaService {
     }
   }
 
-  /// US 14: Busca as questões, realiza o shuffle em RAM e aplica o algoritmo anti-repetição consecutiva
+  /// Busca as questões, realiza o shuffle em RAM e aplica o algoritmo anti-repetição consecutiva
   Future<List<Map<String, dynamic>>> gerarSimuladoOtimizado({
     required String instituicaoId,
     required String assuntoId,
@@ -54,10 +54,10 @@ class MotorProvaService {
         return dados;
       }).toList();
 
-      // ALGORITMO DE EMBARALHAMENTO (Shuffle) EM RAM - Custo zero de processamento no Firebase
+      // ALGORITMO DE EMBARALHAMENTO (Shuffle) EM RAM (Custo zero de processamento no Firebase)
       questoesCarregadas.shuffle(Random());
 
-      // 🛡️ ALGORITMO ANTI-REPETIÇÃO CONSECUTIVA (Ajuste cirúrgico para a US 14)
+      // ALGORITMO ANTI-REPETIÇÃO CONSECUTIVA
       List<Map<String, dynamic>> listaFiltradaEOrdenada = [];
 
       for (var questao in questoesCarregadas) {

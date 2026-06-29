@@ -17,7 +17,7 @@ class SimuladoPage extends ConsumerStatefulWidget {
 }
 
 class _SimuladoPageState extends ConsumerState<SimuladoPage> {
-  // ── ESTADO DA SHELL (mesmo cabeçalho/rodapé do sistema) ───────────────────
+  // ESTADO DA SHELL (mesmo cabeçalho/rodapé do sistema)
   bool _dadosCarregados = false;
   String _avatar = '👨‍🎓';
   String _nomeUsuario = 'Usuário';
@@ -26,7 +26,7 @@ class _SimuladoPageState extends ConsumerState<SimuladoPage> {
   Color _corPrimaria = const Color(0xFF1E3A8A);
   List<String> _patrocinadoresUrls = [];
 
-  // ── ESTADO DO QUIZ ────────────────────────────────────────────────────────
+  // ESTADO DO QUIZ 
   bool _submissaoEmProgresso = false;
   final ScrollController _carrosselController = ScrollController();
   int _ultimoIndiceCarrossel = -1;
@@ -45,7 +45,7 @@ class _SimuladoPageState extends ConsumerState<SimuladoPage> {
     super.dispose();
   }
 
-  // ── CARREGAMENTO DOS DADOS DA SHELL ───────────────────────────────────────
+  // CARREGAMENTO DOS DADOS DA SHELL 
 
   Future<void> _carregarDadosShell() async {
     try {
@@ -120,7 +120,7 @@ class _SimuladoPageState extends ConsumerState<SimuladoPage> {
           ? Colors.white
           : Colors.black87;
 
-  // ── SUBMISSÃO ─────────────────────────────────────────────────────────────
+  // SUBMISSÃO 
 
   Future<void> _processarEnvioSimulado({
     required QuizSessionState sessionState,
@@ -306,7 +306,7 @@ class _SimuladoPageState extends ConsumerState<SimuladoPage> {
     return '${m.toString().padLeft(2, '0')}:${seg.toString().padLeft(2, '0')}';
   }
 
-  // ── CARROSSEL ─────────────────────────────────────────────────────────────
+  // CARROSSEL 
 
   void _scrollParaQuestao(int indice) {
     WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -326,7 +326,7 @@ class _SimuladoPageState extends ConsumerState<SimuladoPage> {
     });
   }
 
-  // ── BUILD ─────────────────────────────────────────────────────────────────
+  // BUILD 
 
   @override
   Widget build(BuildContext context) {
@@ -350,7 +350,7 @@ class _SimuladoPageState extends ConsumerState<SimuladoPage> {
         tempoRestante > 0 || sessionState.tempoEncerrado;
     final bool emAlertaCritico = possuiTempo && tempoRestante <= 300;
 
-    // Auto-submit quando o cronômetro encerra — guarded por flag
+    // Auto-submit quando o cronômetro encerra 
     if (!_submissaoEmProgresso && sessionState.tempoEncerrado) {
       Future.microtask(() {
         if (mounted) {
@@ -392,7 +392,7 @@ class _SimuladoPageState extends ConsumerState<SimuladoPage> {
     return Scaffold(
       backgroundColor: Colors.grey.shade50,
 
-      // ── CABEÇALHO: igual ao MainLayoutShell, sem menu lateral ─────────
+      // CABEÇALHO: igual ao MainLayoutShell, sem menu lateral 
       appBar: AppBar(
         backgroundColor: _corPrimaria,
         foregroundColor: _corTextoAppBar,
@@ -457,7 +457,7 @@ class _SimuladoPageState extends ConsumerState<SimuladoPage> {
         ],
       ),
 
-      // ── RODAPÉ: CarrosselPatrocinadores igual ao MainLayoutShell ──────
+      // RODAPÉ: CarrosselPatrocinadores igual ao MainLayoutShell 
       bottomNavigationBar: CarrosselPatrocinadores(
         logosUrls: _patrocinadoresUrls,
         logoInstituicaoUrl: _logoUrl ?? '',
@@ -664,7 +664,7 @@ class _SimuladoPageState extends ConsumerState<SimuladoPage> {
           ),
         ),
 
-          // ── CARROSSEL + BOTÃO FINALIZAR ───────────────────────────────
+          // CARROSSEL + BOTÃO FINALIZAR 
           Container(
             decoration: BoxDecoration(
               color: Colors.white,
@@ -683,7 +683,7 @@ class _SimuladoPageState extends ConsumerState<SimuladoPage> {
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    // ── CARROSSEL DE QUESTÕES ──────────────────────────
+                    // CARROSSEL DE QUESTÕES 
                     Row(
                       children: [
                         IconButton(
@@ -793,7 +793,7 @@ class _SimuladoPageState extends ConsumerState<SimuladoPage> {
                       ),
                     ),
 
-                    // ── BOTÕES FINALIZAR / SAIR SEM CONCLUIR ──────────
+                    // BOTÕES FINALIZAR / SAIR SEM CONCLUIR 
                     Row(
                       children: [
                         Expanded(

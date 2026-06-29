@@ -45,7 +45,7 @@ class HistoricoModel {
       'pontosProva': pontosProva,
       'pontosGamificacao': pontosGamificacao,
       'dataConclusao': Timestamp.fromDate(dataConclusao),
-      'revisaoQuestoes': revisaoQuestoes, // Aqui fica blindado contra alterações futuras no banco de questões
+      'revisaoQuestoes': revisaoQuestoes, // Protegido contra alterações futuras no banco de questões
     };
   }
 }

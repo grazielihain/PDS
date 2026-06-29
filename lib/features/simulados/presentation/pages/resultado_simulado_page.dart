@@ -60,7 +60,7 @@ class ResultadoSimuladoPage extends StatelessWidget {
     final double larguraTela = MediaQuery.of(context).size.width;
     final bool isMobile = larguraTela < 600;
 
-    // 🎨 Cores Oficiais da Identidade Rumo Quiz (Verde Esmeralda e Laranja Claro)
+    // Cores Oficiais da Identidade Rumo Quiz (Verde Esmeralda e Laranja Claro)
     final Color verdeEsmeralda = const Color(0xFF10B981);
     final Color laranjaClaro = const Color(0xFFF97316);
 
@@ -89,7 +89,7 @@ class ResultadoSimuladoPage extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  // SEÇÃO 1: CABEÇALHO DE SUCESSO
+                  // SEÇÃO 1: CABEÇALHO RESULTADO SIMULADO
                   Center(
                     child: Column(
                       children: [
@@ -368,7 +368,7 @@ class ResultadoSimuladoPage extends StatelessWidget {
               nomeAluno: nomeAtualizado,
               nomeInstiticao: instituicaoDoAluno,
               logoUrl: logoUrl,
-              isPorAssunto: isPorAssunto, // <-- Passado corretamente para omitir Ponto de Prova no PDF se for por assunto
+              isPorAssunto: isPorAssunto, // Passado para omitir Ponto de Prova no PDF se for por assunto
             );
           } else if (label.contains('Inspecionar') || label.contains('Prova')) {
             Navigator.push(

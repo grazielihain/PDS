@@ -27,7 +27,7 @@ class _LoginPageState extends ConsumerState<LoginPage> {
     super.dispose();
   }
 
-  // 🟢 FUNÇÃO ENCAIXADA AQUI: Abre a caixinha de recuperar senha
+  // Abre opção de recuperar senha
   void _exibirModalRecuperarSenha(BuildContext context, WidgetRef ref) {
     final emailRecuperacaoController = TextEditingController();
     final formModalKey = GlobalKey<FormState>();
@@ -155,15 +155,14 @@ class _LoginPageState extends ConsumerState<LoginPage> {
                         : null,
                   ),
                   const SizedBox(height: 8),
-
-                  // 🟢 LOCAL DE ENCAIXE DO CLIQUE: Associado à nossa nova função
+                  
                   Align(
                     alignment: Alignment.centerRight,
                     child: TextButton(
                       onPressed: () => _exibirModalRecuperarSenha(
                         context,
                         ref,
-                      ), // 👈 Chamando o Modal aqui!
+                      ),  
                       child: const Text('Esqueci minha senha'),
                     ),
                   ),
@@ -173,8 +172,8 @@ class _LoginPageState extends ConsumerState<LoginPage> {
                       if (_formKey.currentState!.validate()) {
                         setState(() => _carregando = true);
                         try {
-                          // 1. Executa o login real chamando o repositório através do DataSource
-                          // (Isso valida se o e-mail e senha existem no Firebase)
+                          // 1. Executa o login real chamando o repositório pelo DataSource
+                          // (valida se o e-mail e senha existem no Firebase)
                           final userModel = await ref
                               .read(authDataSourceProvider)
                               .loginWithEmailAndPassword(

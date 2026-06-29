@@ -17,7 +17,7 @@ class AppTheme {
         // Converte a string base 16 para o formato ARGB inteiro que o Flutter exige
         primaryColor = Color(int.parse('FF$cleanHex', radix: 16));
       } catch (e) {
-        // Se houver algum erro de digitação no banco, usamos a cor padrão para o app não crashar
+        // Se houver algum erro de digitação no banco, usa a cor padrão para o app não crashar
         primaryColor = defaultPrimaryColor;
       }
     }

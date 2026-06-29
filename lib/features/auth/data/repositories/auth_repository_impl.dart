@@ -12,8 +12,7 @@ class AuthRepositoryImpl implements AuthRepository {
     required String email,
     required String password,
   }) async {
-    // 🟢 CORRIGIDO: Passando as variáveis diretamente por posição,
-    // sem as etiquetas "email:" e "password:", combinando com o seu DataSource!
+    // Passa as variáveis diretamente por posição conforme DataSource
     return await _dataSource.loginWithEmailAndPassword(email, password);
   }
 

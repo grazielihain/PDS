@@ -253,7 +253,7 @@ class _FazerQuizPageState extends ConsumerState<FazerQuizPage> {
       );
     }
 
-    // Pre-fetch questions while user is configuring (free background load)
+    // Carega perguntas em segundo plano sem custo enquanto o usuario configura
     ref.watch(listaQuestoesFirestoreProvider(_instituicaoId!));
 
     return Scaffold(
@@ -424,7 +424,7 @@ class _FazerQuizPageState extends ConsumerState<FazerQuizPage> {
                     ),
                   ],
 
-                  // Tempo de Prova — disponível para qualquer tipo/modo
+                  // Tempo de Prova (disponível para qualquer tipo/modo)
                   if (_tipoSelecionado != null) ...[
                     const SizedBox(height: 16),
                     _buildStepCard(

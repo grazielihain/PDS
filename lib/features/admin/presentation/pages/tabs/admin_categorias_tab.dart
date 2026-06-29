@@ -51,8 +51,8 @@ class _AdminCategoriasTabState extends ConsumerState<AdminCategoriasTab> {
         () => ref.read(adminDataSourceProvider).streamTiposSimulado(categoriaId),
       );
 
-  // ──────────────────────────── CRUD CATEGORIAS ────────────────────────────
-
+  // CRUD CATEGORIAS 
+  
   Future<void> _criarCategoria(String nome) async {
     await ref.read(adminDataSourceProvider).criarCategoria(nome, widget.instituicaoId);
     await widget.onAuditoria(
@@ -86,7 +86,7 @@ class _AdminCategoriasTabState extends ConsumerState<AdminCategoriasTab> {
     );
   }
 
-  // ──────────────────────────── CRUD ASSUNTOS ──────────────────────────────
+  // CRUD ASSUNTOS 
 
   Future<void> _criarAssunto(String categoriaId, String nome) async {
     await ref.read(adminDataSourceProvider).criarAssunto(categoriaId, nome, widget.instituicaoId);
@@ -121,7 +121,7 @@ class _AdminCategoriasTabState extends ConsumerState<AdminCategoriasTab> {
     );
   }
 
-  // ──────────────────────────── CRUD TIPOS SIMULADO ─────────────────────────
+  // CRUD TIPOS SIMULADO 
 
   Future<void> _criarTipoSimulado(
     String categoriaId,
@@ -168,7 +168,7 @@ class _AdminCategoriasTabState extends ConsumerState<AdminCategoriasTab> {
     );
   }
 
-  // ──────────────────────────── HELPERS UI ─────────────────────────────────
+  // HELPERS UI 
 
   void _showError(String msg) {
     if (!mounted) return;
@@ -184,7 +184,7 @@ class _AdminCategoriasTabState extends ConsumerState<AdminCategoriasTab> {
     );
   }
 
-  // ──────────────────────────── DIALOGS ─────────────────────────────────────
+  // DIALOGS 
 
   Future<void> _abrirDialogCategoria({String? docId, String? nomeAtual}) async {
     final salvo = await showDialog<bool>(
@@ -279,7 +279,7 @@ class _AdminCategoriasTabState extends ConsumerState<AdminCategoriasTab> {
     return confirmar ?? false;
   }
 
-  // ──────────────────────────── BUILD ────────────────────────────────────────
+  // BUILD 
 
   @override
   Widget build(BuildContext context) {
@@ -683,9 +683,7 @@ class _AdminCategoriasTabState extends ConsumerState<AdminCategoriasTab> {
   }
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
 // Dialog: Nome (Categoria / Assunto)
-// ─────────────────────────────────────────────────────────────────────────────
 
 class _NomeDialog extends StatefulWidget {
   final String title;
@@ -787,9 +785,7 @@ class _NomeDialogState extends State<_NomeDialog> {
   }
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
 // Dialog: Tipo de Simulado
-// ─────────────────────────────────────────────────────────────────────────────
 
 class _TipoSimuladoDialog extends StatefulWidget {
   final bool isEdit;

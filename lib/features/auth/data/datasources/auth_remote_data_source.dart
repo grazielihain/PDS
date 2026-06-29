@@ -1,7 +1,7 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
-import '../models/user_models.dart'; // Importa o modelo que herda de UserEntity
+import '../models/user_models.dart'; 
 
 class AuthRemoteDataSource {
   final FirebaseAuth firebaseAuth;
@@ -9,7 +9,7 @@ class AuthRemoteDataSource {
 
   AuthRemoteDataSource(this.firebaseAuth, this.firestore);
 
-  // 🟢 CORRIGIDO: Retorna o UserModel buscando o usuário atual com sessão ativa
+  // Retorna o UserModel buscando o usuário atual com sessão ativa
   Future<UserModel?> getCurrentUser() async {
     final User? firebaseUser = firebaseAuth.currentUser;
     if (firebaseUser == null) return null;
@@ -29,7 +29,7 @@ class AuthRemoteDataSource {
     return firebaseAuth.authStateChanges();
   }
 
-  // 🟢 CORRIGIDO: Faz o Login e retorna o UserModel recheado com os dados do Firestore
+  // Faz o Login e retorna o UserModel com os dados do Firestore
   Future<UserModel> loginWithEmailAndPassword(String email, String password) async {
     try {
       // 1. Autentica no Firebase Auth
@@ -53,11 +53,11 @@ class AuthRemoteDataSource {
         throw Exception('Perfil do usuário não encontrado no banco de dados.');
       }
 
-      // 🟢 O PULO DO GATO (US 23): Grava o log aqui dentro, direto no servidor,
-      // garantindo que fique registrado antes de qualquer mudança de tela!
+      // Grava o log direto no servidor garantindo que fique registrado antes de 
+      //qualquer mudança de tela
       await registrarLogAcesso(firebaseUser.uid);
 
-      // 3. Transforma o documento no nosso UserModel pronto
+      // 3. Transforma o documento no UserModel pronto
       return UserModel.fromFirestore(userDoc);
     } on FirebaseAuthException catch (e) {
       if (e.code == 'user-not-found' || e.code == 'wrong-password' || e.code == 'invalid-credential') {
@@ -74,7 +74,7 @@ class AuthRemoteDataSource {
     await firebaseAuth.signOut();
   }
 
-  // Criar conta (Usada no painel administrativo do Admin/Acess2)
+  // Criar conta (painel administrativo do Admin/Acess2)
   Future<UserCredential> signUpWithEmailAndPassword({
     required String email,
     required String password,
@@ -108,7 +108,7 @@ class AuthRemoteDataSource {
     }
   }
 
-  // Enviar e-mail de recuperação de senha (US 03)
+  // Enviar e-mail de recuperação de senha
   Future<void> enviarEmailRecuperacaoSenha(String email) async {
     try {
       await firebaseAuth.sendPasswordResetEmail(email: email);
@@ -125,7 +125,7 @@ class AuthRemoteDataSource {
         'data': FieldValue.serverTimestamp(), // Pega a data e hora exata do servidor do Firebase
       });
     } catch (e) {
-      // Se falhar o log, imprimimos no terminal, mas não travamos o app do usuário
+      // Se falhar o log, imprime no terminal, mas não trava o app do usuário
       debugPrint('Erro ao salvar log de auditoria: $e');
     }
   }

@@ -4,7 +4,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import '../../data/models/questao_model.dart';
 import '../../data/models/historico_model.dart';
 
-/// 📚 PROVIDER PARA BUSCAR QUESTÕES DO FIRESTORE
+/// PROVIDER PARA BUSCAR QUESTÕES DO FIRESTORE
 /// Otimizado para 50 acessos simultâneos usando filtragem indexada
 final listaQuestoesFirestoreProvider = StreamProvider.family<List<QuestaoModel>, String>((ref, instituicaoId) {
   return FirebaseFirestore.instance
@@ -26,8 +26,8 @@ final listaQuestoesFirestoreProvider = StreamProvider.family<List<QuestaoModel>,
           }).toList());
 });
 
-/// 📜 PROVIDER PARA O HISTÓRICO DE SIMULADOS
-/// 📉 OTIMIZADO: Ajustado para ler as chaves corretas sincronizadas com o controller e índices.
+/// PROVIDER PARA O HISTÓRICO DE SIMULADOS
+/// OTIMIZADO: Ajustado para ler as chaves corretas sincronizadas com o controller e índices.
 final historicoSimuladosProvider = StreamProvider<List<HistoricoModel>>((ref) {
   final user = FirebaseAuth.instance.currentUser;
   if (user == null) return Stream.value([]);
@@ -36,12 +36,12 @@ final historicoSimuladosProvider = StreamProvider<List<HistoricoModel>>((ref) {
       .collection('usuarios')
       .doc(user.uid)
       .collection('historico_simulados') 
-      .orderBy('dataHora', descending: true) // 🔥 CORRIGIDO: De 'dataConclusao' para 'dataHora' (Bate com o Índice composto)
+      .orderBy('dataHora', descending: true) 
       .snapshots()
       .map((snapshot) => snapshot.docs.map((doc) {
             final data = doc.data();
             
-            // 🔥 CORRIGIDO: Lendo o campo unificado 'dataHora' do Firestore
+            // Lê o campo unificado 'dataHora' do Firestore
             final dataHoraRaw = data['dataHora'] ?? data['dataConclusao'];
             final DateTime dataFinal = dataHoraRaw is Timestamp 
                 ? dataHoraRaw.toDate() 
@@ -57,7 +57,6 @@ final historicoSimuladosProvider = StreamProvider<List<HistoricoModel>>((ref) {
               totalQuestoes: data['totalQuestoes'] ?? 0,
               acertos: data['acertos'] ?? 0,
               erros: data['erros'] ?? 0,
-              // 🔥 CORRIGIDO: Lendo de 'notaObtida' conforme o novo padrão do banco
               pontosProva: (data['notaObtida'] ?? data['pontosProva'] as num?)?.toDouble() ?? 0.0,
               pontosGamificacao: data['pontosGamificacao'] ?? 0,
               dataConclusao: dataFinal,
@@ -68,8 +67,8 @@ final historicoSimuladosProvider = StreamProvider<List<HistoricoModel>>((ref) {
           }).toList());
 });
 
-/// 🚀 PROVIDER ADICIONAL: FUNÇÃO DE ENVIO/GRAVAÇÃO DO SIMULADO NO HISTÓRICO
-/// 🔥 ATUALIZADO: Sincronizado com os mesmos campos padrão do SimuladoController para não quebrar o banco.
+/// PROVIDER ADICIONAL: FUNÇÃO DE ENVIO/GRAVAÇÃO DO SIMULADO NO HISTÓRICO
+
 final salvarSimuladoProvider = Provider((ref) {
   return ({
     required String userId,
@@ -95,9 +94,9 @@ final salvarSimuladoProvider = Provider((ref) {
       'acertos': acertos,
       'erros': totalQuestoes - acertos,
       'totalQuestoes': totalQuestoes,
-      'pontosGamificacao': 10, // Mantido bônus fixo da regra de gamificação
-      'notaObtida': acertos.toDouble(), // 🔥 CORRIGIDO: De 'pontosProva' para 'notaObtida'
-      'dataHora': FieldValue.serverTimestamp(), // 🔥 CORRIGIDO: De 'dataConclusao' para 'dataHora'
+      'pontosGamificacao': 10, 
+      'notaObtida': acertos.toDouble(), 
+      'dataHora': FieldValue.serverTimestamp(), 
       'revisaoQuestoes': listaRevisaoJson, 
     };
 

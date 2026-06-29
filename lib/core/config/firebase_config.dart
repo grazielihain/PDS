@@ -10,7 +10,7 @@ class FirebaseConfig {
     // Inicializa o Firebase baseado nas configurações geradas pelo FlutterFire CLI
     await Firebase.initializeApp();
 
-    // Configura o Firestore para priorizar o cache local e economizar leituras (Plano Grátis)
+    // Configura o Firestore para priorizar o cache local e economizar leituras
     FirebaseFirestore.instance.settings = const Settings(
       persistenceEnabled:
           true, // Ativa a persistência offline em Web, Android e iOS

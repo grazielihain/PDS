@@ -96,7 +96,7 @@ class HistoricoCardMolecule extends StatelessWidget {
                   Column(
                     crossAxisAlignment: CrossAxisAlignment.end,
                     children: [
-                      // Regra de negócio explícita do prompt: Prova por Assunto mostra emoticon fofo no lugar de pontos normais
+                      // Regra de negócio: Prova por Assunto mostra emoticon no lugar de pontos normais
                       if (isPorAssunto)
                         const Text(
                           '🐱 Padrão',

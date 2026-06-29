@@ -3,8 +3,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../../data/datasources/auth_remote_data_source.dart';
 
-// Fonte única de verdade para o DataSource de autenticação.
-// Importado por login_page.dart e qualquer outro consumidor.
+// Informação para o DataSource de autenticação.
 final authDataSourceProvider = Provider<AuthRemoteDataSource>((ref) {
   return AuthRemoteDataSource(
     FirebaseAuth.instance,

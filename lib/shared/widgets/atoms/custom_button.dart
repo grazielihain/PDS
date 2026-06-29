@@ -17,7 +17,7 @@ class CustomButton extends StatelessWidget {
     return ElevatedButton(
       onPressed: isLoading ? null : onPressed,
       style: ElevatedButton.styleFrom(
-        minimumSize: const Size(double.infinity, 50), //botão ocupa a largura total do container
+        minimumSize: const Size(double.infinity, 50), 
       ),
       child: isLoading
           ? const SizedBox(

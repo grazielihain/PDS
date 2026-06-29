@@ -21,7 +21,8 @@ class AdminGamificacaoTab extends ConsumerStatefulWidget {
 }
 
 class _AdminGamificacaoTabState extends ConsumerState<AdminGamificacaoTab> {
-  // ── Controle de formulário ──────────────────────────────────────────────────
+  // Controle de formulário 
+
   bool _mostrarFormulario = false;
   String? _editandoId;
 
@@ -40,7 +41,7 @@ class _AdminGamificacaoTabState extends ConsumerState<AdminGamificacaoTab> {
   String? _categoriaSelecionadaId;
   String? _tipoSimuladoSelecionadoId;
   String? _assuntoSelecionadoId;
-  String? _modoTipoSimulado; // 'assunto' | 'completo'
+  String? _modoTipoSimulado; // 'assunto' - 'completo'
 
   bool _carregandoCategorias = false;
   bool _carregandoTipos = false;
@@ -63,7 +64,7 @@ class _AdminGamificacaoTabState extends ConsumerState<AdminGamificacaoTab> {
     super.dispose();
   }
 
-  // ── Carregamentos ───────────────────────────────────────────────────────────
+  // Carregamentos 
 
   Future<void> _carregarCategorias() async {
     setState(() => _carregandoCategorias = true);
@@ -88,7 +89,7 @@ class _AdminGamificacaoTabState extends ConsumerState<AdminGamificacaoTab> {
         ds.streamAssuntos(widget.instituicaoId).first,
       ]);
       // tipos_simulado filtrado por instituição não existe no datasource diretamente;
-      // usamos stream de categorias para obter todos via query separada
+      // usar stream de categorias para obter todos via query separada
       final tiposSnap = await ds.streamCategorias(widget.instituicaoId).first;
       final List<QueryDocumentSnapshot> todosTipos = [];
       for (final cat in tiposSnap.docs) {
@@ -151,7 +152,7 @@ class _AdminGamificacaoTabState extends ConsumerState<AdminGamificacaoTab> {
     }
   }
 
-  // ── Formulário ──────────────────────────────────────────────────────────────
+  // Formulário 
 
   void _abrirFormularioNovo() {
     _limparFormulario();
@@ -340,7 +341,7 @@ class _AdminGamificacaoTabState extends ConsumerState<AdminGamificacaoTab> {
     ).showSnackBar(SnackBar(content: Text(msg)));
   }
 
-  // ── Helpers de label ────────────────────────────────────────────────────────
+  // Helpers de label 
 
   String _labelCategoria(String id) {
     final doc = _categorias.where((d) => d.id == id).firstOrNull;
@@ -365,7 +366,7 @@ class _AdminGamificacaoTabState extends ConsumerState<AdminGamificacaoTab> {
     return dados['nome'] as String? ?? id;
   }
 
-  // ── Build ───────────────────────────────────────────────────────────────────
+  // Build 
 
   @override
   Widget build(BuildContext context) {
@@ -426,7 +427,7 @@ class _AdminGamificacaoTabState extends ConsumerState<AdminGamificacaoTab> {
                   ? const Center(child: CircularProgressIndicator())
                   : DropdownButtonFormField<String>(
                       // ignore: deprecated_member_use
-                      value: _categoriaSelecionadaId, // controlled dropdown — initialValue would break reactive updates
+                      value: _categoriaSelecionadaId, // controle dropdown
                       decoration: const InputDecoration(
                         labelText: 'Categoria *',
                       ),
@@ -456,7 +457,7 @@ class _AdminGamificacaoTabState extends ConsumerState<AdminGamificacaoTab> {
                       )
                     : DropdownButtonFormField<String>(
                         // ignore: deprecated_member_use
-                        value: _tipoSimuladoSelecionadoId, // controlled dropdown
+                        value: _tipoSimuladoSelecionadoId, // controle dropdown
                         decoration: const InputDecoration(
                           labelText: 'Tipo de Simulado *',
                         ),
@@ -503,7 +504,7 @@ class _AdminGamificacaoTabState extends ConsumerState<AdminGamificacaoTab> {
                       )
                     : DropdownButtonFormField<String>(
                         // ignore: deprecated_member_use
-                        value: _assuntoSelecionadoId, // controlled dropdown
+                        value: _assuntoSelecionadoId, // controle dropdown
                         decoration: const InputDecoration(
                           labelText: 'Assunto *',
                         ),

@@ -122,7 +122,7 @@ class _AdminMensagensTabState extends ConsumerState<AdminMensagensTab> {
     });
   }
 
-  /// Valida se o range [de, ate] não sobrepõe ranges já cadastrados.
+  /// Valida se o range (de, ate) não sobrepõe ranges já cadastrados.
   Future<String?> _validarSobreposicao(double de, double ate) async {
     final snap = await ref
         .read(adminDataSourceProvider)
@@ -304,7 +304,7 @@ class _AdminMensagensTabState extends ConsumerState<AdminMensagensTab> {
     }
   }
 
-  // ─── Build ─────────────────────────────────────────────────────────────────
+  // Build 
 
   @override
   Widget build(BuildContext context) {

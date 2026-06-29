@@ -7,14 +7,14 @@ import '../../data/models/questao_model.dart';
 import '../../data/models/revisao_questao_model.dart';
 import '../providers/quiz_session_provider.dart';
 
-/// 🧠 CONTROLLER DO SIMULADO
+/// CONTROLLER DO SIMULADO
 /// Gerencia a finalização, cálculos de notas, integração com Firebase e persistência de histórico.
 class SimuladoController extends StateNotifier<AsyncValue<void>> {
   final Ref ref;
 
   SimuladoController(this.ref) : super(const AsyncValue.data(null));
 
-  /// 🏁 FINALIZAR E GRAVAR SIMULADO NO FIREBASE
+  /// FINALIZAR E GRAVA SIMULADO NO FIREBASE
   /// Realiza a computação de acertos, pontos de gamificação e gera o snapshot imutável para o histórico.
   Future<int> finalizarEGravarSimulado({
     required List<QuestaoModel> questoesDaProva,
@@ -34,21 +34,21 @@ class SimuladoController extends StateNotifier<AsyncValue<void>> {
       final historicoRef = FirebaseFirestore.instance
           .collection('usuarios')
           .doc(userId.isEmpty ? 'anonimo' : userId)
-          .collection('historico_simulados') // Subcoleção onde os dados reais residem isolados
+          .collection('historico_simulados') // Subcoleção onde os dados reais ficam isolados
           .doc();
 
-      // 🧠 2. ACESSO AO ESTADO DO RIVERPOD
+      // 2. ACESSO AO ESTADO DO RIVERPOD
       final sessionState = ref.read(quizSessionProvider);
 
-      // 🔍 EXTRAÇÃO DINÂMICA DA INSTITUIÇÃO
-      // Buscamos o instituicaoId diretamente da primeira questão do simulado executado
+      // EXTRAÇÃO DINÂMICA DA INSTITUIÇÃO
+      // Busca instituicaoId diretamente da primeira questão do simulado executado
       String instituicaoIdExtraida = 'instituicao_padrao';
       if (sessionState.questoes.isNotEmpty) {
         final primeiraQuestao = sessionState.questoes.first;
         if (primeiraQuestao is Map) {
           instituicaoIdExtraida = primeiraQuestao['instituicaoId'] ?? 'instituicao_padrao';
         } else if (primeiraQuestao is QuestaoModel) {
-          // 🔥 Ajuste de segurança: Garante a leitura correta se for o modelo estruturado
+          // Ajuste de segurança: Garante a leitura correta se for o modelo estruturado
           instituicaoIdExtraida = primeiraQuestao.instituicaoId.isEmpty 
               ? 'instituicao_padrao' 
               : primeiraQuestao.instituicaoId;
@@ -62,7 +62,7 @@ class SimuladoController extends StateNotifier<AsyncValue<void>> {
         }
       }
 
-      // 🛠️ 3. CONVERSÃO DA LISTA DE REVISÃO
+      // 3. CONVERSÃO DA LISTA DE REVISÃO
       final List<Map<String, dynamic>> listaRevisaoMapeada = listaRevisao.map((item) {
         return {
           'opcaoEscolhidaIndex': item.opcaoEscolhidaIndex,
@@ -79,7 +79,7 @@ class SimuladoController extends StateNotifier<AsyncValue<void>> {
         };
       }).toList();
 
-      // 🛠️ 4. BUSCA PONTOS DE GAMIFICAÇÃO NO FIRESTORE
+      // 4. BUSCA PONTOS DE GAMIFICAÇÃO NO FIRESTORE
       int pontosGamificacao = 0;
       if (instituicaoIdExtraida != 'instituicao_padrao' && sessionState.categoriaId.isNotEmpty) {
         try {
@@ -116,7 +116,7 @@ class SimuladoController extends StateNotifier<AsyncValue<void>> {
               ? sessionState.categoriaId
               : 'Geral';
 
-      // 🛠️ 5. INSTÂNCIA DO MODELO TOTALMENTE CORRIGIDA E COMPATÍVEL
+      // 5. INSTÂNCIA DO MODELO TOTALMENTE CORRIGIDA E COMPATÍVEL
       final novoHistorico = HistoricoModel(
         id: historicoRef.id,
         userId: userId.isEmpty ? 'aluno_anonimo' : userId,
@@ -172,7 +172,7 @@ class SimuladoController extends StateNotifier<AsyncValue<void>> {
   }
 }
 
-/// 🌍 PROVIDER GLOBAL DO CONTROLLER DO SIMULADO
+/// PROVIDER GLOBAL DO CONTROLLER DO SIMULADO
 final simuladoControllerProvider = StateNotifierProvider<SimuladoController, AsyncValue<void>>((ref) {
   return SimuladoController(ref);
 });

@@ -16,7 +16,7 @@ class AdminRemoteDataSource {
         _storage = storage ?? FirebaseStorage.instance,
         _auth = auth ?? FirebaseAuth.instance;
 
-  // ─── INSTITUIÇÃO ────────────────────────────────────────────────────────────
+  //  INSTITUIÇÃO 
 
   Future<Map<String, dynamic>?> buscarInstituicao(String id) async {
     final doc = await _db.collection('instituicoes').doc(id).get();
@@ -31,7 +31,8 @@ class AdminRemoteDataSource {
         .set(dados, SetOptions(merge: true));
   }
 
-  // ─── UPLOAD DE IMAGEM ────────────────────────────────────────────────────────
+  // UPLOAD DE IMAGEM 
+
   // Usa path fixo para logo/mascote (evita acúmulo de arquivos no Storage).
   // Patrocinadores usam timestamp pois múltiplos arquivos coexistem.
 
@@ -48,7 +49,7 @@ class AdminRemoteDataSource {
     return upload.ref.getDownloadURL();
   }
 
-  // ─── PATROCINADORES ──────────────────────────────────────────────────────────
+  // PATROCINADORES 
 
   Future<void> salvarPatrocinadores(
       String instituicaoId, List<String> urls) async {
@@ -58,7 +59,7 @@ class AdminRemoteDataSource {
     );
   }
 
-  // ─── CATEGORIAS ──────────────────────────────────────────────────────────────
+  // CATEGORIAS 
 
   Stream<QuerySnapshot> streamCategorias(String instituicaoId) {
     return _db
@@ -91,7 +92,7 @@ class AdminRemoteDataSource {
     await _db.collection('categorias').doc(docId).delete();
   }
 
-  // ─── ASSUNTOS ────────────────────────────────────────────────────────────────
+  // ASSUNTOS 
 
   Stream<QuerySnapshot> streamAssuntos(String instituicaoId) {
     return _db
@@ -136,7 +137,7 @@ class AdminRemoteDataSource {
     return q.docs.isNotEmpty;
   }
 
-  // ─── TIPOS DE SIMULADO ───────────────────────────────────────────────────────
+  // TIPOS DE SIMULADO 
 
   Stream<QuerySnapshot> streamTiposSimulado(String categoriaId) {
     return _db
@@ -158,7 +159,7 @@ class AdminRemoteDataSource {
     await _db.collection('tipos_simulado').doc(docId).delete();
   }
 
-  // ─── QUESTÕES ────────────────────────────────────────────────────────────────
+  // QUESTÕES 
 
   Stream<QuerySnapshot> streamQuestoes({
     required String instituicaoId,
@@ -203,7 +204,7 @@ class AdminRemoteDataSource {
     await _db.collection('questoes').doc(docId).delete();
   }
 
-  // ─── MENSAGENS DE RESULTADO ──────────────────────────────────────────────────
+  // MENSAGENS DE RESULTADO 
 
   Stream<QuerySnapshot> streamMensagens(String instituicaoId) {
     return _db
@@ -228,7 +229,7 @@ class AdminRemoteDataSource {
     await _db.collection('mensagens_resultado').doc(docId).delete();
   }
 
-  // ─── GAMIFICAÇÃO ─────────────────────────────────────────────────────────────
+  // GAMIFICAÇÃO 
 
   Stream<QuerySnapshot> streamGamificacao(String instituicaoId) {
     return _db
@@ -253,7 +254,7 @@ class AdminRemoteDataSource {
     await _db.collection('gamificacao').doc(docId).delete();
   }
 
-  // ─── USUÁRIOS ────────────────────────────────────────────────────────────────
+  // USUÁRIOS 
 
   Stream<QuerySnapshot> streamUsuarios({
     required String instituicaoId,
@@ -278,7 +279,7 @@ class AdminRemoteDataSource {
     await _db.collection('usuarios').doc(docId).delete();
   }
 
-  // ─── AUDITORIA ───────────────────────────────────────────────────────────────
+  // AUDITORIA 
 
   Future<void> registrarAuditoria({
     required String instituicaoId,
@@ -312,7 +313,7 @@ class AdminRemoteDataSource {
         .snapshots();
   }
 
-  // ─── MÉTRICAS HOME ───────────────────────────────────────────────────────────
+  // MÉTRICAS HOME 
 
   Future<int> contarDocumentos({
     required String collection,

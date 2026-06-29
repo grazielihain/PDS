@@ -23,7 +23,7 @@ class _HistoricoSimuladoPageState extends State<HistoricoSimuladoPage> {
   List<String> _categoriasDisponiveis = ['Todas'];
   bool _carregandoCategorias = true;
 
-  // Mapa de resolução de IDs → nomes (para dados antigos que guardavam IDs)
+  // Mapa de resolução de IDs = nomes (para dados antigos que guardavam IDs)
   Map<String, String> _categoriaNomeMap = {};
   Map<String, String> _assuntoNomeMap = {};
 
@@ -39,7 +39,7 @@ class _HistoricoSimuladoPageState extends State<HistoricoSimuladoPage> {
     await _carregarCategoriasDoHistorico();
   }
 
-  /// Carrega as categorias únicas do histórico, resolvendo IDs → nomes e deduplicando
+  /// Carrega as categorias únicas do histórico, resolvendo IDs 
   Future<void> _carregarCategoriasDoHistorico() async {
     final user = _auth.currentUser;
     if (user == null) {
@@ -54,7 +54,7 @@ class _HistoricoSimuladoPageState extends State<HistoricoSimuladoPage> {
           .collection('historico_simulados')
           .get();
 
-      // Resolve cada valor bruto (pode ser ID ou nome) para nome e desuplica
+      // Resolve cada valor bruto (pode ser ID ou nome) para nome
       final Set<String> nomesUnicos = {};
       for (final doc in snapshot.docs) {
         final raw = doc.data()['categoria'] as String?;
@@ -111,11 +111,11 @@ class _HistoricoSimuladoPageState extends State<HistoricoSimuladoPage> {
     }
   }
 
-  /// Resolve o nome de uma categoria (converte ID → nome se necessário)
+  /// Resolve o nome de uma categoria (converte ID em nome se necessário)
   String _resolverNomeCategoria(String catIdOrNome) =>
       _categoriaNomeMap[catIdOrNome] ?? catIdOrNome;
 
-  /// Resolve o nome de um assunto (converte ID → nome se necessário)
+  /// Resolve o nome de um assunto (converte ID em nome se necessário)
   String _resolverNomeAssunto(String assuntoIdOrNome) =>
       _assuntoNomeMap[assuntoIdOrNome] ?? assuntoIdOrNome;
 
@@ -324,13 +324,13 @@ class _HistoricoSimuladoPageState extends State<HistoricoSimuladoPage> {
 
               const SizedBox(height: 16),
 
-              // 📊 LISTA DE CARD DE PROVAS
+              // LISTA DE CARD DE PROVAS
               Expanded(
                 child: StreamBuilder<QuerySnapshot>(
                   stream: _montarQueryHistorico().snapshots(),
                   builder: (context, snapshot) {
                     if (snapshot.hasError) {
-                      // 🔥 UX MELHORADA: Se o erro for falta de índice, avisa de forma limpa no console/tela
+                      // Se o erro for falta de índice, avisa no console/tela
                       final erroStr = snapshot.error.toString();
                       if (erroStr.contains('FAILED_PRECONDITION')) {
                         return const Center(
@@ -355,7 +355,6 @@ class _HistoricoSimuladoPageState extends State<HistoricoSimuladoPage> {
                       return const Center(child: CircularProgressIndicator());
                     }
 
-                    // Sort client-side (avoid composite index: where + orderBy on different fields)
                     var documentos = List<QueryDocumentSnapshot>.from(
                       snapshot.data?.docs ?? [],
                     )..sort((a, b) {
