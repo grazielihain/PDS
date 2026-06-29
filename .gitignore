@@ -44,7 +44,6 @@ app.*.map.json
 
 # Documentação:
 *.md
-README.md
 
 # Ignora arquivos de credenciais locais com chaves secretas do app
 android/app/google-services.json

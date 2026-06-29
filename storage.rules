@@ -1,0 +1,44 @@
+rules_version = '2';
+service firebase.storage {
+  match /b/{bucket}/o {
+
+    // ── Helpers ───────────────────────────────────────────────────────────────
+    // role e instituicaoId vêm do Custom Claim no token JWT (sem custo de leitura)
+    function isAuth()   { return request.auth != null; }
+    function role()     { return request.auth.token.get('role', ''); }
+    function isMaster() { return role() == 'Master'; }
+    function isAdmin()  { return isMaster() || role() == 'Admin'; }
+    function isEditor() { return isAdmin() || role() == 'Acess2'; }
+    function validImg() {
+      return request.resource.size < 2 * 1024 * 1024
+          && request.resource.contentType.matches('image/.*');
+    }
+
+    // ── Imagens de questões ───────────────────────────────────────────────────
+    // Leitura: qualquer autenticado
+    // Upload:  Admin, Acess2 ou Master (quem pode criar/editar questões)
+    // Delete:  apenas Admin ou Master
+    match /questoes/{questaoId}/{fileName} {
+      allow read: if isAuth();
+      allow create, update: if isAuth() && isEditor() && validImg();
+      allow delete: if isAuth() && isAdmin();
+    }
+
+    // ── Imagens de mensagens de resultado ────────────────────────────────────
+    // Upload e delete restritos a Admin/Master
+    match /mensagens/{msgId}/{fileName} {
+      allow read: if isAuth();
+      allow create, update: if isAuth() && isAdmin() && validImg();
+      allow delete: if isAuth() && isAdmin();
+    }
+
+    // ── Logos, mascotes e patrocinadores de instituições ─────────────────────
+    // Leitura pública — carrossel de patrocinadores visível antes do login
+    // Upload e delete: Admin ou Master da plataforma
+    match /instituicoes/{instituicaoId}/{allPaths=**} {
+      allow read: if true;
+      allow create, update: if isAuth() && isAdmin() && validImg();
+      allow delete: if isAuth() && isAdmin();
+    }
+  }
+}
