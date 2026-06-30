@@ -14,6 +14,9 @@ class AuthRemoteDataSource {
     final User? firebaseUser = firebaseAuth.currentUser;
     if (firebaseUser == null) return null;
 
+    // Garante que o JWT tenha os Custom Claims atualizados ao restaurar sessão.
+    await firebaseUser.getIdToken(true);
+
     final DocumentSnapshot userDoc = await firestore
         .collection('usuarios')
         .doc(firebaseUser.uid)
@@ -53,7 +56,13 @@ class AuthRemoteDataSource {
         throw Exception('Perfil do usuário não encontrado no banco de dados.');
       }
 
-      // Grava o log direto no servidor garantindo que fique registrado antes de 
+      // Força refresh do JWT para que os Custom Claims (role, instituicaoId)
+      // definidos pela Cloud Function estejam disponíveis nas Firestore Rules.
+      // Sem isso, logins novos em produção falham com permission-denied porque
+      // o token recém-emitido ainda não carrega os claims do servidor.
+      await firebaseUser.getIdToken(true);
+
+      // Grava o log direto no servidor garantindo que fique registrado antes de
       //qualquer mudança de tela
       await registrarLogAcesso(firebaseUser.uid);
 

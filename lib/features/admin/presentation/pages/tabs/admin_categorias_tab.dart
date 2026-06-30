@@ -48,7 +48,7 @@ class _AdminCategoriasTabState extends ConsumerState<AdminCategoriasTab> {
   Stream<QuerySnapshot> _getTiposStream(String categoriaId) =>
       _tiposStreams.putIfAbsent(
         categoriaId,
-        () => ref.read(adminDataSourceProvider).streamTiposSimulado(categoriaId),
+        () => ref.read(adminDataSourceProvider).streamTiposSimulado(categoriaId, widget.instituicaoId),
       );
 
   // CRUD CATEGORIAS 
@@ -407,7 +407,7 @@ class _AdminCategoriasTabState extends ConsumerState<AdminCategoriasTab> {
   Future<void> _onExcluirCategoria(String docId, String nome) async {
     final ds = ref.read(adminDataSourceProvider);
     final assuntosSnap = await ds.streamAssuntos(widget.instituicaoId).first;
-    final tiposSnap = await ds.streamTiposSimulado(docId).first;
+    final tiposSnap = await ds.streamTiposSimulado(docId, widget.instituicaoId).first;
 
     final assuntosVinculados = assuntosSnap.docs
         .where((d) => (d.data() as Map<String, dynamic>)['categoriaId'] == docId)

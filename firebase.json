@@ -18,6 +18,20 @@
     "rules": "firestore.rules",
     "indexes": "firestore.indexes.json"
   },
+  "hosting": {
+    "public": "build/web",
+    "ignore": [
+      "firebase.json",
+      "**/.*",
+      "**/node_modules/**"
+    ],
+    "rewrites": [
+      {
+        "source": "**",
+        "destination": "/index.html"
+      }
+    ]
+  },
   "flutter": {
     "platforms": {
       "android": {
@@ -30,6 +44,7 @@
       "dart": {
         "lib/firebase_options.dart": {
           "projectId": "rumo-quiz",
+
           "configurations": {
             "android": "1:354277290620:android:2be2be767e75f581d44ff9",
             "web": "1:354277290620:web:8158e92a4ccdfac6d44ff9"

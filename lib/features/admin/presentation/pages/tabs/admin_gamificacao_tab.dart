@@ -84,22 +84,17 @@ class _AdminGamificacaoTabState extends ConsumerState<AdminGamificacaoTab> {
   Future<void> _carregarTodosParaLabels() async {
     try {
       final ds = ref.read(adminDataSourceProvider);
-      final results = await Future.wait([
-        ds.streamTiposSimulado('').first,
-        ds.streamAssuntos(widget.instituicaoId).first,
-      ]);
-      // tipos_simulado filtrado por instituição não existe no datasource diretamente;
-      // usar stream de categorias para obter todos via query separada
+      final assuntosSnap = await ds.streamAssuntos(widget.instituicaoId).first;
       final tiposSnap = await ds.streamCategorias(widget.instituicaoId).first;
       final List<QueryDocumentSnapshot> todosTipos = [];
       for (final cat in tiposSnap.docs) {
-        final tipos = await ds.streamTiposSimulado(cat.id).first;
+        final tipos = await ds.streamTiposSimulado(cat.id, widget.instituicaoId).first;
         todosTipos.addAll(tipos.docs);
       }
       if (mounted) {
         setState(() {
           _todosTiposSimulado = todosTipos;
-          _todosAssuntos = results[1].docs;
+          _todosAssuntos = assuntosSnap.docs;
         });
       }
     } catch (_) {}
@@ -117,7 +112,7 @@ class _AdminGamificacaoTabState extends ConsumerState<AdminGamificacaoTab> {
     try {
       final snap = await ref
           .read(adminDataSourceProvider)
-          .streamTiposSimulado(categoriaId)
+          .streamTiposSimulado(categoriaId, widget.instituicaoId)
           .first;
       if (mounted) setState(() => _tiposSimulado = snap.docs);
     } catch (e) {
@@ -184,7 +179,7 @@ class _AdminGamificacaoTabState extends ConsumerState<AdminGamificacaoTab> {
     setState(() => _carregandoTipos = true);
     try {
       final ds = ref.read(adminDataSourceProvider);
-      final snapTipos = await ds.streamTiposSimulado(categoriaId).first;
+      final snapTipos = await ds.streamTiposSimulado(categoriaId, widget.instituicaoId).first;
 
       List<QueryDocumentSnapshot> assuntosDocs = [];
       if ((dados['modo'] as String?) == 'assunto') {

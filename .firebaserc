@@ -1,5 +1,15 @@
 {
   "projects": {
     "default": "rumo-quiz"
-  }
+  },
+  "targets": {
+    "rumo-quiz": {
+      "hosting": {
+        "rumo-quiz": [
+          "rumo-quiz"
+        ]
+      }
+    }
+  },
+  "etags": {}
 }

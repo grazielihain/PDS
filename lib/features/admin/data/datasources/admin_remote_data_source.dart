@@ -139,10 +139,12 @@ class AdminRemoteDataSource {
 
   // TIPOS DE SIMULADO 
 
-  Stream<QuerySnapshot> streamTiposSimulado(String categoriaId) {
+  Stream<QuerySnapshot> streamTiposSimulado(
+      String categoriaId, String instituicaoId) {
     return _db
         .collection('tipos_simulado')
         .where('categoriaId', isEqualTo: categoriaId)
+        .where('instituicaoId', isEqualTo: instituicaoId)
         .snapshots();
   }
 
